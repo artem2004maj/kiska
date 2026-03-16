@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class LoginController extends Controller
@@ -26,30 +27,26 @@ class LoginController extends Controller
         $credentials = $request->only('email', 'password');
         $remember    = $request->boolean('remember');
 
-        // === КЛИЕНТ ===
+        // Клиент
         if (Auth::guard('client')->attempt($credentials, $remember)) {
-            Auth::guard('client')->login(Auth::guard('client')->user(), $remember);
             $request->session()->regenerate();
             return redirect()->route('dashboard.client');
         }
 
-        // === СОТРУДНИК ===
+        // Сотрудник
         if (Auth::guard('employee')->attempt($credentials, $remember)) {
-            $user = Auth::guard('employee')->user();
-
-            // Главное исправление для Laravel 12
-            Auth::login($user, $remember);                    // глобальный логин
-            $request->session()->put('auth.guard', 'employee'); // сохраняем тип пользователя
             $request->session()->regenerate();
-
-            $redirectTo = match ($user->role) {
+            
+            $user = Auth::guard('employee')->user();
+            
+            $redirectTo = match (strtolower(trim($user->role))) {
                 'admin'      => route('dashboard.admin'),
                 'doctor'     => route('dashboard.doctor'),
                 'director'   => route('dashboard.director'),
                 'accountant' => route('dashboard.accountant'),
                 default      => route('dashboard.admin'),
             };
-
+            
             return redirect($redirectTo);
         }
 
@@ -57,7 +54,6 @@ class LoginController extends Controller
             'email' => 'Неверный email или пароль.',
         ])->onlyInput('email');
     }
-
     public function destroy(Request $request)
     {
         Auth::guard('client')->logout();
