@@ -50,11 +50,21 @@ Route::middleware('guest')->group(function () {
 });
 
 // ====================== КЛИЕНТЫ ======================
+// В секцию клиентов добавьте:
 Route::middleware('auth:client')->group(function () {
-    Route::get('/dashboard/client', fn() => Inertia::render('Dashboard/Client'))
+    Route::get('/dashboard/client', [App\Http\Controllers\Client\DashboardController::class, 'index'])
         ->name('dashboard.client');
     
-    // Другие маршруты для клиентов
+    // API маршруты для клиента
+    Route::prefix('api/client')->group(function () {
+        Route::put('/appointments/{id}/cancel', function($id) {
+            // Логика отмены
+        });
+        
+        Route::put('/profile', function(Request $request) {
+            // Логика обновления профиля
+        });
+    });
 });
 
 // ====================== СОТРУДНИКИ ======================
