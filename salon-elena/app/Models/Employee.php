@@ -9,19 +9,16 @@ class Employee extends Authenticatable
 {
     use Notifiable;
 
-    protected $table = 'employees'; // если таблица называется employees
-
+    protected $table = 'employees';
     protected $primaryKey = 'employee_id';
-
     public $incrementing = true;
-
     protected $keyType = 'int';
 
     protected $fillable = [
         'employee_name',
         'role',
         'employee_phone',
-        'email',        // ← было employee_email, стало email
+        'email',
         'login',
         'passwd',
     ];
@@ -35,46 +32,78 @@ class Employee extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    // Для аутентификации используем email
+    /**
+     * Get the name of the unique identifier for the user.
+     */
     public function getAuthIdentifierName()
     {
-        return 'email';  // ← меняем с login на email
+        return 'employee_id'; // Важно: возвращаем имя первичного ключа
     }
 
+    /**
+     * Get the unique identifier for the user.
+     */
+    public function getAuthIdentifier()
+    {
+        return $this->employee_id; // Важно: возвращаем значение первичного ключа
+    }
+
+    /**
+     * Get the password for the user.
+     */
     public function getAuthPassword()
     {
         return $this->passwd;
     }
 
-    public function getAuthIdentifier()
+    /**
+     * Get the remember token for the user.
+     */
+    public function getRememberToken()
     {
-        return $this->getKey(); // возвращает ID (число)
+        return $this->remember_token;
     }
 
-    // Mutator для email (приводим к нижнему регистру)
+    /**
+     * Set the remember token for the user.
+     */
+    public function setRememberToken($value)
+    {
+        $this->remember_token = $value;
+    }
+
+    /**
+     * Get the column name for the remember token.
+     */
+    public function getRememberTokenName()
+    {
+        return 'remember_token';
+    }
+
+    // Mutator для email
     public function setEmailAttribute($value)
     {
         $this->attributes['email'] = strtolower($value);
     }
 
-    // Связи (оставь как есть)
+    // Связи - указываем внешние ключи явно
     public function clientContracts()
     {
-        return $this->hasMany(ClientContract::class);
+        return $this->hasMany(ClientContract::class, 'employee_id', 'employee_id');
     }
 
     public function appointments()
     {
-        return $this->hasMany(Appointment::class);
+        return $this->hasMany(Appointment::class, 'employee_id', 'employee_id');
     }
 
     public function medicalRecords()
     {
-        return $this->hasMany(MedicalRecord::class);
+        return $this->hasMany(MedicalRecord::class, 'employee_id', 'employee_id');
     }
 
     public function providedServices()
     {
-        return $this->hasMany(ProvidedService::class);
+        return $this->hasMany(ProvidedService::class, 'employee_id', 'employee_id');
     }
 }

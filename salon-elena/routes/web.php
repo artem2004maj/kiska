@@ -68,7 +68,7 @@ Route::middleware('auth:client')->group(function () {
 });
 
 // ====================== СОТРУДНИКИ ======================
-Route::middleware('auth')->group(function () {
+Route::middleware('auth:employee')->group(function () {
     Route::get('/dashboard/admin', fn() => Inertia::render('Dashboard/Admin'))
         ->name('dashboard.admin');
 
@@ -80,8 +80,29 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard/accountant', fn() => Inertia::render('Dashboard/Accountant'))
         ->name('dashboard.accountant');
+});
+
+Route::get('/debug-employee', function() {
+    $employee = \App\Models\Employee::where('email', 'doctor@example.com')->first();
     
-    // Другие маршруты для сотрудников
+    return response()->json([
+        'employee_found' => $employee ? true : false,
+        'employee_data' => $employee ? [
+            'employee_id' => $employee->employee_id,
+            'email' => $employee->email,
+            'role' => $employee->role,
+            'login' => $employee->login,
+        ] : null,
+        'auth_check' => [
+            'client' => Auth::guard('client')->check(),
+            'employee' => Auth::guard('employee')->check(),
+            'web' => Auth::guard('web')->check(),
+        ],
+        'session' => [
+            'id' => session()->getId(),
+            'all' => session()->all(),
+        ],
+    ]);
 });
 
 // Выход (доступен всем аутентифицированным)
