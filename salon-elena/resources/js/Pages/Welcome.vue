@@ -195,7 +195,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Наши врачи - адаптировано -->
+        <!-- Наши врачи - адаптировано с фото -->
         <section id="doctors" class="py-12 sm:py-16 lg:py-20 bg-gray-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -206,9 +206,14 @@ const servicesByCategory = computed(() => {
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                     <div v-for="doctor in doctors" :key="doctor.employee_id" 
-                         class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-                        <div class="h-48 sm:h-56 lg:h-64 bg-gradient-to-br from-[#14b8a6]/20 to-[#0d9488]/20 flex items-center justify-center">
-                            <svg class="w-16 sm:w-20 lg:w-24 h-16 sm:h-20 lg:h-24 text-[#14b8a6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
+                        <div class="h-48 sm:h-56 lg:h-64 bg-gradient-to-br from-[#14b8a6]/20 to-[#0d9488]/20 flex items-center justify-center overflow-hidden">
+                            <!-- Фото врача или заглушка -->
+                            <img v-if="doctor.photo_url" 
+                                :src="doctor.photo_url" 
+                                :alt="doctor.employee_name"
+                                class="w-full h-full object-cover">
+                            <svg v-else class="w-16 sm:w-20 lg:w-24 h-16 sm:h-20 lg:h-24 text-[#14b8a6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </div>
@@ -216,13 +221,13 @@ const servicesByCategory = computed(() => {
                             <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-1">{{ doctor.employee_name }}</h3>
                             <p class="text-sm text-[#14b8a6] font-medium mb-2 sm:mb-3">{{ doctor.role }}</p>
                             <div class="flex items-center text-gray-600 text-xs sm:text-sm">
-                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span>Пн-Пт 10:00 - 20:00</span>
                             </div>
                             <div class="flex items-center text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">
-                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span>Сб 11:00 - 18:00</span>

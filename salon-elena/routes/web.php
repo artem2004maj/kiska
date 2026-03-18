@@ -125,6 +125,9 @@ Route::middleware('auth:employee')->group(function () {
         Route::get('/patients/search', [DoctorDashboardController::class, 'searchPatients']);
         Route::get('/materials/available', [DoctorDashboardController::class, 'getAvailableMaterials']);
         Route::put('/profile', [DoctorDashboardController::class, 'updateProfile']);
+        // API для фото:
+        Route::post('/upload-photo', [DoctorDashboardController::class, 'uploadPhoto']);
+        Route::delete('/delete-photo', [DoctorDashboardController::class, 'deletePhoto']);
     });
     
     // Директор

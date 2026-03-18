@@ -7,7 +7,7 @@
         <div class="relative flex min-h-screen flex-col">
             <div class="relative w-full px-3 sm:px-4 lg:px-6 mx-auto max-w-7xl">
                 <div class="flex flex-col lg:flex-row gap-3 lg:gap-6 py-3 lg:py-6">
-                    <!-- Мобильная шапка (НОВОЕ) -->
+                    <!-- Мобильная шапка -->
                     <div class="lg:hidden flex items-center justify-between mb-2 bg-white p-3 rounded-lg shadow-sm">
                         <button @click="mobileMenuOpen = true" class="p-2 rounded-lg hover:bg-gray-100">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,8 +18,16 @@
                         <div class="flex items-center gap-2">
                             <span class="font-medium text-sm">{{ doctor?.employee_name?.split(' ')[0] || 'Врач' }}</span>
                             <div class="relative" ref="mobileProfileMenu">
-                                <button @click="mobileProfileMenuOpen = !mobileProfileMenuOpen" class="w-8 h-8 rounded-full bg-[#2A7F6E]/10 flex items-center justify-center">
-                                    <span class="text-xs font-medium text-[#2A7F6E]">{{ getInitials(doctor?.employee_name) }}</span>
+                                <button @click="mobileProfileMenuOpen = !mobileProfileMenuOpen" 
+                                        class="w-8 h-8 rounded-full bg-[#2A7F6E]/10 flex items-center justify-center overflow-hidden">
+                                    <!-- Фото профиля или инициалы -->
+                                    <img v-if="doctor?.photo_url" 
+                                         :src="doctor.photo_url" 
+                                         :alt="doctor.employee_name"
+                                         class="w-full h-full object-cover">
+                                    <span v-else class="text-xs font-medium text-[#2A7F6E]">
+                                        {{ getInitials(doctor?.employee_name) }}
+                                    </span>
                                 </button>
                                 
                                 <div v-if="mobileProfileMenuOpen" class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-xl py-1 z-50 text-sm">
@@ -33,7 +41,7 @@
                         </div>
                     </div>
 
-                    <!-- Сайдбар (десктопный) - без изменений -->
+                    <!-- Сайдбар (десктопный) -->
                     <aside class="hidden lg:block lg:w-56 xl:w-64 shrink-0">
                         <div class="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow sticky top-10">
                             <div class="mb-6 flex justify-center">
@@ -79,7 +87,7 @@
                         </div>
                     </aside>
 
-                    <!-- Мобильное боковое меню (НОВОЕ) -->
+                    <!-- Мобильное боковое меню -->
                     <Transition name="slide">
                         <div v-if="mobileMenuOpen" class="lg:hidden fixed inset-0 z-40" @click="mobileMenuOpen = false">
                             <div class="absolute inset-0 bg-black bg-opacity-50" @click="mobileMenuOpen = false"></div>
@@ -120,7 +128,7 @@
 
                     <!-- Основной контент -->
                     <main class="flex-1 min-w-0">
-                        <!-- Десктопная шапка - адаптирована -->
+                        <!-- Десктопная шапка - с фото -->
                         <header class="hidden lg:flex items-center justify-between mb-4">
                             <h1 class="text-xl lg:text-2xl xl:text-3xl font-semibold truncate">
                                 Здравствуйте, {{ doctor?.employee_name?.split(' ')[0] }}!
@@ -129,8 +137,15 @@
                             <div class="relative" ref="profileMenu">
                                 <button @click="showMenu = !showMenu" class="flex items-center gap-2 text-sm">
                                     <span class="hidden xl:inline">{{ doctor?.employee_name }}</span>
-                                    <div class="w-8 h-8 rounded-full bg-[#2A7F6E]/10 flex items-center justify-center">
-                                        <span class="text-xs font-medium text-[#2A7F6E]">{{ getInitials(doctor?.employee_name) }}</span>
+                                    <div class="w-8 h-8 rounded-full bg-[#2A7F6E]/10 flex items-center justify-center overflow-hidden">
+                                        <!-- Фото профиля или инициалы -->
+                                        <img v-if="doctor?.photo_url" 
+                                             :src="doctor.photo_url" 
+                                             :alt="doctor.employee_name"
+                                             class="w-full h-full object-cover">
+                                        <span v-else class="text-xs font-medium text-[#2A7F6E]">
+                                            {{ getInitials(doctor?.employee_name) }}
+                                        </span>
                                     </div>
                                 </button>
                                 
@@ -144,7 +159,7 @@
                             </div>
                         </header>
 
-                        <!-- Поиск для мобильных (НОВОЕ) -->
+                        <!-- Поиск для мобильных -->
                         <div class="lg:hidden mb-3">
                             <input type="text" v-model="searchQuery" @keyup.enter="searchPatients"
                                    placeholder="Поиск пациента..." 
@@ -172,7 +187,7 @@ const profileMenu = ref(null);
 const mobileProfileMenu = ref(null);
 const mobileMenuOpen = ref(false);
 const mobileProfileMenuOpen = ref(false);
-const searchQuery = ref(''); // Для мобильного поиска
+const searchQuery = ref('');
 
 const isActive = (path) => {
     return usePage().url === path ? 'bg-[#2A7F6E] text-white' : 'text-gray-700 hover:bg-[#2A7F6E]/10';

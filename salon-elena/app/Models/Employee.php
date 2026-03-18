@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО для работы с фото
 
 class Employee extends Authenticatable
 {
@@ -18,6 +19,7 @@ class Employee extends Authenticatable
         'employee_name',
         'role',
         'employee_phone',
+        'photo', // ДОБАВЛЕНО
         'email',
         'login',
         'passwd',
@@ -37,7 +39,7 @@ class Employee extends Authenticatable
      */
     public function getAuthIdentifierName()
     {
-        return 'employee_id'; // Важно: возвращаем имя первичного ключа
+        return 'employee_id';
     }
 
     /**
@@ -45,7 +47,7 @@ class Employee extends Authenticatable
      */
     public function getAuthIdentifier()
     {
-        return $this->employee_id; // Важно: возвращаем значение первичного ключа
+        return $this->employee_id;
     }
 
     /**
@@ -86,7 +88,37 @@ class Employee extends Authenticatable
         $this->attributes['email'] = strtolower($value);
     }
 
-    // Связи - указываем внешние ключи явно
+    // ========== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ФОТО ==========
+    
+    /**
+     * Аксессор для получения полного URL фото
+     */
+    public function getPhotoUrlAttribute()
+    {
+        return $this->photo ? Storage::url($this->photo) : null;
+    }
+
+    /**
+     * Проверка наличия фото
+     */
+    public function hasPhoto()
+    {
+        return !is_null($this->photo);
+    }
+
+    /**
+     * Удаление фото
+     */
+    public function deletePhoto()
+    {
+        if ($this->photo) {
+            Storage::disk('public')->delete($this->photo);
+            $this->photo = null;
+            $this->save();
+        }
+    }
+
+    // Связи
     public function clientContracts()
     {
         return $this->hasMany(ClientContract::class, 'employee_id', 'employee_id');

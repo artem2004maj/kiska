@@ -8,15 +8,24 @@ use App\Models\Service;
 use App\Models\Feedback;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО
 
 class WelcomeController extends Controller
 {
     public function index()
     {
-        // Получаем врачей (сотрудников с ролью doctor)
+        // Получаем врачей (сотрудников с ролью doctor) с фото
         $doctors = Employee::where('role', 'doctor')
-            ->select('employee_id', 'employee_name', 'role')
-            ->get();
+            ->select('employee_id', 'employee_name', 'role', 'photo') // ДОБАВЛЕНО photo
+            ->get()
+            ->map(function ($doctor) {
+                return [
+                    'employee_id' => $doctor->employee_id,
+                    'employee_name' => $doctor->employee_name,
+                    'role' => $doctor->role,
+                    'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                ];
+            });
         
         // Получаем услуги
         $services = Service::where('is_active', 1)
@@ -24,16 +33,15 @@ class WelcomeController extends Controller
             ->orderBy('service_category')
             ->get();
         
-        // Получаем последние отзывы - ИСПРАВЛЕННЫЙ ЗАПРОС
+        // Получаем последние отзывы
         $testimonials = Feedback::with('client')
             ->whereHas('appointment', function($q) {
-                $q->where('status', 2); // Только завершенные приемы
+                $q->where('status', 2);
             })
             ->latest()
             ->take(5)
             ->get()
             ->map(function($feedback) {
-                // Получаем название услуги через appointment -> providedServices -> service
                 $serviceName = null;
                 if ($feedback->appointment && $feedback->appointment->providedServices) {
                     $firstService = $feedback->appointment->providedServices->first();

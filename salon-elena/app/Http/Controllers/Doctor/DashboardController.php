@@ -14,6 +14,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО
 
 class DashboardController extends Controller
 {
@@ -70,6 +71,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
+                'photo' => $doctor->photo, // ДОБАВЛЕНО
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
                 'role' => $doctor->role,
             ],
             'appointments' => $appointments,
@@ -116,6 +119,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
+                'photo' => $doctor->photo, // ДОБАВЛЕНО
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
                 'role' => $doctor->role,
             ],
             'patients' => $patients,
@@ -143,6 +148,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
+                'photo' => $doctor->photo, // ДОБАВЛЕНО
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
                 'role' => $doctor->role,
             ],
             'services' => $services,
@@ -152,7 +159,7 @@ class DashboardController extends Controller
     }
     
     /**
-     * Страница "Профиль"
+     * Страница "Профиль" - обновлена для отображения фото
      */
     public function profile()
     {
@@ -164,6 +171,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
+                'photo' => $doctor->photo, // ДОБАВЛЕНО
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
                 'role' => $doctor->role,
             ],
             'laravelVersion' => app()->version(),
@@ -197,6 +206,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
+                'photo' => $doctor->photo, // ДОБАВЛЕНО
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
                 'role' => $doctor->role,
             ],
             'patient' => $patient,
@@ -207,7 +218,59 @@ class DashboardController extends Controller
         ]);
     }
     
-    // API методы (оставляем как есть)
+    // ====================== НОВЫЕ МЕТОДЫ ДЛЯ ФОТО ======================
+    
+    /**
+     * Загрузка фото профиля
+     */
+    public function uploadPhoto(Request $request)
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // максимум 2MB
+        ]);
+        
+        // Удаляем старое фото, если есть
+        if ($doctor->photo) {
+            Storage::disk('public')->delete($doctor->photo);
+        }
+        
+        // Сохраняем новое фото
+        $path = $request->file('photo')->store('doctors', 'public');
+        
+        // Обновляем запись в БД
+        $doctor->photo = $path;
+        $doctor->save();
+        
+        return response()->json([
+            'success' => true,
+            'photo_url' => Storage::url($path),
+            'message' => 'Фото успешно загружено'
+        ]);
+    }
+    
+    /**
+     * Удаление фото
+     */
+    public function deletePhoto()
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        if ($doctor->photo) {
+            Storage::disk('public')->delete($doctor->photo);
+            $doctor->photo = null;
+            $doctor->save();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Фото удалено'
+        ]);
+    }
+    
+    // ====================== ОСТАЛЬНЫЕ API МЕТОДЫ ======================
+    
     public function getAppointments(Request $request)
     {
         $doctor = Auth::guard('employee')->user();
