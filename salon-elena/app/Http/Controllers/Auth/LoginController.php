@@ -12,8 +12,19 @@ class LoginController extends Controller
 {
     public function create()
     {
+        // Если уже авторизован, редиректим на соответствующий дашборд
+        if (Auth::guard('client')->check()) {
+            return redirect()->route('dashboard.client');
+        }
+        
+        if (Auth::guard('employee')->check()) {
+            $user = Auth::guard('employee')->user();
+            return redirect($this->getRedirectRouteByRole($user->role));
+        }
+        
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
+            'canReset' => false,
         ]);
     }
 
@@ -27,38 +38,76 @@ class LoginController extends Controller
         $credentials = $request->only('email', 'password');
         $remember    = $request->boolean('remember');
 
-        // Клиент
+        // Пытаемся авторизовать как клиента
         if (Auth::guard('client')->attempt($credentials, $remember)) {
             $request->session()->regenerate();
-            return redirect()->route('dashboard.client');
+            
+            // Логируем успешный вход клиента
+            Log::info('Client logged in', ['email' => $credentials['email']]);
+            
+            return redirect()->intended(route('dashboard.client'));
         }
 
-        // Сотрудник
+        // Пытаемся авторизовать как сотрудника
         if (Auth::guard('employee')->attempt($credentials, $remember)) {
             $request->session()->regenerate();
             
             $user = Auth::guard('employee')->user();
             
-            $redirectTo = match (strtolower(trim($user->role))) {
-                'admin'      => route('dashboard.admin'),
-                'doctor'     => route('dashboard.doctor'),
-                'director'   => route('dashboard.director'),
-                'accountant' => route('dashboard.accountant'),
-                default      => route('dashboard.admin'),
-            };
+            // Логируем успешный вход сотрудника
+            Log::info('Employee logged in', [
+                'email' => $credentials['email'],
+                'role' => $user->role
+            ]);
             
-            return redirect($redirectTo);
+            // Используем intended для редиректа на запрашиваемую страницу
+            // или на дашборд по роли
+            return redirect()->intended($this->getRedirectRouteByRole($user->role));
         }
 
+        // Если не удалось авторизоваться
+        Log::warning('Failed login attempt', ['email' => $credentials['email']]);
+        
         return back()->withErrors([
             'email' => 'Неверный email или пароль.',
         ])->onlyInput('email');
     }
+    
+    /**
+     * Получить маршрут для редиректа на основе роли сотрудника
+     */
+    protected function getRedirectRouteByRole($role)
+    {
+        // Приводим к нижнему регистру и убираем пробелы
+        $role = strtolower(trim($role));
+        
+        return match ($role) {
+            'admin'      => route('dashboard.admin'),
+            'doctor'     => route('dashboard.doctor'),
+            'director'   => route('dashboard.director'),
+            'accountant' => route('dashboard.accountant'),
+            default      => route('dashboard.admin'), // По умолчанию админка
+        };
+    }
+    
     public function destroy(Request $request)
     {
+        // Логируем выход
+        if (Auth::guard('client')->check()) {
+            Log::info('Client logged out', ['email' => Auth::guard('client')->user()->email]);
+        }
+        if (Auth::guard('employee')->check()) {
+            Log::info('Employee logged out', [
+                'email' => Auth::guard('employee')->user()->email,
+                'role' => Auth::guard('employee')->user()->role
+            ]);
+        }
+        
+        // Выход из всех guards
         Auth::guard('client')->logout();
         Auth::guard('employee')->logout();
-
+        
+        // Очищаем сессию
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

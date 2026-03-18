@@ -1,4 +1,5 @@
 <?php
+// app/Models/Appointment.php
 
 namespace App\Models;
 
@@ -7,9 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Appointment extends Model
 {
     protected $table = 'appointments';
-    protected $primaryKey = 'appointment_id'; // Добавить эту строку
-    public $incrementing = true; // Если поле автоинкрементное
-    protected $keyType = 'int'; // Тип ключа
+    protected $primaryKey = 'appointment_id';
 
     protected $fillable = [
         'date',
@@ -18,28 +17,43 @@ class Appointment extends Model
         'client_id',
     ];
 
+    protected $casts = [
+        'date' => 'datetime',
+    ];
+
     public function employee()
     {
-        return $this->belongsTo(Employee::class, 'employee_id', 'employee_id');
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 
     public function client()
     {
-        return $this->belongsTo(Client::class, 'client_id', 'client_id');
-    }
-
-    public function feedback()
-    {
-        return $this->hasOne(Feedback::class, 'appointment_id', 'appointment_id');
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function providedServices()
     {
-        return $this->hasMany(ProvidedService::class, 'appointment_id', 'appointment_id');
+        return $this->hasMany(ProvidedService::class, 'appointment_id');
     }
 
-    public function invoices()
+    public function materials()
     {
-        return $this->hasMany(Invoice::class, 'appointment_id', 'appointment_id');
+        return $this->belongsToMany(
+            Material::class,
+            'appointment_materials',
+            'appointment_id',
+            'material_id'
+        )->withPivot('quantity_used', 'cost_price', 'notes')
+         ->withTimestamps();
+    }
+
+    public function feedback()
+    {
+        return $this->hasOne(Feedback::class, 'appointment_id');
+    }
+
+    public function medicalRecord()
+    {
+        return $this->hasOne(MedicalRecord::class, 'appointment_id');
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\Doctor\DashboardController as DoctorDashboardController;
 
 // Главная страница
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -45,7 +46,6 @@ Route::middleware('guest')->group(function () {
 });
 
 // ====================== КЛИЕНТЫ ======================
-// В секцию клиентов добавьте:
 Route::middleware('auth:client')->group(function () {
     Route::get('/dashboard/client', [App\Http\Controllers\Client\DashboardController::class, 'index'])
         ->name('dashboard.client');
@@ -64,15 +64,37 @@ Route::middleware('auth:client')->group(function () {
 
 // ====================== СОТРУДНИКИ ======================
 Route::middleware('auth:employee')->group(function () {
+    // Админ
     Route::get('/dashboard/admin', fn() => Inertia::render('Dashboard/Admin'))
         ->name('dashboard.admin');
-
-    Route::get('/dashboard/doctor', fn() => Inertia::render('Dashboard/Doctor'))
+    
+    // Доктор - использует контроллер
+    Route::get('/dashboard/doctor', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])
         ->name('dashboard.doctor');
-
+    
+    // API маршруты для доктора
+    Route::prefix('api/doctor')->name('doctor.api.')->group(function () {
+        Route::get('/appointments', [App\Http\Controllers\Doctor\DashboardController::class, 'getAppointments']);
+        Route::get('/appointments/{id}', [App\Http\Controllers\Doctor\DashboardController::class, 'getAppointment']);
+        Route::put('/appointments/{id}/status', [App\Http\Controllers\Doctor\DashboardController::class, 'updateStatus']);
+        
+        // Сохраняем старый маршрут для обратной совместимости
+        Route::post('/appointments/{id}/materials', [App\Http\Controllers\Doctor\DashboardController::class, 'addMaterial']);
+        
+        // НОВЫЙ МАРШРУТ для сохранения нескольких материалов сразу
+        Route::post('/appointments/{id}/materials/save', [App\Http\Controllers\Doctor\DashboardController::class, 'saveAppointmentMaterials']);
+        
+        Route::post('/appointments/{id}/complete', [App\Http\Controllers\Doctor\DashboardController::class, 'completeAppointment']);
+        Route::get('/patients/search', [App\Http\Controllers\Doctor\DashboardController::class, 'searchPatients']);
+        Route::get('/materials/available', [App\Http\Controllers\Doctor\DashboardController::class, 'getAvailableMaterials']);
+        Route::put('/profile', [App\Http\Controllers\Doctor\DashboardController::class, 'updateProfile']);
+    });
+    
+    // Директор
     Route::get('/dashboard/director', fn() => Inertia::render('Dashboard/Director'))
         ->name('dashboard.director');
-
+    
+    // Бухгалтер
     Route::get('/dashboard/accountant', fn() => Inertia::render('Dashboard/Accountant'))
         ->name('dashboard.accountant');
 });
