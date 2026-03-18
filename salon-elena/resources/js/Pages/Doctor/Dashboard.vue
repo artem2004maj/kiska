@@ -1,58 +1,58 @@
 <!-- resources/js/Pages/Doctor/Dashboard.vue -->
 <template>
     <DoctorLayout :doctor="doctorData">
-        <!-- Статистика -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+        <!-- Статистика - добавлены адаптивные классы -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Приемов сегодня</p>
-                        <p class="text-2xl font-semibold text-black dark:text-white">{{ stats.todayAppointments || 0 }}</p>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Приемов сегодня</p>
+                        <p class="text-base sm:text-lg lg:text-2xl font-semibold text-black dark:text-white">{{ stats.todayAppointments || 0 }}</p>
                     </div>
-                    <div class="p-3 bg-blue-100 rounded-full">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-2 sm:p-3 bg-blue-100 rounded-full">
+                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Завершено сегодня</p>
-                        <p class="text-2xl font-semibold text-green-600">{{ stats.completedToday || 0 }}</p>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Завершено сегодня</p>
+                        <p class="text-base sm:text-lg lg:text-2xl font-semibold text-green-600">{{ stats.completedToday || 0 }}</p>
                     </div>
-                    <div class="p-3 bg-green-100 rounded-full">
-                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-2 sm:p-3 bg-green-100 rounded-full">
+                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Всего пациентов</p>
-                        <p class="text-2xl font-semibold text-[#2A7F6E]">{{ stats.totalPatients || 0 }}</p>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Всего пациентов</p>
+                        <p class="text-base sm:text-lg lg:text-2xl font-semibold text-[#2A7F6E]">{{ stats.totalPatients || 0 }}</p>
                     </div>
-                    <div class="p-3 bg-[#2A7F6E]/10 rounded-full">
-                        <svg class="w-6 h-6 text-[#2A7F6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-2 sm:p-3 bg-[#2A7F6E]/10 rounded-full">
+                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-[#2A7F6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Ожидают подтверждения</p>
-                        <p class="text-2xl font-semibold text-yellow-600">{{ stats.pendingAppointments || 0 }}</p>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Ожидают подтверждения</p>
+                        <p class="text-base sm:text-lg lg:text-2xl font-semibold text-yellow-600">{{ stats.pendingAppointments || 0 }}</p>
                     </div>
-                    <div class="p-3 bg-yellow-100 rounded-full">
-                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-2 sm:p-3 bg-yellow-100 rounded-full">
+                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
@@ -60,32 +60,32 @@
             </div>
         </div>
 
-        <!-- Календарь -->
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800 mb-6">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-semibold text-black dark:text-white">График приемов</h2>
-                <div class="flex items-center gap-4">
-                    <div class="flex gap-2">
+        <!-- Календарь - добавлен overflow-x-auto для мобильных -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800 mb-4 sm:mb-6 overflow-x-auto">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+                <h2 class="text-lg sm:text-2xl font-semibold text-black dark:text-white">График приемов</h2>
+                <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+                    <div class="flex gap-1 sm:gap-2">
                         <button @click="changeView('day')" 
-                                class="px-3 py-1 text-sm border rounded-md transition"
+                                class="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded-md transition whitespace-nowrap"
                                 :class="calendarView === 'day' ? 'bg-[#2A7F6E] text-white border-[#2A7F6E]' : 'border-gray-300 hover:bg-gray-100'">
                             День
                         </button>
                         <button @click="changeView('week')" 
-                                class="px-3 py-1 text-sm border rounded-md transition"
+                                class="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded-md transition whitespace-nowrap"
                                 :class="calendarView === 'week' ? 'bg-[#2A7F6E] text-white border-[#2A7F6E]' : 'border-gray-300 hover:bg-gray-100'">
                             Неделя
                         </button>
                     </div>
                     <div class="flex gap-1">
-                        <button @click="prevPeriod" class="p-2 hover:bg-gray-100 rounded-full">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button @click="prevPeriod" class="p-1 sm:p-2 hover:bg-gray-100 rounded-full">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
-                        <span class="px-4 py-2 font-medium">{{ currentPeriodLabel }}</span>
-                        <button @click="nextPeriod" class="p-2 hover:bg-gray-100 rounded-full">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <span class="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium whitespace-nowrap">{{ currentPeriodLabel }}</span>
+                        <button @click="nextPeriod" class="p-1 sm:p-2 hover:bg-gray-100 rounded-full">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
@@ -93,30 +93,30 @@
                 </div>
             </div>
             
-            <!-- Календарная сетка -->
-            <div class="border rounded-lg overflow-hidden">
+            <!-- Календарная сетка (без изменений, но теперь с прокруткой) -->
+            <div class="min-w-[600px] lg:min-w-0">
                 <!-- Заголовки дней -->
                 <div v-if="calendarView === 'week'" class="grid grid-cols-8 border-b">
-                    <div class="p-3 bg-gray-50 font-medium text-center border-r">Время</div>
+                    <div class="p-2 sm:p-3 bg-gray-50 font-medium text-center border-r text-xs sm:text-sm">Время</div>
                     <div v-for="day in weekDays" :key="day.date" 
-                         class="p-3 bg-gray-50 font-medium text-center border-r last:border-r-0">
+                         class="p-2 sm:p-3 bg-gray-50 font-medium text-center border-r last:border-r-0 text-xs sm:text-sm">
                         <div>{{ day.name }}</div>
-                        <div class="text-sm text-gray-500">{{ day.date }}</div>
+                        <div class="text-xs text-gray-500">{{ day.date }}</div>
                     </div>
                 </div>
                 
                 <!-- Временные слоты -->
                 <div v-if="calendarView === 'week'" class="divide-y">
                     <div v-for="hour in workHours" :key="hour" class="grid grid-cols-8">
-                        <div class="p-3 text-sm text-gray-500 border-r">{{ hour }}:00</div>
+                        <div class="p-2 sm:p-3 text-xs sm:text-sm text-gray-500 border-r">{{ hour }}:00</div>
                         <div v-for="day in weekDays" :key="day.date" 
-                             class="p-1 border-r last:border-r-0 min-h-[80px]">
+                             class="p-1 border-r last:border-r-0 min-h-[60px] sm:min-h-[80px]">
                             <div v-for="apt in getAppointmentsAtTime(day.date, hour)" :key="apt.appointment_id"
                                  @click="openAppointmentModal(apt)"
-                                 class="p-2 mb-1 rounded text-sm cursor-pointer transition hover:shadow-md"
+                                 class="p-1 sm:p-2 mb-1 rounded text-xs sm:text-sm cursor-pointer transition hover:shadow-md"
                                  :class="getAppointmentClass(apt.status)">
                                 <div class="font-medium truncate">{{ apt.client?.client_name }}</div>
-                                <div class="text-xs truncate">{{ apt.provided_services?.[0]?.service?.service_name }}</div>
+                                <div class="text-xs truncate hidden sm:block">{{ apt.provided_services?.[0]?.service?.service_name }}</div>
                             </div>
                         </div>
                     </div>
@@ -126,14 +126,13 @@
                 <div v-if="calendarView === 'day'" class="divide-y">
                     <div v-for="hour in workHours" :key="hour" class="grid grid-cols-1">
                         <div class="flex border-b">
-                            <div class="w-24 p-3 text-sm text-gray-500 border-r">{{ hour }}:00</div>
-                            <div class="flex-1 p-1 min-h-[80px]">
+                            <div class="w-16 sm:w-24 p-2 sm:p-3 text-xs sm:text-sm text-gray-500 border-r">{{ hour }}:00</div>
+                            <div class="flex-1 p-1 min-h-[60px] sm:min-h-[80px]">
                                 <div v-for="apt in getAppointmentsAtTime(selectedDate, hour)" :key="apt.appointment_id"
                                      @click="openAppointmentModal(apt)"
-                                     class="p-2 mb-1 rounded text-sm cursor-pointer transition hover:shadow-md"
+                                     class="p-1 sm:p-2 mb-1 rounded text-xs sm:text-sm cursor-pointer transition hover:shadow-md"
                                      :class="getAppointmentClass(apt.status)">
                                     <div class="font-medium">{{ apt.client?.client_name }}</div>
-                                    <div class="text-xs">{{ apt.provided_services?.[0]?.service?.service_name }}</div>
                                     <div class="text-xs text-gray-500">{{ formatTime(apt.date) }}</div>
                                 </div>
                             </div>
@@ -142,77 +141,77 @@
                 </div>
             </div>
             
-            <!-- Легенда -->
-            <div class="flex gap-4 mt-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-blue-200 border border-blue-400 rounded"></div>
-                    <span class="text-sm">Запланировано</span>
+            <!-- Легенда - адаптивная -->
+            <div class="flex flex-wrap gap-2 sm:gap-4 mt-3 sm:mt-4 text-xs sm:text-sm">
+                <div class="flex items-center gap-1 sm:gap-2">
+                    <div class="w-3 h-3 sm:w-4 sm:h-4 bg-blue-200 border border-blue-400 rounded"></div>
+                    <span>Запланировано</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
-                    <span class="text-sm">Подтверждено</span>
+                <div class="flex items-center gap-1 sm:gap-2">
+                    <div class="w-3 h-3 sm:w-4 sm:h-4 bg-green-200 border border-green-400 rounded"></div>
+                    <span>Подтверждено</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded"></div>
-                    <span class="text-sm">Окно</span>
+                <div class="flex items-center gap-1 sm:gap-2">
+                    <div class="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-200 border border-yellow-400 rounded"></div>
+                    <span>Окно</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-gray-200 border border-gray-400 rounded"></div>
-                    <span class="text-sm">Завершено</span>
+                <div class="flex items-center gap-1 sm:gap-2">
+                    <div class="w-3 h-3 sm:w-4 sm:h-4 bg-gray-200 border border-gray-400 rounded"></div>
+                    <span>Завершено</span>
                 </div>
             </div>
         </div>
 
-        <!-- Низкий запас материалов -->
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
-            <h2 class="text-2xl font-semibold text-black dark:text-white mb-4">Низкий запас материалов</h2>
-            <div class="space-y-3">
+        <!-- Низкий запас материалов - адаптивный -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-3 sm:p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+            <h2 class="text-lg sm:text-2xl font-semibold text-black dark:text-white mb-3 sm:mb-4">Низкий запас материалов</h2>
+            <div class="space-y-2 sm:space-y-3">
                 <div v-for="material in lowStockMaterials" :key="material.material_id" 
-                     class="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                     class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 rounded-lg gap-2">
                     <div>
-                        <p class="font-medium text-black dark:text-white">{{ material.name }}</p>
-                        <p class="text-sm text-gray-500">Осталось: {{ material.current_balance }} {{ material.unit }}</p>
+                        <p class="font-medium text-sm sm:text-base text-black dark:text-white">{{ material.name }}</p>
+                        <p class="text-xs sm:text-sm text-gray-500">Осталось: {{ material.current_balance }} {{ material.unit }}</p>
                     </div>
-                    <span class="px-3 py-1 bg-red-500 text-white rounded-full text-xs">Мин: {{ material.min_stock }}</span>
+                    <span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-red-500 text-white rounded-full text-xs whitespace-nowrap">Мин: {{ material.min_stock }}</span>
                 </div>
-                <div v-if="lowStockMaterials.length === 0" class="text-center py-4 text-gray-500">
+                <div v-if="lowStockMaterials.length === 0" class="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-500">
                     Все материалы в достаточном количестве
                 </div>
             </div>
         </div>
 
-        <!-- Модальное окно приема -->
+        <!-- Модальное окно приема - адаптировано для мобильных -->
         <Teleport to="body">
             <div v-if="showAppointmentModal" class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="flex items-center justify-center min-h-screen p-2 sm:px-4">
                     <div class="fixed inset-0 bg-black bg-opacity-50" @click="showAppointmentModal = false"></div>
                     
                     <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
-                            <h3 class="text-xl font-semibold">Детали приема</h3>
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3 sm:py-4 border-b flex justify-between items-center">
+                            <h3 class="text-base sm:text-xl font-semibold">Детали приема</h3>
                             <button @click="showAppointmentModal = false" class="text-gray-500 hover:text-gray-700">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
                         
-                        <div v-if="selectedAppointment" class="p-6 space-y-6">
+                        <div v-if="selectedAppointment" class="p-4 sm:p-6 space-y-4 sm:space-y-6">
                             <!-- Информация о клиенте -->
-                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-16 h-16 bg-[#2A7F6E]/20 rounded-full flex items-center justify-center">
-                                        <span class="text-2xl font-medium text-[#2A7F6E]">
+                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 sm:p-4">
+                                <div class="flex items-center gap-3 sm:gap-4">
+                                    <div class="w-10 h-10 sm:w-16 sm:h-16 bg-[#2A7F6E]/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span class="text-base sm:text-2xl font-medium text-[#2A7F6E]">
                                             {{ getPatientInitials(selectedAppointment.client) }}
                                         </span>
                                     </div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-lg">{{ selectedAppointment.client?.client_name }}</h4>
-                                        <p class="text-sm text-gray-500">📞 {{ selectedAppointment.client?.phone }}</p>
-                                        <p class="text-sm text-gray-500">📅 {{ formatDate(selectedAppointment.date) }}</p>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-semibold text-sm sm:text-lg truncate">{{ selectedAppointment.client?.client_name }}</h4>
+                                        <p class="text-xs sm:text-sm text-gray-500">📞 {{ selectedAppointment.client?.phone }}</p>
+                                        <p class="text-xs sm:text-sm text-gray-500">📅 {{ formatDate(selectedAppointment.date) }}</p>
                                     </div>
                                     <button @click="viewMedicalRecord(selectedAppointment.client?.client_id)" 
-                                            class="px-4 py-2 border border-[#2A7F6E] text-[#2A7F6E] rounded-md hover:bg-[#2A7F6E]/10">
+                                            class="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm border border-[#2A7F6E] text-[#2A7F6E] rounded-md hover:bg-[#2A7F6E]/10 whitespace-nowrap">
                                         Медкарта
                                     </button>
                                 </div>
@@ -220,15 +219,15 @@
 
                             <!-- Услуги -->
                             <div>
-                                <h5 class="font-medium mb-2">Услуги:</h5>
+                                <h5 class="text-sm sm:text-base font-medium mb-2">Услуги:</h5>
                                 <div class="space-y-2">
                                     <div v-for="service in selectedAppointment.provided_services" :key="service.provided_id"
-                                         class="p-3 border rounded-lg">
+                                         class="p-2 sm:p-3 border rounded-lg">
                                         <div class="flex justify-between">
-                                            <span class="font-medium">{{ service.service?.service_name }}</span>
-                                            <span class="text-[#2A7F6E]">{{ service.quantity }} шт</span>
+                                            <span class="text-sm sm:text-base font-medium">{{ service.service?.service_name }}</span>
+                                            <span class="text-xs sm:text-sm text-[#2A7F6E]">{{ service.quantity }} шт</span>
                                         </div>
-                                        <p v-if="service.notes" class="text-sm text-gray-500 mt-1">{{ service.notes }}</p>
+                                        <p v-if="service.notes" class="text-xs sm:text-sm text-gray-500 mt-1">{{ service.notes }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -236,19 +235,19 @@
                             <!-- Расход материалов -->
                             <div>
                                 <div class="flex items-center justify-between mb-2">
-                                    <h5 class="font-medium">Расход материалов:</h5>
-                                    <span class="text-sm text-gray-500">Всего: {{ totalMaterialsQuantity }} ед.</span>
+                                    <h5 class="text-sm sm:text-base font-medium">Расход материалов:</h5>
+                                    <span class="text-xs sm:text-sm text-gray-500">Всего: {{ totalMaterialsQuantity }} ед.</span>
                                 </div>
                                 
                                 <!-- Список добавленных материалов -->
                                 <div class="space-y-2 mb-3">
                                     <div v-for="(material, index) in selectedMaterials" :key="index"
                                          class="flex items-center justify-between p-2 border rounded-lg">
-                                        <div class="flex-1">
-                                            <span class="font-medium">{{ getMaterialName(material.material_id) }}</span>
-                                            <span class="ml-2 text-sm text-gray-600">{{ material.quantity }} {{ getMaterialUnit(material.material_id) }}</span>
+                                        <div class="flex-1 min-w-0">
+                                            <span class="text-sm sm:text-base font-medium">{{ getMaterialName(material.material_id) }}</span>
+                                            <span class="ml-2 text-xs sm:text-sm text-gray-600">{{ material.quantity }} {{ getMaterialUnit(material.material_id) }}</span>
                                         </div>
-                                        <button @click="removeMaterial(index)" class="text-red-500 hover:text-red-700">
+                                        <button @click="removeMaterial(index)" class="ml-2 text-red-500 flex-shrink-0">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                             </svg>
@@ -258,20 +257,20 @@
                                 
                                 <!-- Ранее сохраненные материалы -->
                                 <div v-if="selectedAppointment.materials?.length" class="mt-2">
-                                    <p class="text-sm text-gray-500 mb-1">Ранее сохраненные:</p>
+                                    <p class="text-xs sm:text-sm text-gray-500 mb-1">Ранее сохраненные:</p>
                                     <div v-for="material in selectedAppointment.materials" :key="material.consumption_id"
                                          class="flex items-center justify-between p-2 bg-gray-50 rounded-lg mb-1">
-                                        <span>{{ material.material?.name }}</span>
-                                        <span class="font-medium">{{ material.quantity }} {{ material.material?.unit }}</span>
+                                        <span class="text-sm">{{ material.material?.name }}</span>
+                                        <span class="text-sm font-medium">{{ material.quantity }} {{ material.material?.unit }}</span>
                                     </div>
                                 </div>
                                 
                                 <!-- Добавление новых материалов -->
-                                <div class="mt-4 p-4 border border-dashed rounded-lg">
-                                    <h6 class="text-sm font-medium mb-3">Добавить материал</h6>
-                                    <div class="space-y-3">
+                                <div class="mt-3 sm:mt-4 p-3 sm:p-4 border border-dashed rounded-lg">
+                                    <h6 class="text-xs sm:text-sm font-medium mb-2 sm:mb-3">Добавить материал</h6>
+                                    <div class="space-y-2 sm:space-y-3">
                                         <select v-model="newMaterial.material_id" 
-                                                class="w-full px-3 py-2 border rounded-md">
+                                                class="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
                                             <option value="">Выберите материал</option>
                                             <option v-for="mat in availableMaterials" :key="mat.material_id" :value="mat.material_id">
                                                 {{ mat.name }} (доступно: {{ mat.current_balance }} {{ mat.unit }})
@@ -280,11 +279,11 @@
                                         <div class="flex gap-2">
                                             <input type="number" v-model="newMaterial.quantity" min="1" 
                                                    placeholder="Количество"
-                                                   class="flex-1 px-3 py-2 border rounded-md">
+                                                   class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
                                             <button @click="addToMaterialsList" 
-                                                    class="px-4 py-2 bg-[#2A7F6E] text-white rounded-md hover:bg-[#2A7F6E]/90"
+                                                    class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#2A7F6E] text-white text-sm rounded-md hover:bg-[#2A7F6E]/90"
                                                     :disabled="!canAddMaterial">
-                                                Добавить в список
+                                                Добавить
                                             </button>
                                         </div>
                                     </div>
@@ -292,9 +291,9 @@
                             </div>
 
                             <!-- Статус приема и действия -->
-                            <div class="flex items-center justify-between pt-4 border-t">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
                                 <select v-model="selectedAppointment.status" @change="updateAppointmentStatus"
-                                        class="px-3 py-2 border rounded-md">
+                                        class="px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
                                     <option value="0">Запланирован</option>
                                     <option value="1">Подтвержден</option>
                                     <option value="2">Завершен</option>
@@ -303,13 +302,13 @@
                                 
                                 <div class="flex gap-2">
                                     <button @click="saveAllMaterials" 
-                                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                            class="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
                                             :disabled="selectedMaterials.length === 0">
-                                        Сохранить материалы
+                                        Сохранить
                                     </button>
                                     <button @click="completeAppointmentWithMaterials" 
-                                            class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                                        Завершить прием
+                                            class="flex-1 sm:flex-none px-4 sm:px-6 py-1.5 sm:py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">
+                                        Завершить
                                     </button>
                                 </div>
                             </div>
@@ -390,7 +389,7 @@ const weekDays = computed(() => {
 });
 
 // Рабочие часы
-const workHours = Array.from({ length: 11 }, (_, i) => i + 9); // 9:00 - 20:00
+const workHours = Array.from({ length: 11 }, (_, i) => i + 9);
 
 // Текущий период
 const currentPeriodLabel = computed(() => {
@@ -508,7 +507,6 @@ const loadAppointments = async () => {
         });
         appointments.value = response.data;
         
-        // Обновляем статистику
         const today = new Date().toISOString().split('T')[0];
         stats.value.todayAppointments = response.data.filter(apt => 
             apt.date.split('T')[0] === today
@@ -524,7 +522,6 @@ const loadAppointments = async () => {
     }
 };
 
-// Открытие модального окна с очисткой списка материалов
 const openAppointmentModal = async (appointment) => {
     try {
         const response = await axios.get(`/api/doctor/appointments/${appointment.appointment_id}`);
@@ -533,7 +530,6 @@ const openAppointmentModal = async (appointment) => {
         const materialsResponse = await axios.get('/api/doctor/materials/available');
         availableMaterials.value = materialsResponse.data;
         
-        // Сбрасываем список выбранных материалов
         selectedMaterials.value = [];
         newMaterial.value = { material_id: '', quantity: 1 };
         
@@ -554,7 +550,6 @@ const updateAppointmentStatus = async () => {
     }
 };
 
-// Вспомогательные методы для материалов
 const getMaterialName = (materialId) => {
     const material = availableMaterials.value.find(m => m.material_id === materialId);
     return material?.name || 'Неизвестный материал';
@@ -565,7 +560,6 @@ const getMaterialUnit = (materialId) => {
     return material?.unit || 'шт';
 };
 
-// Добавление материала в список (не в БД)
 const addToMaterialsList = () => {
     if (!canAddMaterial.value) return;
     
@@ -574,10 +568,8 @@ const addToMaterialsList = () => {
     );
     
     if (existingIndex >= 0) {
-        // Если материал уже есть, увеличиваем количество
         selectedMaterials.value[existingIndex].quantity += newMaterial.value.quantity;
     } else {
-        // Иначе добавляем новый
         selectedMaterials.value.push({
             material_id: newMaterial.value.material_id,
             quantity: newMaterial.value.quantity,
@@ -585,16 +577,13 @@ const addToMaterialsList = () => {
         });
     }
     
-    // Сбрасываем форму
     newMaterial.value = { material_id: '', quantity: 1 };
 };
 
-// Удаление материала из списка
 const removeMaterial = (index) => {
     selectedMaterials.value.splice(index, 1);
 };
 
-// Сохранение всех материалов одним запросом
 const saveAllMaterials = async () => {
     if (selectedMaterials.value.length === 0) return;
     
@@ -603,11 +592,9 @@ const saveAllMaterials = async () => {
             materials: selectedMaterials.value
         });
         
-        // Обновляем данные приема
         const response = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
         selectedAppointment.value = response.data;
         
-        // Очищаем список
         selectedMaterials.value = [];
         
         alert('Материалы успешно сохранены');
@@ -617,15 +604,12 @@ const saveAllMaterials = async () => {
     }
 };
 
-// Завершение приема с сохранением материалов
 const completeAppointmentWithMaterials = async () => {
     try {
-        // Сначала сохраняем материалы, если они есть
         if (selectedMaterials.value.length > 0) {
             await saveAllMaterials();
         }
         
-        // Затем завершаем прием
         await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/complete`);
         
         showAppointmentModal.value = false;
@@ -635,7 +619,6 @@ const completeAppointmentWithMaterials = async () => {
     }
 };
 
-// Сохраняем старый метод для обратной совместимости
 const addMaterial = async () => {
     if (!newMaterial.value.material_id || !newMaterial.value.quantity) return;
     
@@ -668,6 +651,9 @@ const viewMedicalRecord = (clientId) => {
     router.get(`/doctor/medical-records/${clientId}`);
     showAppointmentModal.value = false;
 };
+
+// Закрытие меню (оставлено для совместимости)
+const handleClickOutside = () => {};
 
 onMounted(() => {
     loadAppointments();
