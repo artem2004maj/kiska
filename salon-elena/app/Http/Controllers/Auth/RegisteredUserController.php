@@ -15,17 +15,11 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Показ формы регистрации (клиента)
-     */
     public function create(): Response
     {
         return Inertia::render('Auth/Register');
     }
 
-    /**
-     * Создание клиента + автоматический вход
-     */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
@@ -40,15 +34,15 @@ class RegisteredUserController extends Controller
             'email'       => $request->email,
             'login'       => $request->login,
             'passwd'      => Hash::make($request->password),
-            'phone'       => 0,                    // можно потом добавить поле
-            'birth_date'  => now()->subYears(25), // заглушка
-            'created_at'  => now(),
+            'phone'       => 0,
+            'birth_date'  => now()->subYears(25),
         ]);
 
         event(new Registered($client));
 
         Auth::guard('client')->login($client);
 
+        // ИСПРАВЛЕНО: используем правильное имя маршрута
         return redirect()->route('dashboard.client');
     }
 }

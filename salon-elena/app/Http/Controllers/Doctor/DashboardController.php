@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Client;
 use App\Models\Material;
 use App\Models\Service;
+use App\Models\MedicalRecord;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -16,22 +17,22 @@ use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
+    /**
+     * Главная страница с графиком
+     */
     public function index()
     {
         $doctor = Auth::guard('employee')->user();
         
-        // Проверяем, что пользователь действительно доктор
         if ($doctor->role !== 'doctor') {
             abort(403, 'Доступ запрещен');
         }
         
-        // Получаем все приемы врача
         $appointments = Appointment::with(['client', 'providedServices.service', 'materials'])
             ->where('employee_id', $doctor->employee_id)
             ->orderBy('date', 'desc')
             ->get();
         
-        // Получаем уникальных пациентов врача
         $patients = Client::whereIn('client_id', function($query) use ($doctor) {
                 $query->select('client_id')
                     ->from('appointments')
@@ -54,18 +55,16 @@ class DashboardController extends Controller
                 ];
             });
         
-        // Получаем услуги
         $services = Service::where('is_active', 1)
             ->with(['materials' => function($query) {
                 $query->withPivot('quantity');
             }])
             ->get();
         
-        // Получаем материалы с низким запасом
         $materials = Material::where('current_balance', '<=', DB::raw('min_stock'))
             ->get();
         
-        return Inertia::render('Dashboard/Doctor', [
+        return Inertia::render('Doctor/Dashboard', [
             'doctor' => [
                 'employee_id' => $doctor->employee_id,
                 'employee_name' => $doctor->employee_name,
@@ -82,7 +81,133 @@ class DashboardController extends Controller
         ]);
     }
     
-    // API методы
+    /**
+     * Страница "Мои пациенты"
+     */
+    public function patients()
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $patients = Client::whereIn('client_id', function($query) use ($doctor) {
+                $query->select('client_id')
+                    ->from('appointments')
+                    ->where('employee_id', $doctor->employee_id)
+                    ->distinct();
+            })
+            ->get()
+            ->map(function ($patient) {
+                $lastAppointment = Appointment::where('client_id', $patient->client_id)
+                    ->where('status', 2)
+                    ->latest('date')
+                    ->first();
+                
+                return [
+                    'client_id' => $patient->client_id,
+                    'client_name' => $patient->client_name,
+                    'phone' => $patient->phone,
+                    'birth_date' => $patient->birth_date,
+                    'last_visit' => $lastAppointment ? $lastAppointment->date : null,
+                ];
+            });
+        
+        return Inertia::render('Doctor/Patients', [
+            'doctor' => [
+                'employee_id' => $doctor->employee_id,
+                'employee_name' => $doctor->employee_name,
+                'email' => $doctor->email,
+                'employee_phone' => $doctor->employee_phone,
+                'role' => $doctor->role,
+            ],
+            'patients' => $patients,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "Мои услуги"
+     */
+    public function services()
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $services = Service::where('is_active', 1)
+            ->with(['materials' => function($query) {
+                $query->withPivot('quantity');
+            }])
+            ->get();
+        
+        return Inertia::render('Doctor/Services', [
+            'doctor' => [
+                'employee_id' => $doctor->employee_id,
+                'employee_name' => $doctor->employee_name,
+                'email' => $doctor->email,
+                'employee_phone' => $doctor->employee_phone,
+                'role' => $doctor->role,
+            ],
+            'services' => $services,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "Профиль"
+     */
+    public function profile()
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        return Inertia::render('Doctor/Profile', [
+            'doctor' => [
+                'employee_id' => $doctor->employee_id,
+                'employee_name' => $doctor->employee_name,
+                'email' => $doctor->email,
+                'employee_phone' => $doctor->employee_phone,
+                'role' => $doctor->role,
+            ],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница медицинской карты пациента
+     */
+    public function medicalRecord($clientId)
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $patient = Client::findOrFail($clientId);
+        
+        $records = MedicalRecord::with('employee')
+            ->where('client_id', $clientId)
+            ->orderBy('visit_date', 'desc')
+            ->get();
+        
+        $appointments = Appointment::with(['providedServices.service'])
+            ->where('client_id', $clientId)
+            ->where('employee_id', $doctor->employee_id)
+            ->orderBy('date', 'desc')
+            ->get();
+        
+        return Inertia::render('Doctor/MedicalRecord', [
+            'doctor' => [
+                'employee_id' => $doctor->employee_id,
+                'employee_name' => $doctor->employee_name,
+                'email' => $doctor->email,
+                'employee_phone' => $doctor->employee_phone,
+                'role' => $doctor->role,
+            ],
+            'patient' => $patient,
+            'records' => $records,
+            'appointments' => $appointments,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    // API методы (оставляем как есть)
     public function getAppointments(Request $request)
     {
         $doctor = Auth::guard('employee')->user();
@@ -120,9 +245,6 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
     
-    /**
-     * Сохранить использованные материалы для приема
-     */
     public function saveAppointmentMaterials(Request $request, $id)
     {
         $request->validate([
@@ -140,25 +262,21 @@ class DashboardController extends Controller
             foreach ($request->materials as $materialData) {
                 $material = Material::find($materialData['material_id']);
                 
-                // Проверяем наличие на складе
                 if ($material->current_balance < $materialData['quantity_used']) {
                     throw new \Exception("Недостаточно {$material->name} на складе. Доступно: {$material->current_balance} {$material->unit}");
                 }
 
-                // Уменьшаем остаток на складе
                 $material->current_balance -= $materialData['quantity_used'];
                 $material->save();
 
-                // Сохраняем в appointment_materials
                 $appointment->materials()->attach($materialData['material_id'], [
                     'quantity_used' => $materialData['quantity_used'],
-                    'cost_price' => 0, // Можно добавить логику расчета цены
+                    'cost_price' => 0,
                     'notes' => $materialData['notes'] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                // Также записываем в consumption для совместимости со старой структурой
                 DB::table('consumption')->insert([
                     'batch_number' => 'APT-' . $id . '-' . time(),
                     'quantity' => $materialData['quantity_used'],
@@ -179,7 +297,6 @@ class DashboardController extends Controller
         }
     }
     
-    // Сохраняем старый метод addMaterial для обратной совместимости
     public function addMaterial(Request $request, $id)
     {
         $request->validate([
@@ -194,11 +311,9 @@ class DashboardController extends Controller
                 throw new \Exception('Недостаточно материалов');
             }
             
-            // Уменьшаем остаток
             $material->current_balance -= $request->quantity;
             $material->save();
             
-            // Записываем расход в appointment_materials
             $appointment = Appointment::find($id);
             $appointment->materials()->attach($request->material_id, [
                 'quantity_used' => $request->quantity,
@@ -208,7 +323,6 @@ class DashboardController extends Controller
                 'updated_at' => now(),
             ]);
             
-            // Записываем расход в consumption
             DB::table('consumption')->insert([
                 'batch_number' => 'AUTO-' . time(),
                 'quantity' => $request->quantity,
@@ -262,7 +376,6 @@ class DashboardController extends Controller
             'employee_phone' => 'nullable|string|max:20',
         ]);
         
-        // Используем DB::table для обновления, чтобы избежать проблем с fillable
         DB::table('employees')
             ->where('employee_id', $doctor->employee_id)
             ->update([

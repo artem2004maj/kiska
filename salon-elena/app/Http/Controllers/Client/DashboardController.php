@@ -9,38 +9,453 @@ use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\MedicalRecord;
 use App\Models\Feedback;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    /**
+     * Главная страница с уведомлениями
+     */
     public function index()
     {
         $client = Auth::guard('client')->user();
         
+        // Получаем все записи клиента для статистики
         $appointments = Appointment::with(['employee', 'providedServices.service'])
             ->where('client_id', $client->client_id)
             ->orderBy('date', 'desc')
             ->get();
         
-        $services = Service::where('is_active', 1)->get();
+        // Ближайшая запись
+        $nextAppointment = Appointment::with(['employee', 'providedServices.service'])
+            ->where('client_id', $client->client_id)
+            ->where('date', '>=', now())
+            ->whereIn('status', [0, 1]) // Запланирован или подтвержден
+            ->orderBy('date', 'asc')
+            ->first();
         
-        $medicalRecords = MedicalRecord::with('employee')
+        // Уведомления
+        $notifications = [];
+        
+        // Напоминание о ближайшей записи
+        if ($nextAppointment) {
+            $daysUntil = Carbon::parse($nextAppointment->date)->diffInDays(now());
+            if ($daysUntil <= 1) {
+                $notifications[] = [
+                    'id' => 1,
+                    'type' => 'reminder',
+                    'message' => "Напоминание: завтра запись к {$nextAppointment->employee->employee_name} в " . Carbon::parse($nextAppointment->date)->format('H:i'),
+                    'created_at' => now(),
+                ];
+            }
+        }
+        
+        // Напоминание об отзыве
+        $completedWithoutFeedback = Appointment::with(['providedServices.service'])
+            ->where('client_id', $client->client_id)
+            ->where('status', 2) // Завершен
+            ->whereDoesntHave('feedback')
+            ->latest('date')
+            ->first();
+        
+        if ($completedWithoutFeedback) {
+            $notifications[] = [
+                'id' => 2,
+                'type' => 'feedback',
+                'message' => "Спасибо за визит! Оставьте отзыв о услуге {$completedWithoutFeedback->providedServices->first()?->service->service_name}",
+                'appointment_id' => $completedWithoutFeedback->appointment_id,
+                'created_at' => now(),
+            ];
+        }
+        
+        // Акции (можно потом вынести в отдельную таблицу)
+        $promotions = [
+            [
+                'id' => 1,
+                'title' => 'Скидка 20% на комплексный уход',
+                'description' => 'При записи на 3 процедуры',
+                'image' => null,
+            ],
+            [
+                'id' => 2,
+                'title' => 'Новинка! PRP-терапия',
+                'description' => 'Первое посещение со скидкой 15%',
+                'image' => null,
+            ],
+        ];
+        
+        // Популярные услуги
+        $popularServices = Service::where('is_active', 1)
+            ->inRandomOrder()
+            ->limit(3)
+            ->get();
+        
+        return Inertia::render('Client/Dashboard', [
+            'client' => $client,
+            'appointments' => $appointments,
+            'nextAppointment' => $nextAppointment,
+            'notifications' => $notifications,
+            'promotions' => $promotions,
+            'popularServices' => $popularServices,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница услуг (запись)
+     */
+    public function services()
+    {
+        $client = Auth::guard('client')->user();
+        
+        $services = Service::where('is_active', 1)
+            ->orderBy('service_category')
+            ->orderBy('service_name')
+            ->get()
+            ->groupBy('service_category');
+        
+        $doctors = Employee::where('role', 'doctor')
+            ->select('employee_id', 'employee_name', 'role')
+            ->get();
+        
+        return Inertia::render('Client/Services', [
+            'client' => $client,
+            'services' => $services,
+            'doctors' => $doctors,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "Мои записи" (активные)
+     */
+    public function appointments()
+    {
+        $client = Auth::guard('client')->user();
+        
+        $appointments = Appointment::with(['employee', 'providedServices.service', 'feedback'])
+            ->where('client_id', $client->client_id)
+            ->whereIn('status', [0, 1]) // Только активные записи
+            ->orderBy('date', 'asc')
+            ->get();
+        
+        return Inertia::render('Client/Appointments', [
+            'client' => $client,
+            'appointments' => $appointments,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "История посещений" (завершенные и отмененные)
+     */
+    public function history()
+    {
+        $client = Auth::guard('client')->user();
+        
+        $history = Appointment::with(['employee', 'providedServices.service', 'feedback'])
+            ->where('client_id', $client->client_id)
+            ->whereIn('status', [2, 3]) // Завершенные и отмененные
+            ->orderBy('date', 'desc')
+            ->get();
+        
+        return Inertia::render('Client/History', [
+            'client' => $client,
+            'history' => $history,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "Медицинская карта"
+     */
+    public function medicalRecords()
+    {
+        $client = Auth::guard('client')->user();
+        
+        $records = MedicalRecord::with('employee')
             ->where('client_id', $client->client_id)
             ->orderBy('visit_date', 'desc')
             ->get();
         
+        return Inertia::render('Client/MedicalRecords', [
+            'client' => $client,
+            'records' => $records,
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Страница "Профиль"
+     */
+    public function profile()
+    {
+        $client = Auth::guard('client')->user();
+        
+        // Получаем статистику для профиля
+        $appointments = Appointment::where('client_id', $client->client_id)->get();
         $feedback = Feedback::where('client_id', $client->client_id)->get();
         
-        return Inertia::render('Dashboard/Client', [
+        return Inertia::render('Client/Profile', [
             'client' => $client,
             'appointments' => $appointments,
-            'services' => $services,
-            'medicalRecords' => $medicalRecords,
             'feedback' => $feedback,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    // ====================== API МЕТОДЫ ======================
+    
+    /**
+     * Получить доступные слоты для записи
+     */
+    public function getAvailableSlots(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date',
+            'doctor_id' => 'nullable|exists:employees,employee_id',
+        ]);
+        
+        $date = Carbon::parse($request->date);
+        $doctorId = $request->doctor_id;
+        
+        // Рабочие часы (можно вынести в настройки)
+        $workHours = range(9, 20); // 9:00 - 20:00
+        
+        // Получаем занятые слоты
+        $query = Appointment::whereDate('date', $date)
+            ->whereIn('status', [0, 1]); // Только активные записи
+        
+        if ($doctorId) {
+            $query->where('employee_id', $doctorId);
+        }
+        
+        $busySlots = $query->get()
+            ->map(function($appointment) {
+                return Carbon::parse($appointment->date)->format('H:i');
+            })
+            ->toArray();
+        
+        // Формируем доступные слоты
+        $availableSlots = [];
+        foreach ($workHours as $hour) {
+            $time = sprintf('%02d:00', $hour);
+            if (!in_array($time, $busySlots)) {
+                $availableSlots[] = $time;
+            }
+        }
+        
+        return response()->json([
+            'date' => $date->format('Y-m-d'),
+            'available_slots' => $availableSlots,
+        ]);
+    }
+    
+    /**
+     * Создать новую запись
+     */
+    public function createAppointment(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $request->validate([
+            'service_id' => 'required|exists:services,service_id',
+            'doctor_id' => 'required|exists:employees,employee_id',
+            'date' => 'required|date|after:now',
+            'time' => 'required|string',
+        ]);
+        
+        $dateTime = Carbon::parse($request->date . ' ' . $request->time);
+        
+        // Проверяем, не занято ли время
+        $exists = Appointment::where('employee_id', $request->doctor_id)
+            ->whereDate('date', $dateTime->toDateString())
+            ->whereTime('date', $dateTime->toTimeString())
+            ->whereIn('status', [0, 1])
+            ->exists();
+        
+        if ($exists) {
+            return response()->json(['error' => 'Это время уже занято'], 422);
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Создаем запись
+            $appointment = Appointment::create([
+                'date' => $dateTime,
+                'status' => 0, // Запланирован
+                'employee_id' => $request->doctor_id,
+                'client_id' => $client->client_id,
+            ]);
+            
+            // Добавляем услугу в provided_services
+            DB::table('provided_services')->insert([
+                'quantity' => 1,
+                'service_date' => $dateTime->toDateString(),
+                'notes' => '',
+                'appointment_id' => $appointment->appointment_id,
+                'service_id' => $request->service_id,
+                'employee_id' => $request->doctor_id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Запись успешно создана',
+                'appointment_id' => $appointment->appointment_id,
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Ошибка при создании записи: ' . $e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * Отменить запись
+     */
+    public function cancelAppointment(Request $request, $id)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $appointment = Appointment::where('appointment_id', $id)
+            ->where('client_id', $client->client_id)
+            ->firstOrFail();
+        
+        if (!in_array($appointment->status, [0, 1])) {
+            return response()->json(['error' => 'Нельзя отменить эту запись'], 422);
+        }
+        
+        $appointment->status = 3; // Отменен
+        $appointment->save();
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Перенести запись
+     */
+    public function rescheduleAppointment(Request $request, $id)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $request->validate([
+            'date' => 'required|date|after:now',
+            'time' => 'required|string',
+        ]);
+        
+        $appointment = Appointment::where('appointment_id', $id)
+            ->where('client_id', $client->client_id)
+            ->firstOrFail();
+        
+        if (!in_array($appointment->status, [0, 1])) {
+            return response()->json(['error' => 'Нельзя перенести эту запись'], 422);
+        }
+        
+        $dateTime = Carbon::parse($request->date . ' ' . $request->time);
+        
+        // Проверяем, не занято ли время
+        $exists = Appointment::where('employee_id', $appointment->employee_id)
+            ->where('appointment_id', '!=', $id)
+            ->whereDate('date', $dateTime->toDateString())
+            ->whereTime('date', $dateTime->toTimeString())
+            ->whereIn('status', [0, 1])
+            ->exists();
+        
+        if ($exists) {
+            return response()->json(['error' => 'Это время уже занято'], 422);
+        }
+        
+        $appointment->date = $dateTime;
+        $appointment->save();
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Оставить отзыв
+     */
+    public function leaveFeedback(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,appointment_id',
+            'score' => 'required|integer|min:1|max:5',
+            'comment' => 'required|string|max:500',
+        ]);
+        
+        // Проверяем, что запись принадлежит клиенту и завершена
+        $appointment = Appointment::where('appointment_id', $request->appointment_id)
+            ->where('client_id', $client->client_id)
+            ->where('status', 2)
+            ->firstOrFail();
+        
+        // Проверяем, нет ли уже отзыва
+        if (Feedback::where('appointment_id', $request->appointment_id)->exists()) {
+            return response()->json(['error' => 'Отзыв уже оставлен'], 422);
+        }
+        
+        Feedback::create([
+            'score' => $request->score,
+            'comment' => $request->comment,
+            'client_id' => $client->client_id,
+            'appointment_id' => $request->appointment_id,
+        ]);
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Обновить профиль
+     */
+    public function updateProfile(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $request->validate([
+            'client_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:clients,email,' . $client->client_id . ',client_id',
+            'phone' => 'nullable|string|max:20',
+            'birth_date' => 'nullable|date',
+        ]);
+        
+        // Явно присваиваем значения полям
+        $client->client_name = $request->client_name;
+        $client->email = $request->email;
+        
+        // Преобразуем телефон в число (int), так как в БД поле phone имеет тип int
+        if ($request->filled('phone')) {
+            // Удаляем все нецифровые символы
+            $phone = preg_replace('/[^0-9]/', '', $request->phone);
+            $client->phone = (int)$phone;
+        }
+        
+        if ($request->filled('birth_date')) {
+            $client->birth_date = $request->birth_date;
+        }
+        
+        $client->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Профиль успешно обновлен'
         ]);
     }
 }

@@ -1,0 +1,675 @@
+<!-- resources/js/Pages/Doctor/Dashboard.vue -->
+<template>
+    <DoctorLayout :doctor="doctorData">
+        <!-- Статистика -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Приемов сегодня</p>
+                        <p class="text-2xl font-semibold text-black dark:text-white">{{ stats.todayAppointments || 0 }}</p>
+                    </div>
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Завершено сегодня</p>
+                        <p class="text-2xl font-semibold text-green-600">{{ stats.completedToday || 0 }}</p>
+                    </div>
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Всего пациентов</p>
+                        <p class="text-2xl font-semibold text-[#2A7F6E]">{{ stats.totalPatients || 0 }}</p>
+                    </div>
+                    <div class="p-3 bg-[#2A7F6E]/10 rounded-full">
+                        <svg class="w-6 h-6 text-[#2A7F6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Ожидают подтверждения</p>
+                        <p class="text-2xl font-semibold text-yellow-600">{{ stats.pendingAppointments || 0 }}</p>
+                    </div>
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Календарь -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800 mb-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-semibold text-black dark:text-white">График приемов</h2>
+                <div class="flex items-center gap-4">
+                    <div class="flex gap-2">
+                        <button @click="changeView('day')" 
+                                class="px-3 py-1 text-sm border rounded-md transition"
+                                :class="calendarView === 'day' ? 'bg-[#2A7F6E] text-white border-[#2A7F6E]' : 'border-gray-300 hover:bg-gray-100'">
+                            День
+                        </button>
+                        <button @click="changeView('week')" 
+                                class="px-3 py-1 text-sm border rounded-md transition"
+                                :class="calendarView === 'week' ? 'bg-[#2A7F6E] text-white border-[#2A7F6E]' : 'border-gray-300 hover:bg-gray-100'">
+                            Неделя
+                        </button>
+                    </div>
+                    <div class="flex gap-1">
+                        <button @click="prevPeriod" class="p-2 hover:bg-gray-100 rounded-full">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <span class="px-4 py-2 font-medium">{{ currentPeriodLabel }}</span>
+                        <button @click="nextPeriod" class="p-2 hover:bg-gray-100 rounded-full">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Календарная сетка -->
+            <div class="border rounded-lg overflow-hidden">
+                <!-- Заголовки дней -->
+                <div v-if="calendarView === 'week'" class="grid grid-cols-8 border-b">
+                    <div class="p-3 bg-gray-50 font-medium text-center border-r">Время</div>
+                    <div v-for="day in weekDays" :key="day.date" 
+                         class="p-3 bg-gray-50 font-medium text-center border-r last:border-r-0">
+                        <div>{{ day.name }}</div>
+                        <div class="text-sm text-gray-500">{{ day.date }}</div>
+                    </div>
+                </div>
+                
+                <!-- Временные слоты -->
+                <div v-if="calendarView === 'week'" class="divide-y">
+                    <div v-for="hour in workHours" :key="hour" class="grid grid-cols-8">
+                        <div class="p-3 text-sm text-gray-500 border-r">{{ hour }}:00</div>
+                        <div v-for="day in weekDays" :key="day.date" 
+                             class="p-1 border-r last:border-r-0 min-h-[80px]">
+                            <div v-for="apt in getAppointmentsAtTime(day.date, hour)" :key="apt.appointment_id"
+                                 @click="openAppointmentModal(apt)"
+                                 class="p-2 mb-1 rounded text-sm cursor-pointer transition hover:shadow-md"
+                                 :class="getAppointmentClass(apt.status)">
+                                <div class="font-medium truncate">{{ apt.client?.client_name }}</div>
+                                <div class="text-xs truncate">{{ apt.provided_services?.[0]?.service?.service_name }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Дневной вид -->
+                <div v-if="calendarView === 'day'" class="divide-y">
+                    <div v-for="hour in workHours" :key="hour" class="grid grid-cols-1">
+                        <div class="flex border-b">
+                            <div class="w-24 p-3 text-sm text-gray-500 border-r">{{ hour }}:00</div>
+                            <div class="flex-1 p-1 min-h-[80px]">
+                                <div v-for="apt in getAppointmentsAtTime(selectedDate, hour)" :key="apt.appointment_id"
+                                     @click="openAppointmentModal(apt)"
+                                     class="p-2 mb-1 rounded text-sm cursor-pointer transition hover:shadow-md"
+                                     :class="getAppointmentClass(apt.status)">
+                                    <div class="font-medium">{{ apt.client?.client_name }}</div>
+                                    <div class="text-xs">{{ apt.provided_services?.[0]?.service?.service_name }}</div>
+                                    <div class="text-xs text-gray-500">{{ formatTime(apt.date) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Легенда -->
+            <div class="flex gap-4 mt-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-blue-200 border border-blue-400 rounded"></div>
+                    <span class="text-sm">Запланировано</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
+                    <span class="text-sm">Подтверждено</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded"></div>
+                    <span class="text-sm">Окно</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-gray-200 border border-gray-400 rounded"></div>
+                    <span class="text-sm">Завершено</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Низкий запас материалов -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+            <h2 class="text-2xl font-semibold text-black dark:text-white mb-4">Низкий запас материалов</h2>
+            <div class="space-y-3">
+                <div v-for="material in lowStockMaterials" :key="material.material_id" 
+                     class="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <div>
+                        <p class="font-medium text-black dark:text-white">{{ material.name }}</p>
+                        <p class="text-sm text-gray-500">Осталось: {{ material.current_balance }} {{ material.unit }}</p>
+                    </div>
+                    <span class="px-3 py-1 bg-red-500 text-white rounded-full text-xs">Мин: {{ material.min_stock }}</span>
+                </div>
+                <div v-if="lowStockMaterials.length === 0" class="text-center py-4 text-gray-500">
+                    Все материалы в достаточном количестве
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно приема -->
+        <Teleport to="body">
+            <div v-if="showAppointmentModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="showAppointmentModal = false"></div>
+                    
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">Детали приема</h3>
+                            <button @click="showAppointmentModal = false" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div v-if="selectedAppointment" class="p-6 space-y-6">
+                            <!-- Информация о клиенте -->
+                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-16 h-16 bg-[#2A7F6E]/20 rounded-full flex items-center justify-center">
+                                        <span class="text-2xl font-medium text-[#2A7F6E]">
+                                            {{ getPatientInitials(selectedAppointment.client) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-lg">{{ selectedAppointment.client?.client_name }}</h4>
+                                        <p class="text-sm text-gray-500">📞 {{ selectedAppointment.client?.phone }}</p>
+                                        <p class="text-sm text-gray-500">📅 {{ formatDate(selectedAppointment.date) }}</p>
+                                    </div>
+                                    <button @click="viewMedicalRecord(selectedAppointment.client?.client_id)" 
+                                            class="px-4 py-2 border border-[#2A7F6E] text-[#2A7F6E] rounded-md hover:bg-[#2A7F6E]/10">
+                                        Медкарта
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Услуги -->
+                            <div>
+                                <h5 class="font-medium mb-2">Услуги:</h5>
+                                <div class="space-y-2">
+                                    <div v-for="service in selectedAppointment.provided_services" :key="service.provided_id"
+                                         class="p-3 border rounded-lg">
+                                        <div class="flex justify-between">
+                                            <span class="font-medium">{{ service.service?.service_name }}</span>
+                                            <span class="text-[#2A7F6E]">{{ service.quantity }} шт</span>
+                                        </div>
+                                        <p v-if="service.notes" class="text-sm text-gray-500 mt-1">{{ service.notes }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Расход материалов -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <h5 class="font-medium">Расход материалов:</h5>
+                                    <span class="text-sm text-gray-500">Всего: {{ totalMaterialsQuantity }} ед.</span>
+                                </div>
+                                
+                                <!-- Список добавленных материалов -->
+                                <div class="space-y-2 mb-3">
+                                    <div v-for="(material, index) in selectedMaterials" :key="index"
+                                         class="flex items-center justify-between p-2 border rounded-lg">
+                                        <div class="flex-1">
+                                            <span class="font-medium">{{ getMaterialName(material.material_id) }}</span>
+                                            <span class="ml-2 text-sm text-gray-600">{{ material.quantity }} {{ getMaterialUnit(material.material_id) }}</span>
+                                        </div>
+                                        <button @click="removeMaterial(index)" class="text-red-500 hover:text-red-700">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Ранее сохраненные материалы -->
+                                <div v-if="selectedAppointment.materials?.length" class="mt-2">
+                                    <p class="text-sm text-gray-500 mb-1">Ранее сохраненные:</p>
+                                    <div v-for="material in selectedAppointment.materials" :key="material.consumption_id"
+                                         class="flex items-center justify-between p-2 bg-gray-50 rounded-lg mb-1">
+                                        <span>{{ material.material?.name }}</span>
+                                        <span class="font-medium">{{ material.quantity }} {{ material.material?.unit }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Добавление новых материалов -->
+                                <div class="mt-4 p-4 border border-dashed rounded-lg">
+                                    <h6 class="text-sm font-medium mb-3">Добавить материал</h6>
+                                    <div class="space-y-3">
+                                        <select v-model="newMaterial.material_id" 
+                                                class="w-full px-3 py-2 border rounded-md">
+                                            <option value="">Выберите материал</option>
+                                            <option v-for="mat in availableMaterials" :key="mat.material_id" :value="mat.material_id">
+                                                {{ mat.name }} (доступно: {{ mat.current_balance }} {{ mat.unit }})
+                                            </option>
+                                        </select>
+                                        <div class="flex gap-2">
+                                            <input type="number" v-model="newMaterial.quantity" min="1" 
+                                                   placeholder="Количество"
+                                                   class="flex-1 px-3 py-2 border rounded-md">
+                                            <button @click="addToMaterialsList" 
+                                                    class="px-4 py-2 bg-[#2A7F6E] text-white rounded-md hover:bg-[#2A7F6E]/90"
+                                                    :disabled="!canAddMaterial">
+                                                Добавить в список
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Статус приема и действия -->
+                            <div class="flex items-center justify-between pt-4 border-t">
+                                <select v-model="selectedAppointment.status" @change="updateAppointmentStatus"
+                                        class="px-3 py-2 border rounded-md">
+                                    <option value="0">Запланирован</option>
+                                    <option value="1">Подтвержден</option>
+                                    <option value="2">Завершен</option>
+                                    <option value="3">Отменен</option>
+                                </select>
+                                
+                                <div class="flex gap-2">
+                                    <button @click="saveAllMaterials" 
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                            :disabled="selectedMaterials.length === 0">
+                                        Сохранить материалы
+                                    </button>
+                                    <button @click="completeAppointmentWithMaterials" 
+                                            class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                        Завершить прием
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+    </DoctorLayout>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Link, usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import DoctorLayout from '@/Layouts/DoctorLayout.vue';
+
+const props = defineProps({
+    laravelVersion: String,
+    phpVersion: String,
+    doctor: Object,
+    appointments: Array,
+    patients: Array,
+    doctorServices: Array,
+    materials: Array
+});
+
+// Данные врача
+const doctorData = ref(props.doctor || {});
+
+// Поиск
+const searchQuery = ref('');
+const searchResults = ref([]);
+
+// Календарь
+const calendarView = ref('week');
+const selectedDate = ref(new Date().toISOString().split('T')[0]);
+const appointments = ref(props.appointments || []);
+
+// Статистика
+const stats = ref({
+    todayAppointments: 0,
+    completedToday: 0,
+    totalPatients: props.patients?.length || 0,
+    pendingAppointments: 0
+});
+
+// Материалы
+const materials = ref(props.materials || []);
+const lowStockMaterials = computed(() => {
+    return materials.value.filter(m => m.current_balance <= m.min_stock);
+});
+
+// Модальное окно
+const showAppointmentModal = ref(false);
+const selectedAppointment = ref(null);
+const availableMaterials = ref([]);
+
+// Список выбранных материалов для текущего приема
+const selectedMaterials = ref([]);
+const newMaterial = ref({ material_id: '', quantity: 1 });
+
+// Дни недели
+const weekDays = computed(() => {
+    const days = [];
+    const start = new Date(selectedDate.value);
+    start.setDate(start.getDate() - start.getDay() + 1);
+    
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + i);
+        days.push({
+            name: date.toLocaleDateString('ru-RU', { weekday: 'short' }),
+            date: date.toISOString().split('T')[0]
+        });
+    }
+    return days;
+});
+
+// Рабочие часы
+const workHours = Array.from({ length: 11 }, (_, i) => i + 9); // 9:00 - 20:00
+
+// Текущий период
+const currentPeriodLabel = computed(() => {
+    if (calendarView.value === 'day') {
+        return new Date(selectedDate.value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    } else {
+        const start = new Date(weekDays.value[0].date);
+        const end = new Date(weekDays.value[6].date);
+        return `${start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`;
+    }
+});
+
+// Вычисляемые свойства для материалов
+const totalMaterialsQuantity = computed(() => {
+    return selectedMaterials.value.reduce((sum, m) => sum + m.quantity, 0);
+});
+
+const canAddMaterial = computed(() => {
+    return newMaterial.value.material_id && newMaterial.value.quantity > 0;
+});
+
+// Методы
+const searchPatients = async () => {
+    if (!searchQuery.value.trim()) {
+        searchResults.value = [];
+        return;
+    }
+    try {
+        const response = await axios.get('/api/doctor/patients/search', {
+            params: { query: searchQuery.value }
+        });
+        searchResults.value = response.data;
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+};
+
+const goToPatient = (clientId) => {
+    router.get(`/doctor/patients/${clientId}`);
+    searchResults.value = [];
+    searchQuery.value = '';
+};
+
+const viewPatientCard = (clientId) => {
+    router.get(`/doctor/medical-records/${clientId}`);
+};
+
+const getPatientInitials = (client) => {
+    if (!client?.client_name) return '??';
+    return client.client_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
+
+const formatTime = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatDate = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('ru-RU');
+};
+
+const getAppointmentClass = (status) => {
+    switch(Number(status)) {
+        case 0: return 'bg-blue-200 border-blue-400 hover:bg-blue-300';
+        case 1: return 'bg-green-200 border-green-400 hover:bg-green-300';
+        case 2: return 'bg-gray-200 border-gray-400 hover:bg-gray-300';
+        case 3: return 'bg-red-200 border-red-400 hover:bg-red-300';
+        default: return 'bg-gray-200';
+    }
+};
+
+const getAppointmentsAtTime = (date, hour) => {
+    if (!appointments.value) return [];
+    return appointments.value.filter(apt => {
+        const aptDate = new Date(apt.date);
+        return aptDate.toISOString().split('T')[0] === date && aptDate.getHours() === hour;
+    });
+};
+
+const changeView = (view) => {
+    calendarView.value = view;
+    loadAppointments();
+};
+
+const prevPeriod = () => {
+    const date = new Date(selectedDate.value);
+    if (calendarView.value === 'day') {
+        date.setDate(date.getDate() - 1);
+    } else {
+        date.setDate(date.getDate() - 7);
+    }
+    selectedDate.value = date.toISOString().split('T')[0];
+    loadAppointments();
+};
+
+const nextPeriod = () => {
+    const date = new Date(selectedDate.value);
+    if (calendarView.value === 'day') {
+        date.setDate(date.getDate() + 1);
+    } else {
+        date.setDate(date.getDate() + 7);
+    }
+    selectedDate.value = date.toISOString().split('T')[0];
+    loadAppointments();
+};
+
+const loadAppointments = async () => {
+    try {
+        const response = await axios.get('/api/doctor/appointments', {
+            params: { 
+                view: calendarView.value,
+                date: selectedDate.value
+            }
+        });
+        appointments.value = response.data;
+        
+        // Обновляем статистику
+        const today = new Date().toISOString().split('T')[0];
+        stats.value.todayAppointments = response.data.filter(apt => 
+            apt.date.split('T')[0] === today
+        ).length;
+        stats.value.completedToday = response.data.filter(apt => 
+            apt.date.split('T')[0] === today && apt.status === 2
+        ).length;
+        stats.value.pendingAppointments = response.data.filter(apt => 
+            apt.status === 0 || apt.status === 1
+        ).length;
+    } catch (error) {
+        console.error('Error loading appointments:', error);
+    }
+};
+
+// Открытие модального окна с очисткой списка материалов
+const openAppointmentModal = async (appointment) => {
+    try {
+        const response = await axios.get(`/api/doctor/appointments/${appointment.appointment_id}`);
+        selectedAppointment.value = response.data;
+        
+        const materialsResponse = await axios.get('/api/doctor/materials/available');
+        availableMaterials.value = materialsResponse.data;
+        
+        // Сбрасываем список выбранных материалов
+        selectedMaterials.value = [];
+        newMaterial.value = { material_id: '', quantity: 1 };
+        
+        showAppointmentModal.value = true;
+    } catch (error) {
+        console.error('Error loading appointment:', error);
+    }
+};
+
+const updateAppointmentStatus = async () => {
+    try {
+        await axios.put(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/status`, {
+            status: selectedAppointment.value.status
+        });
+        await loadAppointments();
+    } catch (error) {
+        console.error('Error updating status:', error);
+    }
+};
+
+// Вспомогательные методы для материалов
+const getMaterialName = (materialId) => {
+    const material = availableMaterials.value.find(m => m.material_id === materialId);
+    return material?.name || 'Неизвестный материал';
+};
+
+const getMaterialUnit = (materialId) => {
+    const material = availableMaterials.value.find(m => m.material_id === materialId);
+    return material?.unit || 'шт';
+};
+
+// Добавление материала в список (не в БД)
+const addToMaterialsList = () => {
+    if (!canAddMaterial.value) return;
+    
+    const existingIndex = selectedMaterials.value.findIndex(
+        m => m.material_id === newMaterial.value.material_id
+    );
+    
+    if (existingIndex >= 0) {
+        // Если материал уже есть, увеличиваем количество
+        selectedMaterials.value[existingIndex].quantity += newMaterial.value.quantity;
+    } else {
+        // Иначе добавляем новый
+        selectedMaterials.value.push({
+            material_id: newMaterial.value.material_id,
+            quantity: newMaterial.value.quantity,
+            notes: ''
+        });
+    }
+    
+    // Сбрасываем форму
+    newMaterial.value = { material_id: '', quantity: 1 };
+};
+
+// Удаление материала из списка
+const removeMaterial = (index) => {
+    selectedMaterials.value.splice(index, 1);
+};
+
+// Сохранение всех материалов одним запросом
+const saveAllMaterials = async () => {
+    if (selectedMaterials.value.length === 0) return;
+    
+    try {
+        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials/save`, {
+            materials: selectedMaterials.value
+        });
+        
+        // Обновляем данные приема
+        const response = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
+        selectedAppointment.value = response.data;
+        
+        // Очищаем список
+        selectedMaterials.value = [];
+        
+        alert('Материалы успешно сохранены');
+    } catch (error) {
+        console.error('Error saving materials:', error);
+        alert(error.response?.data?.error || 'Ошибка при сохранении материалов');
+    }
+};
+
+// Завершение приема с сохранением материалов
+const completeAppointmentWithMaterials = async () => {
+    try {
+        // Сначала сохраняем материалы, если они есть
+        if (selectedMaterials.value.length > 0) {
+            await saveAllMaterials();
+        }
+        
+        // Затем завершаем прием
+        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/complete`);
+        
+        showAppointmentModal.value = false;
+        await loadAppointments();
+    } catch (error) {
+        console.error('Error completing appointment:', error);
+    }
+};
+
+// Сохраняем старый метод для обратной совместимости
+const addMaterial = async () => {
+    if (!newMaterial.value.material_id || !newMaterial.value.quantity) return;
+    
+    try {
+        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials`, {
+            material_id: newMaterial.value.material_id,
+            quantity: newMaterial.value.quantity
+        });
+        
+        const response = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
+        selectedAppointment.value = response.data;
+        
+        newMaterial.value = { material_id: '', quantity: 1 };
+    } catch (error) {
+        console.error('Error adding material:', error);
+    }
+};
+
+const completeAppointment = async () => {
+    try {
+        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/complete`);
+        showAppointmentModal.value = false;
+        await loadAppointments();
+    } catch (error) {
+        console.error('Error completing appointment:', error);
+    }
+};
+
+const viewMedicalRecord = (clientId) => {
+    router.get(`/doctor/medical-records/${clientId}`);
+    showAppointmentModal.value = false;
+};
+
+onMounted(() => {
+    loadAppointments();
+});
+</script>
