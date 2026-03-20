@@ -177,7 +177,11 @@ const filterByCategory = () => {
 };
 
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('ru-RU');
+    return new Date(date).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
 };
 
 const loadAvailableSlots = async () => {

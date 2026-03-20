@@ -105,11 +105,18 @@ const props = defineProps({
 });
 
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('ru-RU');
+    return new Date(date).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
 };
 
 const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return new Date(date).toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit'
+    });
 };
 
 const getServiceNames = (appointment) => {

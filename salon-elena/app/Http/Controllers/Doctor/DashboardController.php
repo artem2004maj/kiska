@@ -414,17 +414,27 @@ class DashboardController extends Controller
             ->where('employee_id', $doctor->employee_id);
         
         if ($view === 'day') {
-            $query->whereDate('date', $date);
+            // Для дня берем записи на конкретную дату
+            $targetDate = Carbon::parse($date, 'Europe/Moscow');
+            $start = $targetDate->copy()->startOfDay()->utc();
+            $end = $targetDate->copy()->endOfDay()->utc();
+            $query->whereBetween('date', [$start, $end]);
         } else {
-            $start = now()->parse($date)->startOfWeek();
-            $end = now()->parse($date)->endOfWeek();
+            // Для недели берем записи за неделю
+            $targetDate = Carbon::parse($date, 'Europe/Moscow');
+            $start = $targetDate->copy()->startOfWeek()->utc();
+            $end = $targetDate->copy()->endOfWeek()->utc();
             $query->whereBetween('date', [$start, $end]);
         }
         
         $appointments = $query->orderBy('date')->get()->map(function($appointment) {
+            // Конвертируем время в московское для отображения
+            $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
             return [
                 'appointment_id' => $appointment->appointment_id,
                 'date' => $appointment->date,
+                'local_date' => $localTime->toDateString(),
+                'local_time' => $localTime->format('H:i'),
                 'status' => $appointment->status,
                 'client' => $appointment->client ? [
                     'client_id' => $appointment->client->client_id,
@@ -459,9 +469,13 @@ class DashboardController extends Controller
         $appointment = Appointment::with(['client', 'providedServices.service', 'materials.material'])
             ->findOrFail($id);
         
+        $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
+        
         $data = [
             'appointment_id' => $appointment->appointment_id,
             'date' => $appointment->date,
+            'local_date' => $localTime->toDateString(),
+            'local_time' => $localTime->format('H:i'),
             'status' => $appointment->status,
             'client' => $appointment->client ? [
                 'client_id' => $appointment->client->client_id,

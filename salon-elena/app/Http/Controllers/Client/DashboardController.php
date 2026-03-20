@@ -359,23 +359,34 @@ class DashboardController extends Controller
         }
         
         $doctorId = $service->doctors->first()->employee_id;
-        $date = Carbon::parse($request->date);
+        $date = Carbon::parse($request->date, 'Europe/Moscow');
         
         $workHours = range(9, 20);
         
-        $busySlots = Appointment::whereDate('date', $date)
-            ->where('employee_id', $doctorId)
+        // Получаем занятые слоты
+        $busySlots = Appointment::where('employee_id', $doctorId)
+            ->whereDate('date', $date->toDateString())
             ->whereIn('status', [0, 1])
             ->get()
             ->map(function($appointment) {
-                return Carbon::parse($appointment->date)->format('H:i');
+                // Конвертируем время из UTC в московское для сравнения
+                return Carbon::parse($appointment->date)->timezone('Europe/Moscow')->format('H:i');
             })
             ->toArray();
         
         $availableSlots = [];
+        $now = Carbon::now('Europe/Moscow');
+        $currentHour = $now->hour;
+        
         foreach ($workHours as $hour) {
             $time = sprintf('%02d:00', $hour);
+            
+            // Проверяем, не занят ли слот и не прошел ли час
             if (!in_array($time, $busySlots)) {
+                // Если сегодня и час уже прошел - пропускаем
+                if ($date->isToday() && $hour <= $currentHour) {
+                    continue;
+                }
                 $availableSlots[] = $time;
             }
         }
@@ -406,12 +417,17 @@ class DashboardController extends Controller
             return response()->json(['error' => 'К данной услуге не привязан ни один врач'], 422);
         }
         
-        // Берем первого врача из привязанных (можно добавить логику распределения)
         $doctorId = $service->doctors->first()->employee_id;
         
+        // Создаем время в московском часовом поясе
         $dateTime = Carbon::parse($request->date . ' ' . $request->time, 'Europe/Moscow');
         
-        // Проверяем, не занято ли время у этого врача
+        // Проверяем, что выбранное время в будущем
+        if ($dateTime->isPast()) {
+            return response()->json(['error' => 'Выбранное время уже прошло'], 422);
+        }
+        
+        // Проверяем, не занято ли время
         $exists = Appointment::where('employee_id', $doctorId)
             ->whereDate('date', $dateTime->toDateString())
             ->whereTime('date', $dateTime->toTimeString())
@@ -425,8 +441,9 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
+            // Сохраняем в UTC (Carbon автоматически сконвертирует)
             $appointment = Appointment::create([
-                'date' => $dateTime->utc(),
+                'date' => $dateTime, // Carbon сам сконвертирует в UTC при сохранении
                 'status' => 0,
                 'employee_id' => $doctorId,
                 'client_id' => $client->client_id,
