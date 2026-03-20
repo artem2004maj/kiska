@@ -27,19 +27,64 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
-        // Получаем все записи клиента для статистики
+        // Получаем все записи клиента для статистики с правильной обработкой
         $appointments = Appointment::with(['employee', 'providedServices.service'])
             ->where('client_id', $client->client_id)
             ->orderBy('date', 'desc')
-            ->get();
+            ->get()
+            ->map(function($appointment) {
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'status' => $appointment->status,
+                    'employee' => $appointment->employee,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'service_category' => $ps->service->service_category,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                    'service_names' => $appointment->services_list,
+                ];
+            });
         
         // Ближайшая запись
         $nextAppointment = Appointment::with(['employee', 'providedServices.service'])
             ->where('client_id', $client->client_id)
             ->where('date', '>=', now())
-            ->whereIn('status', [0, 1]) // Запланирован или подтвержден
+            ->whereIn('status', [0, 1])
             ->orderBy('date', 'asc')
             ->first();
+        
+        // Если есть ближайшая запись, обрабатываем её
+        $nextAppointmentData = null;
+        if ($nextAppointment) {
+            $nextAppointmentData = [
+                'appointment_id' => $nextAppointment->appointment_id,
+                'date' => $nextAppointment->date,
+                'status' => $nextAppointment->status,
+                'employee' => $nextAppointment->employee,
+                'provided_services' => $nextAppointment->providedServices->map(function($ps) {
+                    return [
+                        'provided_id' => $ps->provided_id,
+                        'quantity' => $ps->quantity,
+                        'service' => $ps->service ? [
+                            'service_id' => $ps->service->service_id,
+                            'service_name' => $ps->service->service_name,
+                            'service_category' => $ps->service->service_category,
+                            'default_price' => $ps->service->default_price,
+                        ] : null,
+                    ];
+                }),
+                'service_names' => $nextAppointment->services_list,
+            ];
+        }
         
         // Уведомления
         $notifications = [];
@@ -60,22 +105,30 @@ class DashboardController extends Controller
         // Напоминание об отзыве
         $completedWithoutFeedback = Appointment::with(['providedServices.service'])
             ->where('client_id', $client->client_id)
-            ->where('status', 2) // Завершен
+            ->where('status', 2)
             ->whereDoesntHave('feedback')
             ->latest('date')
             ->first();
         
         if ($completedWithoutFeedback) {
+            $serviceName = null;
+            if ($completedWithoutFeedback->providedServices && $completedWithoutFeedback->providedServices->count() > 0) {
+                $firstService = $completedWithoutFeedback->providedServices->first();
+                if ($firstService && $firstService->service) {
+                    $serviceName = $firstService->service->service_name;
+                }
+            }
+            
             $notifications[] = [
                 'id' => 2,
                 'type' => 'feedback',
-                'message' => "Спасибо за визит! Оставьте отзыв о услуге {$completedWithoutFeedback->providedServices->first()?->service->service_name}",
+                'message' => "Спасибо за визит! " . ($serviceName ? "Оставьте отзыв о услуге {$serviceName}" : "Оставьте отзыв о посещении"),
                 'appointment_id' => $completedWithoutFeedback->appointment_id,
                 'created_at' => now(),
             ];
         }
         
-        // Акции (можно потом вынести в отдельную таблицу)
+        // Акции
         $promotions = [
             [
                 'id' => 1,
@@ -108,7 +161,7 @@ class DashboardController extends Controller
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
             ],
             'appointments' => $appointments,
-            'nextAppointment' => $nextAppointment,
+            'nextAppointment' => $nextAppointmentData,
             'notifications' => $notifications,
             'promotions' => $promotions,
             'popularServices' => $popularServices,
@@ -160,9 +213,31 @@ class DashboardController extends Controller
         
         $appointments = Appointment::with(['employee', 'providedServices.service', 'feedback'])
             ->where('client_id', $client->client_id)
-            ->whereIn('status', [0, 1]) // Только активные записи
+            ->whereIn('status', [0, 1])
             ->orderBy('date', 'asc')
-            ->get();
+            ->get()
+            ->map(function($appointment) {
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'status' => $appointment->status,
+                    'employee' => $appointment->employee,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'service_category' => $ps->service->service_category,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                    'service_names' => $appointment->services_list,
+                    'feedback' => $appointment->feedback,
+                ];
+            });
         
         return Inertia::render('Client/Appointments', [
             'client' => [

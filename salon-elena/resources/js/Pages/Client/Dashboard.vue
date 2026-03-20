@@ -26,7 +26,7 @@
                     </div>
                     <div class="flex items-center gap-8 text-black dark:text-white/70">
                         <span class="font-medium min-w-24">Услуга:</span>
-                        <span>{{ getServiceNames(nextAppointment) }}</span>
+                        <span>{{ nextAppointment.service_names || 'Услуга не указана' }}</span>
                     </div>
                     <div class="flex items-center gap-8 text-black dark:text-white/70">
                         <span class="font-medium min-w-24">Врач:</span>

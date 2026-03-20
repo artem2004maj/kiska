@@ -217,17 +217,29 @@
                                 </div>
                             </div>
 
-                            <!-- Услуги -->
+                            <!-- Услуги - с отображением названия -->
                             <div>
                                 <h5 class="text-sm sm:text-base font-medium mb-2">Услуги:</h5>
                                 <div class="space-y-2">
                                     <div v-for="service in selectedAppointment.provided_services" :key="service.provided_id"
-                                         class="p-2 sm:p-3 border rounded-lg">
-                                        <div class="flex justify-between">
-                                            <span class="text-sm sm:text-base font-medium">{{ service.service?.service_name }}</span>
-                                            <span class="text-xs sm:text-sm text-[#2A7F6E]">{{ service.quantity }} шт</span>
+                                        class="p-2 sm:p-3 border rounded-lg">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <span class="text-sm sm:text-base font-medium">
+                                                    {{ service.service?.service_name || 'Услуга не указана' }}
+                                                </span>
+                                                <p v-if="service.service?.service_category" class="text-xs text-gray-500 mt-0.5">
+                                                    {{ service.service.service_category }}
+                                                </p>
+                                            </div>
+                                            <span class="text-xs sm:text-sm text-[#2A7F6E] font-medium">
+                                                {{ service.quantity }} шт · {{ service.service?.default_price || 0 }} ₽
+                                            </span>
                                         </div>
-                                        <p v-if="service.notes" class="text-xs sm:text-sm text-gray-500 mt-1">{{ service.notes }}</p>
+                                        <p v-if="service.notes" class="text-xs text-gray-500 mt-2">{{ service.notes }}</p>
+                                    </div>
+                                    <div v-if="!selectedAppointment.provided_services?.length" class="text-center py-4 text-gray-500">
+                                        Услуги не указаны
                                     </div>
                                 </div>
                             </div>

@@ -115,6 +115,8 @@ Route::middleware('auth:employee')->group(function () {
     
     Route::get('/doctor/medical-records/{clientId}', [DoctorDashboardController::class, 'medicalRecord'])
         ->name('doctor.medical-record');
+
+    
     
     // API маршруты для доктора
     Route::prefix('api/doctor')->name('doctor.api.')->group(function () {
@@ -127,6 +129,8 @@ Route::middleware('auth:employee')->group(function () {
         Route::get('/patients/search', [DoctorDashboardController::class, 'searchPatients']);
         Route::get('/materials/available', [DoctorDashboardController::class, 'getAvailableMaterials']);
         Route::put('/profile', [DoctorDashboardController::class, 'updateProfile']);
+        Route::post('/medical-records/{clientId}', [DoctorDashboardController::class, 'saveMedicalRecord']);
+        Route::put('/medical-records/{recordId}', [DoctorDashboardController::class, 'updateMedicalRecord']);
         // API для фото:
         Route::post('/upload-photo', [DoctorDashboardController::class, 'uploadPhoto']);
         Route::delete('/delete-photo', [DoctorDashboardController::class, 'deletePhoto']);

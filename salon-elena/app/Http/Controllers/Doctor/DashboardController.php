@@ -191,12 +191,12 @@ class DashboardController extends Controller
         
         $patient = Client::findOrFail($clientId);
         
-        $records = MedicalRecord::with('employee')
+        $records = MedicalRecord::with(['employee', 'appointment.providedServices.service'])
             ->where('client_id', $clientId)
             ->orderBy('visit_date', 'desc')
             ->get();
         
-        $appointments = Appointment::with(['providedServices.service'])
+        $appointments = Appointment::with(['providedServices.service', 'medicalRecord'])
             ->where('client_id', $clientId)
             ->where('employee_id', $doctor->employee_id)
             ->orderBy('date', 'desc')
@@ -208,8 +208,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
-                'photo' => $doctor->photo, // ДОБАВЛЕНО
-                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                'photo' => $doctor->photo,
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
             'patient' => $patient,
@@ -217,6 +217,81 @@ class DashboardController extends Controller
             'appointments' => $appointments,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
+        ]);
+    }
+
+    /**
+     * Сохранить новую запись в медицинской карте
+     */
+    public function saveMedicalRecord(Request $request, $clientId)
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $request->validate([
+            'appointment_id' => 'required|exists:appointments,appointment_id',
+            'visit_date' => 'required|date',
+            'anamnesis' => 'nullable|string',
+            'diagnosis' => 'nullable|string',
+            'contraindications' => 'nullable|string',
+        ]);
+        
+        // Проверяем, что запись принадлежит этому врачу и клиенту
+        $appointment = Appointment::where('appointment_id', $request->appointment_id)
+            ->where('employee_id', $doctor->employee_id)
+            ->where('client_id', $clientId)
+            ->firstOrFail();
+        
+        // Проверяем, нет ли уже записи для этого приема
+        $existingRecord = MedicalRecord::where('appointment_id', $request->appointment_id)->first();
+        if ($existingRecord) {
+            return response()->json(['error' => 'Запись для этого приема уже существует'], 422);
+        }
+        
+        $record = MedicalRecord::create([
+            'visit_date' => $request->visit_date,
+            'anamnesis' => $request->anamnesis,
+            'diagnosis' => $request->diagnosis,
+            'contraindications' => $request->contraindications,
+            'employee_id' => $doctor->employee_id,
+            'client_id' => $clientId,
+            'appointment_id' => $request->appointment_id,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Запись сохранена',
+            'record' => $record->load('employee')
+        ]);
+    }
+
+    /**
+     * Обновить существующую запись в медицинской карте
+     */
+    public function updateMedicalRecord(Request $request, $recordId)
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $record = MedicalRecord::with('appointment')
+            ->where('record_id', $recordId)
+            ->where('employee_id', $doctor->employee_id)
+            ->firstOrFail();
+        
+        $request->validate([
+            'anamnesis' => 'nullable|string',
+            'diagnosis' => 'nullable|string',
+            'contraindications' => 'nullable|string',
+        ]);
+        
+        $record->update([
+            'anamnesis' => $request->anamnesis,
+            'diagnosis' => $request->diagnosis,
+            'contraindications' => $request->contraindications,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Запись обновлена',
+            'record' => $record->load('employee')
         ]);
     }
     
@@ -293,12 +368,49 @@ class DashboardController extends Controller
         return response()->json($query->orderBy('date')->get());
     }
     
+    /**
+     * Получить детали приема для модального окна (с названием услуги)
+     */
     public function getAppointment($id)
     {
         $appointment = Appointment::with(['client', 'providedServices.service', 'materials.material'])
             ->findOrFail($id);
         
-        return response()->json($appointment);
+        // Форматируем данные для ответа
+        $data = [
+            'appointment_id' => $appointment->appointment_id,
+            'date' => $appointment->date,
+            'status' => $appointment->status,
+            'client' => $appointment->client,
+            'provided_services' => $appointment->providedServices->map(function($ps) {
+                return [
+                    'provided_id' => $ps->provided_id,
+                    'quantity' => $ps->quantity,
+                    'notes' => $ps->notes,
+                    'service' => $ps->service ? [
+                        'service_id' => $ps->service->service_id,
+                        'service_name' => $ps->service->service_name,
+                        'service_category' => $ps->service->service_category,
+                        'default_price' => $ps->service->default_price,
+                    ] : null,
+                ];
+            }),
+            'materials' => $appointment->materials->map(function($material) {
+                return [
+                    'consumption_id' => $material->pivot->id ?? null,
+                    'quantity' => $material->pivot->quantity_used,
+                    'material' => [
+                        'material_id' => $material->material_id,
+                        'name' => $material->name,
+                        'unit' => $material->unit,
+                    ],
+                ];
+            }),
+            'service_name' => $appointment->service_name,
+            'services_list' => $appointment->services_list,
+        ];
+        
+        return response()->json($data);
     }
     
     public function updateStatus(Request $request, $id)

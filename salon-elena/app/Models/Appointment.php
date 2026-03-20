@@ -56,4 +56,26 @@ class Appointment extends Model
     {
         return $this->hasOne(MedicalRecord::class, 'appointment_id');
     }
+
+    /**
+     * Получить название услуги (первой) для отображения
+     */
+    public function getServiceNameAttribute()
+    {
+        $service = $this->providedServices->first()?->service;
+        return $service ? $service->service_name : null;
+    }
+    
+    /**
+     * Получить все услуги в виде строки
+     */
+    public function getServicesListAttribute()
+    {
+        if (!$this->providedServices || $this->providedServices->isEmpty()) {
+            return 'Услуга не указана';
+        }
+        return $this->providedServices->map(function($ps) {
+            return $ps->service ? $ps->service->service_name : null;
+        })->filter()->join(', ');
+    }
 }
