@@ -196,6 +196,7 @@ const servicesByCategory = computed(() => {
         </section>
 
         <!-- Наши врачи - адаптировано с фото -->
+        <!-- resources/js/Pages/Welcome.vue - обновленная секция врачей -->
         <section id="doctors" class="py-12 sm:py-16 lg:py-20 bg-gray-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -208,7 +209,6 @@ const servicesByCategory = computed(() => {
                     <div v-for="doctor in doctors" :key="doctor.employee_id" 
                         class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
                         <div class="h-48 sm:h-56 lg:h-64 bg-gradient-to-br from-[#14b8a6]/20 to-[#0d9488]/20 flex items-center justify-center overflow-hidden">
-                            <!-- Фото врача или заглушка -->
                             <img v-if="doctor.photo_url" 
                                 :src="doctor.photo_url" 
                                 :alt="doctor.employee_name"
@@ -219,18 +219,45 @@ const servicesByCategory = computed(() => {
                         </div>
                         <div class="p-4 sm:p-5 lg:p-6">
                             <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-1">{{ doctor.employee_name }}</h3>
-                            <p class="text-sm text-[#14b8a6] font-medium mb-2 sm:mb-3">{{ doctor.role }}</p>
-                            <div class="flex items-center text-gray-600 text-xs sm:text-sm">
-                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>Пн-Пт 10:00 - 20:00</span>
-                            </div>
-                            <div class="flex items-center text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">
-                                <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span>Сб 11:00 - 18:00</span>
+                            <p class="text-sm text-[#14b8a6] font-medium mb-3">{{ doctor.role }}</p>
+                            
+                            <!-- Расписание врача -->
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <p class="text-xs font-medium text-gray-700 mb-2">График работы:</p>
+                                <div class="space-y-1 text-xs text-gray-600">
+                                    <div v-if="doctor.schedule[1]?.working" class="flex justify-between">
+                                        <span>Понедельник</span>
+                                        <span>{{ doctor.schedule[1].start }} - {{ doctor.schedule[1].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[2]?.working" class="flex justify-between">
+                                        <span>Вторник</span>
+                                        <span>{{ doctor.schedule[2].start }} - {{ doctor.schedule[2].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[3]?.working" class="flex justify-between">
+                                        <span>Среда</span>
+                                        <span>{{ doctor.schedule[3].start }} - {{ doctor.schedule[3].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[4]?.working" class="flex justify-between">
+                                        <span>Четверг</span>
+                                        <span>{{ doctor.schedule[4].start }} - {{ doctor.schedule[4].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[5]?.working" class="flex justify-between">
+                                        <span>Пятница</span>
+                                        <span>{{ doctor.schedule[5].start }} - {{ doctor.schedule[5].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[6]?.working" class="flex justify-between">
+                                        <span>Суббота</span>
+                                        <span>{{ doctor.schedule[6].start }} - {{ doctor.schedule[6].end }}</span>
+                                    </div>
+                                    <div v-if="doctor.schedule[0]?.working" class="flex justify-between">
+                                        <span>Воскресенье</span>
+                                        <span>{{ doctor.schedule[0].start }} - {{ doctor.schedule[0].end }}</span>
+                                    </div>
+                                    <div v-if="!doctor.schedule[1]?.working && !doctor.schedule[2]?.working && !doctor.schedule[3]?.working && !doctor.schedule[4]?.working && !doctor.schedule[5]?.working && !doctor.schedule[6]?.working && !doctor.schedule[0]?.working" 
+                                        class="text-gray-400 italic">
+                                        График уточняется
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -358,43 +358,62 @@ class DashboardController extends Controller
             return response()->json(['error' => 'К данной услуге не привязан ни один врач'], 422);
         }
         
-        $doctorId = $service->doctors->first()->employee_id;
+        $doctor = $service->doctors->first();
         $date = Carbon::parse($request->date, 'Europe/Moscow');
+        $dayOfWeek = $date->dayOfWeek; // 0-6
         
-        $workHours = range(9, 20);
+        // Получаем расписание врача на этот день
+        $schedule = $doctor->getScheduleForDay($dayOfWeek);
+        
+        if (!$schedule || !$schedule->start_time || !$schedule->end_time) {
+            return response()->json([
+                'date' => $date->format('Y-m-d'),
+                'doctor_name' => $doctor->employee_name,
+                'available_slots' => [],
+                'message' => 'Врач не работает в этот день'
+            ]);
+        }
+        
+        // Получаем рабочие часы
+        $workHours = $doctor->getWorkingHoursForDate($date);
         
         // Получаем занятые слоты
-        $busySlots = Appointment::where('employee_id', $doctorId)
+        $busySlots = Appointment::where('employee_id', $doctor->employee_id)
             ->whereDate('date', $date->toDateString())
             ->whereIn('status', [0, 1])
             ->get()
             ->map(function($appointment) {
-                // Конвертируем время из UTC в московское для сравнения
                 return Carbon::parse($appointment->date)->timezone('Europe/Moscow')->format('H:i');
             })
             ->toArray();
         
         $availableSlots = [];
         $now = Carbon::now('Europe/Moscow');
-        $currentHour = $now->hour;
         
-        foreach ($workHours as $hour) {
-            $time = sprintf('%02d:00', $hour);
-            
-            // Проверяем, не занят ли слот и не прошел ли час
+        foreach ($workHours as $time) {
+            // Проверяем, не занят ли слот
             if (!in_array($time, $busySlots)) {
-                // Если сегодня и час уже прошел - пропускаем
-                if ($date->isToday() && $hour <= $currentHour) {
-                    continue;
+                // Если сегодня, проверяем, не прошло ли время
+                if ($date->isToday()) {
+                    $slotTime = Carbon::parse($date->toDateString() . ' ' . $time, 'Europe/Moscow');
+                    if ($slotTime->isFuture()) {
+                        $availableSlots[] = $time;
+                    }
+                } else {
+                    $availableSlots[] = $time;
                 }
-                $availableSlots[] = $time;
             }
         }
         
         return response()->json([
             'date' => $date->format('Y-m-d'),
-            'doctor_name' => $service->doctors->first()->employee_name,
+            'doctor_name' => $doctor->employee_name,
             'available_slots' => $availableSlots,
+            'working_hours' => $workHours,
+            'schedule' => [
+                'start' => $schedule->start_time ? Carbon::parse($schedule->start_time)->format('H:i') : null,
+                'end' => $schedule->end_time ? Carbon::parse($schedule->end_time)->format('H:i') : null,
+            ]
         ]);
     }
     

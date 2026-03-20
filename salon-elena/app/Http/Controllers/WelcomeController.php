@@ -6,34 +6,53 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\Service;
 use App\Models\Feedback;
+use App\Models\DoctorSchedule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class WelcomeController extends Controller
 {
     public function index()
     {
-        // Получаем врачей (сотрудников с ролью doctor) с фото
+        // Получаем врачей с фото и расписанием
         $doctors = Employee::where('role', 'doctor')
-            ->select('employee_id', 'employee_name', 'role', 'photo') // ДОБАВЛЕНО photo
+            ->with('schedules')
+            ->select('employee_id', 'employee_name', 'role', 'photo')
             ->get()
             ->map(function ($doctor) {
+                // Формируем расписание на неделю
+                $schedule = [];
+                $days = [1, 2, 3, 4, 5, 6, 0]; // Пн, Вт, Ср, Чт, Пт, Сб, Вс
+                
+                foreach ($days as $day) {
+                    $daySchedule = $doctor->getScheduleForDay($day);
+                    if ($daySchedule && $daySchedule->start_time && $daySchedule->end_time) {
+                        $schedule[$day] = [
+                            'start' => Carbon::parse($daySchedule->start_time)->format('H:i'),
+                            'end' => Carbon::parse($daySchedule->end_time)->format('H:i'),
+                            'working' => true
+                        ];
+                    } else {
+                        $schedule[$day] = ['working' => false];
+                    }
+                }
+                
                 return [
                     'employee_id' => $doctor->employee_id,
                     'employee_name' => $doctor->employee_name,
                     'role' => $doctor->role,
-                    'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                    'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
+                    'schedule' => $schedule,
                 ];
             });
         
-        // Получаем услуги
         $services = Service::where('is_active', 1)
             ->select('service_id', 'service_name', 'service_category', 'default_price')
             ->orderBy('service_category')
             ->get();
         
-        // Получаем последние отзывы
         $testimonials = Feedback::with('client')
             ->whereHas('appointment', function($q) {
                 $q->where('status', 2);

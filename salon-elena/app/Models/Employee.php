@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО для работы с фото
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class Employee extends Authenticatable
 {
@@ -19,7 +20,7 @@ class Employee extends Authenticatable
         'employee_name',
         'role',
         'employee_phone',
-        'photo', // ДОБАВЛЕНО
+        'photo',
         'email',
         'login',
         'passwd',
@@ -88,7 +89,7 @@ class Employee extends Authenticatable
         $this->attributes['email'] = strtolower($value);
     }
 
-    // ========== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ФОТО ==========
+    // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ФОТО ==========
     
     /**
      * Аксессор для получения полного URL фото
@@ -118,12 +119,14 @@ class Employee extends Authenticatable
         }
     }
 
+    // ========== СВЯЗИ ==========
+    
     public function services()
     {
         return $this->belongsToMany(Service::class, 'doctor_services', 'doctor_id', 'service_id')
                     ->withTimestamps();
     }
-    // Связи
+    
     public function clientContracts()
     {
         return $this->hasMany(ClientContract::class, 'employee_id', 'employee_id');
@@ -142,5 +145,119 @@ class Employee extends Authenticatable
     public function providedServices()
     {
         return $this->hasMany(ProvidedService::class, 'employee_id', 'employee_id');
+    }
+
+    // ========== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С РАСПИСАНИЕМ ==========
+    
+    /**
+     * Связь с расписанием работы врача
+     */
+    public function schedules()
+    {
+        return $this->hasMany(DoctorSchedule::class, 'doctor_id', 'employee_id');
+    }
+
+    /**
+     * Получить расписание на конкретный день недели
+     * 
+     * @param int $dayOfWeek 0-6 (0 = воскресенье, 1 = понедельник, ...)
+     * @return \App\Models\DoctorSchedule|null
+     */
+    public function getScheduleForDay($dayOfWeek)
+    {
+        return $this->schedules()->where('day_of_week', $dayOfWeek)->first();
+    }
+
+    /**
+     * Получить рабочие часы для конкретной даты
+     * 
+     * @param \Carbon\Carbon|string $date
+     * @return array Массив временных слотов (например: ['09:00', '10:00', ...])
+     */
+    public function getWorkingHoursForDate($date)
+    {
+        $date = Carbon::parse($date);
+        $dayOfWeek = $date->dayOfWeek; // 0-6
+        $schedule = $this->getScheduleForDay($dayOfWeek);
+        
+        if (!$schedule || !$schedule->start_time || !$schedule->end_time) {
+            return [];
+        }
+        
+        $hours = [];
+        $start = Carbon::parse($schedule->start_time);
+        $end = Carbon::parse($schedule->end_time);
+        
+        while ($start < $end) {
+            $hours[] = $start->format('H:i');
+            $start->addMinutes($schedule->slot_duration);
+        }
+        
+        return $hours;
+    }
+
+    /**
+     * Проверить, работает ли врач в указанный день
+     * 
+     * @param \Carbon\Carbon|string $date
+     * @return bool
+     */
+    public function isWorkingOnDate($date)
+    {
+        $date = Carbon::parse($date);
+        $schedule = $this->getScheduleForDay($date->dayOfWeek);
+        
+        return $schedule && $schedule->start_time && $schedule->end_time;
+    }
+
+    /**
+     * Проверить, работает ли врач в указанное время
+     * 
+     * @param \Carbon\Carbon|string $dateTime
+     * @return bool
+     */
+    public function isWorkingAtDateTime($dateTime)
+    {
+        $dateTime = Carbon::parse($dateTime);
+        $schedule = $this->getScheduleForDay($dateTime->dayOfWeek);
+        
+        if (!$schedule || !$schedule->start_time || !$schedule->end_time) {
+            return false;
+        }
+        
+        $start = Carbon::parse($schedule->start_time);
+        $end = Carbon::parse($schedule->end_time);
+        $time = Carbon::parse($dateTime->format('H:i:s'));
+        
+        return $time->between($start, $end);
+    }
+
+    /**
+     * Получить расписание на неделю
+     * 
+     * @return array
+     */
+    public function getWeeklySchedule()
+    {
+        $schedule = [];
+        $days = [1, 2, 3, 4, 5, 6, 0]; // Пн, Вт, Ср, Чт, Пт, Сб, Вс
+        
+        foreach ($days as $day) {
+            $daySchedule = $this->getScheduleForDay($day);
+            if ($daySchedule && $daySchedule->start_time && $daySchedule->end_time) {
+                $schedule[$day] = [
+                    'start' => Carbon::parse($daySchedule->start_time)->format('H:i'),
+                    'end' => Carbon::parse($daySchedule->end_time)->format('H:i'),
+                    'slot_duration' => $daySchedule->slot_duration,
+                    'working' => true
+                ];
+            } else {
+                $schedule[$day] = [
+                    'working' => false
+                ];
+            }
+        }
+        
+        return $schedule;
     }
 }

@@ -410,55 +410,71 @@ class DashboardController extends Controller
         $view = $request->get('view', 'week');
         $date = $request->get('date', now()->toDateString());
         
-        $query = Appointment::with(['client', 'providedServices.service', 'materials.material'])
-            ->where('employee_id', $doctor->employee_id);
+        $targetDate = Carbon::parse($date, 'Europe/Moscow');
         
         if ($view === 'day') {
-            // Для дня берем записи на конкретную дату
-            $targetDate = Carbon::parse($date, 'Europe/Moscow');
             $start = $targetDate->copy()->startOfDay()->utc();
             $end = $targetDate->copy()->endOfDay()->utc();
-            $query->whereBetween('date', [$start, $end]);
         } else {
-            // Для недели берем записи за неделю
-            $targetDate = Carbon::parse($date, 'Europe/Moscow');
             $start = $targetDate->copy()->startOfWeek()->utc();
             $end = $targetDate->copy()->endOfWeek()->utc();
-            $query->whereBetween('date', [$start, $end]);
         }
         
-        $appointments = $query->orderBy('date')->get()->map(function($appointment) {
-            // Конвертируем время в московское для отображения
-            $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
-            return [
-                'appointment_id' => $appointment->appointment_id,
-                'date' => $appointment->date,
-                'local_date' => $localTime->toDateString(),
-                'local_time' => $localTime->format('H:i'),
-                'status' => $appointment->status,
-                'client' => $appointment->client ? [
-                    'client_id' => $appointment->client->client_id,
-                    'client_name' => $appointment->client->client_name,
-                    'phone' => $appointment->client->phone,
-                    'photo' => $appointment->client->photo,
-                    'photo_url' => $appointment->client->photo ? Storage::url($appointment->client->photo) : null,
-                ] : null,
-                'provided_services' => $appointment->providedServices->map(function($ps) {
-                    return [
-                        'provided_id' => $ps->provided_id,
-                        'quantity' => $ps->quantity,
-                        'service' => $ps->service ? [
-                            'service_id' => $ps->service->service_id,
-                            'service_name' => $ps->service->service_name,
-                            'service_category' => $ps->service->service_category,
-                            'default_price' => $ps->service->default_price,
-                        ] : null,
-                    ];
-                }),
-            ];
-        });
+        // Получаем записи
+        $appointments = Appointment::with(['client', 'providedServices.service', 'materials.material'])
+            ->where('employee_id', $doctor->employee_id)
+            ->whereBetween('date', [$start, $end])
+            ->orderBy('date')
+            ->get()
+            ->map(function($appointment) {
+                $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'local_date' => $localTime->toDateString(),
+                    'local_time' => $localTime->format('H:i'),
+                    'status' => $appointment->status,
+                    'client' => $appointment->client ? [
+                        'client_id' => $appointment->client->client_id,
+                        'client_name' => $appointment->client->client_name,
+                        'phone' => $appointment->client->phone,
+                        'photo' => $appointment->client->photo,
+                        'photo_url' => $appointment->client->photo ? Storage::url($appointment->client->photo) : null,
+                    ] : null,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'service_category' => $ps->service->service_category,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                ];
+            });
         
-        return response()->json($appointments);
+        // Получаем расписание на неделю для отображения рабочих часов
+        $schedule = [];
+        for ($i = 0; $i < 7; $i++) {
+            $daySchedule = $doctor->getScheduleForDay($i);
+            if ($daySchedule && $daySchedule->start_time && $daySchedule->end_time) {
+                $schedule[$i] = [
+                    'start' => Carbon::parse($daySchedule->start_time)->format('H:i'),
+                    'end' => Carbon::parse($daySchedule->end_time)->format('H:i'),
+                    'working' => true
+                ];
+            } else {
+                $schedule[$i] = ['working' => false];
+            }
+        }
+        
+        return response()->json([
+            'appointments' => $appointments,
+            'schedule' => $schedule
+        ]);
     }
     
     /**
