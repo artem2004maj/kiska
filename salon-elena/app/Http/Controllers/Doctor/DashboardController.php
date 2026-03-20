@@ -130,13 +130,14 @@ class DashboardController extends Controller
     }
     
     /**
-     * Страница "Мои услуги"
+     * Страница "Мои услуги" - показывает только услуги, закрепленные за врачом
      */
     public function services()
     {
         $doctor = Auth::guard('employee')->user();
         
-        $services = Service::where('is_active', 1)
+        // Получаем услуги, закрепленные за этим врачом
+        $services = $doctor->services()
             ->with(['materials' => function($query) {
                 $query->withPivot('quantity');
             }])
@@ -148,8 +149,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
-                'photo' => $doctor->photo, // ДОБАВЛЕНО
-                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                'photo' => $doctor->photo,
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
             'services' => $services,
@@ -158,6 +159,7 @@ class DashboardController extends Controller
         ]);
     }
     
+
     /**
      * Страница "Профиль" - обновлена для отображения фото
      */
@@ -179,7 +181,7 @@ class DashboardController extends Controller
             'phpVersion' => PHP_VERSION,
         ]);
     }
-    
+
     /**
      * Страница медицинской карты пациента
      */

@@ -118,6 +118,11 @@ class Employee extends Authenticatable
         }
     }
 
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'doctor_services', 'doctor_id', 'service_id')
+                    ->withTimestamps();
+    }
     // Связи
     public function clientContracts()
     {

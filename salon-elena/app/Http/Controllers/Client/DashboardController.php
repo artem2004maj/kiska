@@ -124,15 +124,15 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
+        // Получаем услуги с привязанными врачами
         $services = Service::where('is_active', 1)
+            ->with(['doctors' => function($query) {
+                $query->select('employee_id', 'employee_name', 'role');
+            }])
             ->orderBy('service_category')
             ->orderBy('service_name')
             ->get()
             ->groupBy('service_category');
-        
-        $doctors = Employee::where('role', 'doctor')
-            ->select('employee_id', 'employee_name', 'role')
-            ->get();
         
         return Inertia::render('Client/Services', [
             'client' => [
@@ -145,11 +145,11 @@ class DashboardController extends Controller
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
             ],
             'services' => $services,
-            'doctors' => $doctors,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
     }
+
     
     /**
      * Страница "Мои записи" (активные)
@@ -274,30 +274,29 @@ class DashboardController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
-            'doctor_id' => 'nullable|exists:employees,employee_id',
+            'service_id' => 'required|exists:services,service_id',
         ]);
         
-        $date = Carbon::parse($request->date);
-        $doctorId = $request->doctor_id;
+        $service = Service::with('doctors')->find($request->service_id);
         
-        // Рабочие часы (можно вынести в настройки)
-        $workHours = range(9, 20); // 9:00 - 20:00
-        
-        // Получаем занятые слоты
-        $query = Appointment::whereDate('date', $date)
-            ->whereIn('status', [0, 1]); // Только активные записи
-        
-        if ($doctorId) {
-            $query->where('employee_id', $doctorId);
+        if (!$service || $service->doctors->isEmpty()) {
+            return response()->json(['error' => 'К данной услуге не привязан ни один врач'], 422);
         }
         
-        $busySlots = $query->get()
+        $doctorId = $service->doctors->first()->employee_id;
+        $date = Carbon::parse($request->date);
+        
+        $workHours = range(9, 20);
+        
+        $busySlots = Appointment::whereDate('date', $date)
+            ->where('employee_id', $doctorId)
+            ->whereIn('status', [0, 1])
+            ->get()
             ->map(function($appointment) {
                 return Carbon::parse($appointment->date)->format('H:i');
             })
             ->toArray();
         
-        // Формируем доступные слоты
         $availableSlots = [];
         foreach ($workHours as $hour) {
             $time = sprintf('%02d:00', $hour);
@@ -308,6 +307,7 @@ class DashboardController extends Controller
         
         return response()->json([
             'date' => $date->format('Y-m-d'),
+            'doctor_name' => $service->doctors->first()->employee_name,
             'available_slots' => $availableSlots,
         ]);
     }
@@ -321,15 +321,23 @@ class DashboardController extends Controller
         
         $request->validate([
             'service_id' => 'required|exists:services,service_id',
-            'doctor_id' => 'required|exists:employees,employee_id',
             'date' => 'required|date|after:now',
             'time' => 'required|string',
         ]);
         
+        $service = Service::with('doctors')->find($request->service_id);
+        
+        if (!$service || $service->doctors->isEmpty()) {
+            return response()->json(['error' => 'К данной услуге не привязан ни один врач'], 422);
+        }
+        
+        // Берем первого врача из привязанных (можно добавить логику распределения)
+        $doctorId = $service->doctors->first()->employee_id;
+        
         $dateTime = Carbon::parse($request->date . ' ' . $request->time, 'Europe/Moscow');
         
-        // Проверяем, не занято ли время
-        $exists = Appointment::where('employee_id', $request->doctor_id)
+        // Проверяем, не занято ли время у этого врача
+        $exists = Appointment::where('employee_id', $doctorId)
             ->whereDate('date', $dateTime->toDateString())
             ->whereTime('date', $dateTime->toTimeString())
             ->whereIn('status', [0, 1])
@@ -342,22 +350,20 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
-            // Создаем запись
             $appointment = Appointment::create([
                 'date' => $dateTime->utc(),
-                'status' => 0, // Запланирован
-                'employee_id' => $request->doctor_id,
+                'status' => 0,
+                'employee_id' => $doctorId,
                 'client_id' => $client->client_id,
             ]);
             
-            // Добавляем услугу в provided_services
             DB::table('provided_services')->insert([
                 'quantity' => 1,
                 'service_date' => $dateTime->toDateString(),
                 'notes' => '',
                 'appointment_id' => $appointment->appointment_id,
                 'service_id' => $request->service_id,
-                'employee_id' => $request->doctor_id,
+                'employee_id' => $doctorId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

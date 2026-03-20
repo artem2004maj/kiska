@@ -40,4 +40,10 @@ class Service extends Model
     {
         return $this->hasMany(ProvidedService::class, 'service_id');
     }
+
+    public function doctors()
+    {
+        return $this->belongsToMany(Employee::class, 'doctor_services', 'service_id', 'doctor_id')
+                    ->withTimestamps();
+    }
 }

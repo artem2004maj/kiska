@@ -1,6 +1,7 @@
+<!-- resources/js/Pages/Client/Services.vue -->
 <template>
     <ClientLayout :client="client">
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
             <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ЗАПИСЬ НА УСЛУГУ</h2>
             
             <!-- Шаги записи -->
@@ -29,7 +30,7 @@
                 </div>
             </div>
 
-            <!-- Шаг 1: Выбор услуги и врача -->
+            <!-- Шаг 1: Выбор услуги -->
             <div v-if="step === 1" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Выберите категорию</label>
@@ -37,16 +38,6 @@
                         <option value="">Все категории</option>
                         <option v-for="category in Object.keys(services)" :key="category" :value="category">
                             {{ category }}
-                        </option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Выберите врача</label>
-                    <select v-model="selectedDoctor" class="w-full px-4 py-2 border rounded-md">
-                        <option value="">Все врачи</option>
-                        <option v-for="doctor in doctors" :key="doctor.employee_id" :value="doctor.employee_id">
-                            {{ doctor.employee_name }}
                         </option>
                     </select>
                 </div>
@@ -61,6 +52,9 @@
                             <h3 class="font-semibold">{{ service.service_name }}</h3>
                             <p class="text-sm text-gray-500">{{ service.service_category }}</p>
                             <p class="text-[#14b8a6] font-bold mt-2">{{ service.default_price }} ₽</p>
+                            <p v-if="service.doctors?.length" class="text-xs text-gray-400 mt-1">
+                                Врач: {{ service.doctors[0]?.employee_name }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -81,14 +75,12 @@
                     <p v-if="selectedDoctorName">Врач: {{ selectedDoctorName }}</p>
                 </div>
 
-                <!-- Календарь -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Выберите дату</label>
                     <input type="date" v-model="selectedDate" :min="minDate" @change="loadAvailableSlots"
                            class="w-full px-4 py-2 border rounded-md">
                 </div>
 
-                <!-- Доступное время -->
                 <div v-if="availableSlots.length > 0">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Доступное время</label>
                     <div class="grid grid-cols-4 gap-3">
@@ -121,7 +113,7 @@
                 <div class="bg-gray-50 p-6 rounded-lg space-y-3">
                     <h3 class="font-semibold text-lg">Проверьте данные</h3>
                     <p><span class="font-medium">Услуга:</span> {{ selectedService?.service_name }}</p>
-                    <p><span class="font-medium">Врач:</span> {{ selectedDoctorName || 'Не выбран' }}</p>
+                    <p><span class="font-medium">Врач:</span> {{ selectedDoctorName }}</p>
                     <p><span class="font-medium">Дата:</span> {{ formatDate(selectedDate) }}</p>
                     <p><span class="font-medium">Время:</span> {{ selectedTime }}</p>
                     <p><span class="font-medium">Стоимость:</span> {{ selectedService?.default_price }} ₽</p>
@@ -142,20 +134,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import ClientLayout from '@/Layouts/ClientLayout.vue';
 import axios from 'axios';
 
 const props = defineProps({
     client: Object,
-    services: Object,
-    doctors: Array
+    services: Object
 });
 
 const step = ref(1);
 const selectedCategory = ref('');
-const selectedDoctor = ref('');
 const selectedService = ref(null);
 const selectedDate = ref('');
 const selectedTime = ref('');
@@ -165,20 +155,16 @@ const loading = ref(false);
 const minDate = new Date().toISOString().split('T')[0];
 
 const selectedDoctorName = computed(() => {
-    if (!selectedDoctor.value) return null;
-    const doctor = props.doctors.find(d => d.employee_id == selectedDoctor.value);
-    return doctor?.employee_name;
+    return selectedService.value?.doctors?.[0]?.employee_name || null;
 });
 
 const filteredServices = computed(() => {
     let filtered = [];
     
-    // Собираем все услуги из всех категорий
     Object.values(props.services).forEach(categoryServices => {
         filtered = [...filtered, ...categoryServices];
     });
     
-    // Фильтруем по категории
     if (selectedCategory.value) {
         filtered = filtered.filter(s => s.service_category === selectedCategory.value);
     }
@@ -187,7 +173,6 @@ const filteredServices = computed(() => {
 });
 
 const filterByCategory = () => {
-    // Сброс выбранной услуги при смене категории
     selectedService.value = null;
 };
 
@@ -196,19 +181,20 @@ const formatDate = (date) => {
 };
 
 const loadAvailableSlots = async () => {
-    if (!selectedDate.value) return;
+    if (!selectedDate.value || !selectedService.value) return;
     
     try {
         const response = await axios.get('/api/client/available-slots', {
             params: {
                 date: selectedDate.value,
-                doctor_id: selectedDoctor.value || null
+                service_id: selectedService.value.service_id
             }
         });
         availableSlots.value = response.data.available_slots;
         selectedTime.value = '';
     } catch (error) {
         console.error('Error loading slots:', error);
+        alert(error.response?.data?.error || 'Ошибка при загрузке времени');
     }
 };
 
@@ -224,7 +210,6 @@ const createAppointment = async () => {
     try {
         await axios.post('/api/client/appointments', {
             service_id: selectedService.value.service_id,
-            doctor_id: selectedDoctor.value || props.doctors[0]?.employee_id,
             date: selectedDate.value,
             time: selectedTime.value
         });
@@ -238,13 +223,10 @@ const createAppointment = async () => {
     }
 };
 
-// Проверяем, есть ли в URL параметр для предзаполнения
 const urlParams = new URLSearchParams(window.location.search);
 const preselectedService = urlParams.get('service');
-const rescheduleId = urlParams.get('reschedule');
 
 if (preselectedService) {
-    // Найти и выбрать услугу
     setTimeout(() => {
         Object.values(props.services).forEach(categoryServices => {
             const service = categoryServices.find(s => s.service_id == preselectedService);
