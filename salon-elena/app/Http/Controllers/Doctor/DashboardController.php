@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -84,7 +85,7 @@ class DashboardController extends Controller
         ]);
     }
     
-    /**
+        /**
      * Страница "Мои пациенты"
      */
     public function patients()
@@ -108,8 +109,8 @@ class DashboardController extends Controller
                     'client_id' => $patient->client_id,
                     'client_name' => $patient->client_name,
                     'phone' => $patient->phone,
-                    'birth_date' => $patient->birth_date,
-                    'last_visit' => $lastAppointment ? $lastAppointment->date : null,
+                    'birth_date' => $patient->birth_date ? Carbon::parse($patient->birth_date)->format('d.m.Y') : '—',
+                    'last_visit' => $lastAppointment ? Carbon::parse($lastAppointment->date)->format('d.m.Y') : 'Нет',
                 ];
             });
         
@@ -119,8 +120,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
-                'photo' => $doctor->photo, // ДОБАВЛЕНО
-                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                'photo' => $doctor->photo,
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
             'patients' => $patients,

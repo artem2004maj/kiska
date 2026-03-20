@@ -38,7 +38,7 @@
                 </select>
             </div>
             
-            <!-- Форма создания/редактирования записи -->
+            <!-- Форма создания записи -->
             <div v-if="selectedAppointmentId" class="border-t pt-6 mb-8">
                 <h3 class="font-semibold text-lg mb-4">Новая запись</h3>
                 
@@ -103,7 +103,7 @@
                                     {{ getServiceNameFromAppointment(record.appointment) }}
                                 </p>
                             </div>
-                            <button @click="editRecord(record)" 
+                            <button @click="openEditModal(record)" 
                                     class="text-[#2A7F6E] hover:underline text-sm">
                                 Редактировать
                             </button>
@@ -133,6 +133,68 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Модальное окно для редактирования записи -->
+        <Teleport to="body">
+            <div v-if="showEditModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeEditModal"></div>
+                    
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">Редактирование записи</h3>
+                            <button @click="closeEditModal" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div v-if="editingRecord" class="p-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Дата визита</label>
+                                <input type="date" v-model="editForm.visit_date" 
+                                       class="w-full px-4 py-2 border rounded-md"
+                                       disabled>
+                                <p class="text-xs text-gray-400 mt-1">Дату визита изменить нельзя</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Анамнез</label>
+                                <textarea v-model="editForm.anamnesis" rows="3"
+                                          class="w-full px-4 py-2 border rounded-md"
+                                          placeholder="Жалобы пациента, история заболевания..."></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Диагноз</label>
+                                <textarea v-model="editForm.diagnosis" rows="3"
+                                          class="w-full px-4 py-2 border rounded-md"
+                                          placeholder="Клинический диагноз..."></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Противопоказания</label>
+                                <textarea v-model="editForm.contraindications" rows="2"
+                                          class="w-full px-4 py-2 border rounded-md"
+                                          placeholder="Аллергии, противопоказания к процедурам..."></textarea>
+                            </div>
+                            
+                            <div class="flex justify-end gap-3 pt-4">
+                                <button @click="closeEditModal" 
+                                        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                                    Отмена
+                                </button>
+                                <button @click="updateRecord" 
+                                        class="px-4 py-2 bg-[#2A7F6E] text-white rounded-md hover:bg-[#2A7F6E]/90">
+                                    Сохранить изменения
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </DoctorLayout>
 </template>
 
@@ -152,6 +214,16 @@ const props = defineProps({
 const selectedAppointmentId = ref('');
 const form = ref({
     visit_date: new Date().toISOString().split('T')[0],
+    anamnesis: '',
+    diagnosis: '',
+    contraindications: ''
+});
+
+// Редактирование
+const showEditModal = ref(false);
+const editingRecord = ref(null);
+const editForm = ref({
+    visit_date: '',
     anamnesis: '',
     diagnosis: '',
     contraindications: ''
@@ -242,9 +314,44 @@ const saveRecord = async () => {
     }
 };
 
-const editRecord = (record) => {
-    // Можно открыть модальное окно для редактирования
-    // Пока просто покажем в консоли
-    console.log('Edit record:', record);
+const openEditModal = (record) => {
+    editingRecord.value = record;
+    editForm.value = {
+        visit_date: record.visit_date,
+        anamnesis: record.anamnesis || '',
+        diagnosis: record.diagnosis || '',
+        contraindications: record.contraindications || ''
+    };
+    showEditModal.value = true;
+};
+
+const closeEditModal = () => {
+    showEditModal.value = false;
+    editingRecord.value = null;
+    editForm.value = {
+        visit_date: '',
+        anamnesis: '',
+        diagnosis: '',
+        contraindications: ''
+    };
+};
+
+const updateRecord = async () => {
+    if (!editingRecord.value) return;
+    
+    try {
+        await axios.put(`/api/doctor/medical-records/${editingRecord.value.record_id}`, {
+            anamnesis: editForm.value.anamnesis,
+            diagnosis: editForm.value.diagnosis,
+            contraindications: editForm.value.contraindications
+        });
+        
+        alert('Запись успешно обновлена');
+        closeEditModal();
+        router.reload();
+    } catch (error) {
+        console.error('Error updating record:', error);
+        alert(error.response?.data?.error || 'Ошибка при обновлении записи');
+    }
 };
 </script>
