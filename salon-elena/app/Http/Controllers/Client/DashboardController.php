@@ -326,7 +326,7 @@ class DashboardController extends Controller
             'time' => 'required|string',
         ]);
         
-        $dateTime = Carbon::parse($request->date . ' ' . $request->time);
+        $dateTime = Carbon::parse($request->date . ' ' . $request->time, 'Europe/Moscow');
         
         // Проверяем, не занято ли время
         $exists = Appointment::where('employee_id', $request->doctor_id)
@@ -344,7 +344,7 @@ class DashboardController extends Controller
         try {
             // Создаем запись
             $appointment = Appointment::create([
-                'date' => $dateTime,
+                'date' => $dateTime->utc(),
                 'status' => 0, // Запланирован
                 'employee_id' => $request->doctor_id,
                 'client_id' => $client->client_id,
