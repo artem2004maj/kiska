@@ -197,11 +197,16 @@
                         </div>
                         
                         <div v-if="selectedAppointment" class="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                            <!-- Информация о клиенте -->
+                            <!-- В модальном окне, блок информации о клиенте -->
                             <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 sm:p-4">
                                 <div class="flex items-center gap-3 sm:gap-4">
-                                    <div class="w-10 h-10 sm:w-16 sm:h-16 bg-[#2A7F6E]/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span class="text-base sm:text-2xl font-medium text-[#2A7F6E]">
+                                    <!-- Фото клиента -->
+                                    <div class="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-[#2A7F6E]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        <img v-if="selectedAppointment.client?.photo_url" 
+                                            :src="selectedAppointment.client.photo_url" 
+                                            :alt="selectedAppointment.client.client_name"
+                                            class="w-full h-full object-cover">
+                                        <span v-else class="text-base sm:text-2xl font-medium text-[#2A7F6E]">
                                             {{ getPatientInitials(selectedAppointment.client) }}
                                         </span>
                                     </div>

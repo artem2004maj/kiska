@@ -13,10 +13,14 @@
                 </button>
             </div>
             
-            <!-- Информация о пациенте -->
+            <!-- В блоке информации о пациенте -->
             <div class="bg-[#2A7F6E]/5 rounded-lg p-4 mb-6 flex items-center gap-4">
                 <div class="w-16 h-16 rounded-full bg-[#2A7F6E]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <span class="text-2xl font-medium text-[#2A7F6E]">
+                    <img v-if="patient.photo_url" 
+                        :src="patient.photo_url" 
+                        :alt="patient.client_name"
+                        class="w-full h-full object-cover">
+                    <span v-else class="text-2xl font-medium text-[#2A7F6E]">
                         {{ getInitials(patient.client_name) }}
                     </span>
                 </div>

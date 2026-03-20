@@ -14,7 +14,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage; // ДОБАВЛЕНО
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -33,7 +33,34 @@ class DashboardController extends Controller
         $appointments = Appointment::with(['client', 'providedServices.service', 'materials'])
             ->where('employee_id', $doctor->employee_id)
             ->orderBy('date', 'desc')
-            ->get();
+            ->get()
+            ->map(function($appointment) {
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'status' => $appointment->status,
+                    'client' => $appointment->client ? [
+                        'client_id' => $appointment->client->client_id,
+                        'client_name' => $appointment->client->client_name,
+                        'phone' => $appointment->client->phone,
+                        'photo' => $appointment->client->photo,
+                        'photo_url' => $appointment->client->photo ? Storage::url($appointment->client->photo) : null,
+                    ] : null,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'service_category' => $ps->service->service_category,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                    'materials' => $appointment->materials,
+                ];
+            });
         
         $patients = Client::whereIn('client_id', function($query) use ($doctor) {
                 $query->select('client_id')
@@ -52,8 +79,10 @@ class DashboardController extends Controller
                     'client_id' => $patient->client_id,
                     'client_name' => $patient->client_name,
                     'phone' => $patient->phone,
-                    'birth_date' => $patient->birth_date,
-                    'last_visit' => $lastAppointment ? $lastAppointment->date : null,
+                    'photo' => $patient->photo,
+                    'photo_url' => $patient->photo ? Storage::url($patient->photo) : null,
+                    'birth_date' => $patient->birth_date ? Carbon::parse($patient->birth_date)->format('d.m.Y') : '—',
+                    'last_visit' => $lastAppointment ? Carbon::parse($lastAppointment->date)->format('d.m.Y') : 'Нет',
                 ];
             });
         
@@ -72,8 +101,8 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
-                'photo' => $doctor->photo, // ДОБАВЛЕНО
-                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                'photo' => $doctor->photo,
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
             'appointments' => $appointments,
@@ -85,7 +114,7 @@ class DashboardController extends Controller
         ]);
     }
     
-        /**
+    /**
      * Страница "Мои пациенты"
      */
     public function patients()
@@ -109,6 +138,8 @@ class DashboardController extends Controller
                     'client_id' => $patient->client_id,
                     'client_name' => $patient->client_name,
                     'phone' => $patient->phone,
+                    'photo' => $patient->photo,
+                    'photo_url' => $patient->photo ? Storage::url($patient->photo) : null,
                     'birth_date' => $patient->birth_date ? Carbon::parse($patient->birth_date)->format('d.m.Y') : '—',
                     'last_visit' => $lastAppointment ? Carbon::parse($lastAppointment->date)->format('d.m.Y') : 'Нет',
                 ];
@@ -137,7 +168,6 @@ class DashboardController extends Controller
     {
         $doctor = Auth::guard('employee')->user();
         
-        // Получаем услуги, закрепленные за этим врачом
         $services = $doctor->services()
             ->with(['materials' => function($query) {
                 $query->withPivot('quantity');
@@ -160,9 +190,8 @@ class DashboardController extends Controller
         ]);
     }
     
-
     /**
-     * Страница "Профиль" - обновлена для отображения фото
+     * Страница "Профиль"
      */
     public function profile()
     {
@@ -174,15 +203,15 @@ class DashboardController extends Controller
                 'employee_name' => $doctor->employee_name,
                 'email' => $doctor->email,
                 'employee_phone' => $doctor->employee_phone,
-                'photo' => $doctor->photo, // ДОБАВЛЕНО
-                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null, // ДОБАВЛЕНО
+                'photo' => $doctor->photo,
+                'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
     }
-
+    
     /**
      * Страница медицинской карты пациента
      */
@@ -191,6 +220,15 @@ class DashboardController extends Controller
         $doctor = Auth::guard('employee')->user();
         
         $patient = Client::findOrFail($clientId);
+        
+        $patientData = [
+            'client_id' => $patient->client_id,
+            'client_name' => $patient->client_name,
+            'phone' => $patient->phone,
+            'birth_date' => $patient->birth_date,
+            'photo' => $patient->photo,
+            'photo_url' => $patient->photo ? Storage::url($patient->photo) : null,
+        ];
         
         $records = MedicalRecord::with(['employee', 'appointment.providedServices.service'])
             ->where('client_id', $clientId)
@@ -201,7 +239,26 @@ class DashboardController extends Controller
             ->where('client_id', $clientId)
             ->where('employee_id', $doctor->employee_id)
             ->orderBy('date', 'desc')
-            ->get();
+            ->get()
+            ->map(function($appointment) {
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'service_category' => $ps->service->service_category,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                    'medical_record' => $appointment->medicalRecord,
+                ];
+            });
         
         return Inertia::render('Doctor/MedicalRecord', [
             'doctor' => [
@@ -213,14 +270,14 @@ class DashboardController extends Controller
                 'photo_url' => $doctor->photo ? Storage::url($doctor->photo) : null,
                 'role' => $doctor->role,
             ],
-            'patient' => $patient,
+            'patient' => $patientData,
             'records' => $records,
             'appointments' => $appointments,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
     }
-
+    
     /**
      * Сохранить новую запись в медицинской карте
      */
@@ -236,13 +293,11 @@ class DashboardController extends Controller
             'contraindications' => 'nullable|string',
         ]);
         
-        // Проверяем, что запись принадлежит этому врачу и клиенту
         $appointment = Appointment::where('appointment_id', $request->appointment_id)
             ->where('employee_id', $doctor->employee_id)
             ->where('client_id', $clientId)
             ->firstOrFail();
         
-        // Проверяем, нет ли уже записи для этого приема
         $existingRecord = MedicalRecord::where('appointment_id', $request->appointment_id)->first();
         if ($existingRecord) {
             return response()->json(['error' => 'Запись для этого приема уже существует'], 422);
@@ -264,7 +319,7 @@ class DashboardController extends Controller
             'record' => $record->load('employee')
         ]);
     }
-
+    
     /**
      * Обновить существующую запись в медицинской карте
      */
@@ -306,18 +361,15 @@ class DashboardController extends Controller
         $doctor = Auth::guard('employee')->user();
         
         $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // максимум 2MB
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
         
-        // Удаляем старое фото, если есть
         if ($doctor->photo) {
             Storage::disk('public')->delete($doctor->photo);
         }
         
-        // Сохраняем новое фото
         $path = $request->file('photo')->store('doctors', 'public');
         
-        // Обновляем запись в БД
         $doctor->photo = $path;
         $doctor->save();
         
@@ -349,6 +401,9 @@ class DashboardController extends Controller
     
     // ====================== ОСТАЛЬНЫЕ API МЕТОДЫ ======================
     
+    /**
+     * Получить список приемов для календаря
+     */
     public function getAppointments(Request $request)
     {
         $doctor = Auth::guard('employee')->user();
@@ -366,23 +421,55 @@ class DashboardController extends Controller
             $query->whereBetween('date', [$start, $end]);
         }
         
-        return response()->json($query->orderBy('date')->get());
+        $appointments = $query->orderBy('date')->get()->map(function($appointment) {
+            return [
+                'appointment_id' => $appointment->appointment_id,
+                'date' => $appointment->date,
+                'status' => $appointment->status,
+                'client' => $appointment->client ? [
+                    'client_id' => $appointment->client->client_id,
+                    'client_name' => $appointment->client->client_name,
+                    'phone' => $appointment->client->phone,
+                    'photo' => $appointment->client->photo,
+                    'photo_url' => $appointment->client->photo ? Storage::url($appointment->client->photo) : null,
+                ] : null,
+                'provided_services' => $appointment->providedServices->map(function($ps) {
+                    return [
+                        'provided_id' => $ps->provided_id,
+                        'quantity' => $ps->quantity,
+                        'service' => $ps->service ? [
+                            'service_id' => $ps->service->service_id,
+                            'service_name' => $ps->service->service_name,
+                            'service_category' => $ps->service->service_category,
+                            'default_price' => $ps->service->default_price,
+                        ] : null,
+                    ];
+                }),
+            ];
+        });
+        
+        return response()->json($appointments);
     }
     
     /**
-     * Получить детали приема для модального окна (с названием услуги)
+     * Получить детали приема для модального окна
      */
     public function getAppointment($id)
     {
         $appointment = Appointment::with(['client', 'providedServices.service', 'materials.material'])
             ->findOrFail($id);
         
-        // Форматируем данные для ответа
         $data = [
             'appointment_id' => $appointment->appointment_id,
             'date' => $appointment->date,
             'status' => $appointment->status,
-            'client' => $appointment->client,
+            'client' => $appointment->client ? [
+                'client_id' => $appointment->client->client_id,
+                'client_name' => $appointment->client->client_name,
+                'phone' => $appointment->client->phone,
+                'photo' => $appointment->client->photo,
+                'photo_url' => $appointment->client->photo ? Storage::url($appointment->client->photo) : null,
+            ] : null,
             'provided_services' => $appointment->providedServices->map(function($ps) {
                 return [
                     'provided_id' => $ps->provided_id,
@@ -414,6 +501,9 @@ class DashboardController extends Controller
         return response()->json($data);
     }
     
+    /**
+     * Обновить статус приема
+     */
     public function updateStatus(Request $request, $id)
     {
         $appointment = Appointment::findOrFail($id);
@@ -423,6 +513,9 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
     
+    /**
+     * Сохранить материалы приема
+     */
     public function saveAppointmentMaterials(Request $request, $id)
     {
         $request->validate([
@@ -475,6 +568,9 @@ class DashboardController extends Controller
         }
     }
     
+    /**
+     * Добавить один материал (старый метод для совместимости)
+     */
     public function addMaterial(Request $request, $id)
     {
         $request->validate([
@@ -515,6 +611,9 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
     
+    /**
+     * Завершить прием
+     */
     public function completeAppointment(Request $request, $id)
     {
         $appointment = Appointment::findOrFail($id);
@@ -524,6 +623,9 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
     
+    /**
+     * Поиск пациентов
+     */
     public function searchPatients(Request $request)
     {
         $query = $request->get('query');
@@ -531,11 +633,23 @@ class DashboardController extends Controller
         $patients = Client::where('client_name', 'like', "%{$query}%")
             ->orWhere('phone', 'like', "%{$query}%")
             ->limit(10)
-            ->get(['client_id', 'client_name', 'phone']);
+            ->get(['client_id', 'client_name', 'phone', 'photo'])
+            ->map(function($patient) {
+                return [
+                    'client_id' => $patient->client_id,
+                    'client_name' => $patient->client_name,
+                    'phone' => $patient->phone,
+                    'photo' => $patient->photo,
+                    'photo_url' => $patient->photo ? Storage::url($patient->photo) : null,
+                ];
+            });
         
         return response()->json($patients);
     }
     
+    /**
+     * Получить доступные материалы
+     */
     public function getAvailableMaterials()
     {
         $materials = Material::where('current_balance', '>', 0)
@@ -544,6 +658,9 @@ class DashboardController extends Controller
         return response()->json($materials);
     }
     
+    /**
+     * Обновить профиль
+     */
     public function updateProfile(Request $request)
     {
         $doctor = Auth::guard('employee')->user();

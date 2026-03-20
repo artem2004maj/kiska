@@ -16,8 +16,19 @@
                 <div v-for="patient in filteredPatients" :key="patient.client_id" 
                      class="border rounded-lg p-4 hover:shadow-md transition cursor-pointer"
                      @click="viewPatient(patient.client_id)">
-                    <div class="flex justify-between">
-                        <div>
+                    <div class="flex items-center gap-4">
+                        <!-- Аватар пациента -->
+                        <div class="w-12 h-12 rounded-full bg-[#2A7F6E]/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img v-if="patient.photo_url" 
+                                 :src="patient.photo_url" 
+                                 :alt="patient.client_name"
+                                 class="w-full h-full object-cover">
+                            <span v-else class="text-lg font-medium text-[#2A7F6E]">
+                                {{ getInitials(patient.client_name) }}
+                            </span>
+                        </div>
+                        
+                        <div class="flex-1">
                             <h3 class="font-semibold">{{ patient.client_name }}</h3>
                             <p class="text-sm text-gray-500">📞 {{ patient.phone }}</p>
                             <p class="text-sm text-gray-500">📅 {{ patient.birth_date }}</p>
@@ -49,6 +60,11 @@ const props = defineProps({
 });
 
 const searchQuery = ref('');
+
+const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
 
 const filteredPatients = computed(() => {
     if (!searchQuery.value) return props.patients;
