@@ -88,6 +88,8 @@ Route::middleware('auth:client')->group(function () {
         Route::put('/appointments/{id}/reschedule', [App\Http\Controllers\Client\DashboardController::class, 'rescheduleAppointment']);
         Route::post('/feedback', [App\Http\Controllers\Client\DashboardController::class, 'leaveFeedback']);
         Route::put('/profile', [App\Http\Controllers\Client\DashboardController::class, 'updateProfile']);
+        Route::post('/upload-photo', [App\Http\Controllers\Client\DashboardController::class, 'uploadPhoto']);
+        Route::delete('/delete-photo', [App\Http\Controllers\Client\DashboardController::class, 'deletePhoto']);
     });
 });
 

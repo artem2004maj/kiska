@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -97,7 +98,15 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Client/Dashboard', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'appointments' => $appointments,
             'nextAppointment' => $nextAppointment,
             'notifications' => $notifications,
@@ -126,7 +135,15 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Client/Services', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'services' => $services,
             'doctors' => $doctors,
             'laravelVersion' => app()->version(),
@@ -148,7 +165,15 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Client/Appointments', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'appointments' => $appointments,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
@@ -169,7 +194,15 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Client/History', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'history' => $history,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
@@ -189,7 +222,15 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Client/MedicalRecords', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'records' => $records,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
@@ -208,7 +249,15 @@ class DashboardController extends Controller
         $feedback = Feedback::where('client_id', $client->client_id)->get();
         
         return Inertia::render('Client/Profile', [
-            'client' => $client,
+            'client' => [
+                'client_id' => $client->client_id,
+                'client_name' => $client->client_name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'birth_date' => $client->birth_date,
+                'photo' => $client->photo,
+                'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+            ],
             'appointments' => $appointments,
             'feedback' => $feedback,
             'laravelVersion' => app()->version(),
@@ -456,6 +505,57 @@ class DashboardController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Профиль успешно обновлен'
+        ]);
+    }
+    
+    // ====================== НОВЫЕ МЕТОДЫ ДЛЯ ФОТО ======================
+
+    /**
+     * Загрузка фото профиля
+     */
+    public function uploadPhoto(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // максимум 2MB
+        ]);
+        
+        // Удаляем старое фото, если есть
+        if ($client->photo) {
+            Storage::disk('public')->delete($client->photo);
+        }
+        
+        // Сохраняем новое фото
+        $path = $request->file('photo')->store('clients', 'public');
+        
+        // Обновляем запись в БД
+        $client->photo = $path;
+        $client->save();
+        
+        return response()->json([
+            'success' => true,
+            'photo_url' => Storage::url($path),
+            'message' => 'Фото успешно загружено'
+        ]);
+    }
+
+    /**
+     * Удаление фото
+     */
+    public function deletePhoto()
+    {
+        $client = Auth::guard('client')->user();
+        
+        if ($client->photo) {
+            Storage::disk('public')->delete($client->photo);
+            $client->photo = null;
+            $client->save();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Фото удалено'
         ]);
     }
 }

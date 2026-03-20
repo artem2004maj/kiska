@@ -212,7 +212,7 @@ const servicesByCategory = computed(() => {
                             <img v-if="doctor.photo_url" 
                                 :src="doctor.photo_url" 
                                 :alt="doctor.employee_name"
-                                class="w-full h-full object-cover">
+                                class="w-full h-full object-cover object-top">
                             <svg v-else class="w-16 sm:w-20 lg:w-24 h-16 sm:h-20 lg:h-24 text-[#14b8a6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>

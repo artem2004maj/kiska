@@ -3,15 +3,20 @@
         <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] dark:ring-zinc-800">
             <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">МЕДИЦИНСКАЯ КАРТА</h2>
             
-            <!-- Информация о клиенте -->
+            <!-- Информация о клиенте с фото -->
             <div class="bg-[#14b8a6]/5 rounded-lg p-4 mb-6 flex items-center gap-4">
-                <div class="w-16 h-16 bg-[#14b8a6]/20 rounded-full flex items-center justify-center">
-                    <span class="text-2xl font-medium text-[#14b8a6]">
+                <div class="w-16 h-16 rounded-full bg-[#14b8a6]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <!-- Фото клиента или инициалы -->
+                    <img v-if="client?.photo_url" 
+                         :src="client.photo_url" 
+                         :alt="client.client_name"
+                         class="w-full h-full object-cover">
+                    <span v-else class="text-2xl font-medium text-[#14b8a6]">
                         {{ getInitials(client.client_name) }}
                     </span>
                 </div>
-                <div>
-                    <h3 class="font-semibold text-lg">{{ client.client_name }}</h3>
+                <div class="min-w-0 flex-1">
+                    <h3 class="font-semibold text-lg truncate">{{ client.client_name }}</h3>
                     <p class="text-sm text-gray-500">Дата рождения: {{ formatDate(client.birth_date) }}</p>
                     <p class="text-sm text-gray-500">Телефон: {{ client.phone }}</p>
                 </div>
