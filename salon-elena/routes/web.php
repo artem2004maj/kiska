@@ -143,9 +143,33 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('/dashboard/director', fn() => Inertia::render('Dashboard/Director'))
         ->name('dashboard.director');
     
-    // Бухгалтер
-    Route::get('/dashboard/accountant', fn() => Inertia::render('Dashboard/Accountant'))
-        ->name('dashboard.accountant');
+    // ====================== БУХГАЛТЕР ======================
+    Route::middleware('auth:employee')->group(function () {
+        // Бухгалтер - главная страница
+        Route::get('/dashboard/accountant', [App\Http\Controllers\Accountant\DashboardController::class, 'index'])
+            ->name('dashboard.accountant');
+        
+        // Остальные страницы бухгалтера
+        Route::get('/accountant/payments', [App\Http\Controllers\Accountant\DashboardController::class, 'payments'])
+            ->name('accountant.payments');
+        
+        Route::get('/accountant/warehouse', [App\Http\Controllers\Accountant\DashboardController::class, 'warehouse'])
+            ->name('accountant.warehouse');
+        
+        Route::get('/accountant/salary', [App\Http\Controllers\Accountant\DashboardController::class, 'salary'])
+            ->name('accountant.salary');
+        
+        // API маршруты для бухгалтера
+        Route::prefix('api/accountant')->name('accountant.api.')->group(function () {
+            Route::post('/payments/{id}/accept', [App\Http\Controllers\Accountant\DashboardController::class, 'acceptPayment']);
+            Route::post('/orders/create', [App\Http\Controllers\Accountant\DashboardController::class, 'createOrder']);
+            Route::post('/orders/{id}/receive', [App\Http\Controllers\Accountant\DashboardController::class, 'receiveOrder']);
+            Route::post('/salary/calculate', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalary']);
+            Route::post('/salary/pay', [App\Http\Controllers\Accountant\DashboardController::class, 'paySalary']);
+            Route::post('/salary/pay-all', [App\Http\Controllers\Accountant\DashboardController::class, 'payAllSalaries']);
+            Route::get('/revenue-stats', [App\Http\Controllers\Accountant\DashboardController::class, 'getRevenueStats']);
+        });
+    });
 });
 
 Route::get('/debug-employee', function() {
@@ -170,6 +194,7 @@ Route::get('/debug-employee', function() {
         ],
     ]);
 });
+
 
 // Выход
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');

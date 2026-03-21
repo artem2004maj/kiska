@@ -6,7 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB; // ДОБАВЛЕНО
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Authenticatable
 {
@@ -20,6 +20,7 @@ class Employee extends Authenticatable
     protected $fillable = [
         'employee_name',
         'role',
+        'hourly_rate',
         'employee_phone',
         'photo',
         'email',
@@ -34,6 +35,7 @@ class Employee extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'hourly_rate' => 'decimal:2',
     ];
 
     /**
@@ -148,7 +150,17 @@ class Employee extends Authenticatable
         return $this->hasMany(ProvidedService::class, 'employee_id', 'employee_id');
     }
 
-    // ========== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С РАСПИСАНИЕМ ==========
+    // ========== СВЯЗЬ С ЗАРПЛАТОЙ ==========
+    
+    /**
+     * Связь с записями о зарплате
+     */
+    public function salaries()
+    {
+        return $this->hasMany(Salary::class, 'employee_id', 'employee_id');
+    }
+
+    // ========== МЕТОДЫ ДЛЯ РАБОТЫ С РАСПИСАНИЕМ ==========
     
     /**
      * Связь с расписанием работы врача
@@ -262,6 +274,119 @@ class Employee extends Authenticatable
         return $schedule;
     }
     
+    // ========== МЕТОДЫ ДЛЯ РАСЧЕТА ЗАРПЛАТЫ ==========
+    
+    /**
+     * Рассчитать отработанные часы за период (на основе расписания, а не записей)
+     * 
+     * @param \Carbon\Carbon|string $startDate
+     * @param \Carbon\Carbon|string $endDate
+     * @return float
+     */
+    public function calculateWorkedHours($startDate, $endDate)
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+        $totalHours = 0;
+        
+        $current = $start->copy();
+        
+        while ($current <= $end) {
+            $dayOfWeek = $current->dayOfWeek;
+            $schedule = $this->getScheduleForDay($dayOfWeek);
+            
+            if ($schedule && $schedule->start_time && $schedule->end_time) {
+                $startHour = Carbon::parse($schedule->start_time)->hour;
+                $endHour = Carbon::parse($schedule->end_time)->hour;
+                $startMinute = Carbon::parse($schedule->start_time)->minute;
+                $endMinute = Carbon::parse($schedule->end_time)->minute;
+                
+                $hoursThisDay = ($endHour - $startHour) + (($endMinute - $startMinute) / 60);
+                $totalHours += $hoursThisDay;
+            }
+            
+            $current->addDay();
+        }
+        
+        return $totalHours;
+    }
+
+    /**
+     * Рассчитать зарплату за период
+     * 
+     * @param \Carbon\Carbon|string $startDate
+     * @param \Carbon\Carbon|string $endDate
+     * @return float
+     */
+    public function calculateSalaryForPeriod($startDate, $endDate)
+    {
+        $hoursWorked = $this->calculateWorkedHours($startDate, $endDate);
+        $rate = $this->hourly_rate ?? 0;
+        
+        return $hoursWorked * $rate;
+    }
+
+    /**
+     * Получить зарплату за месяц
+     * 
+     * @param int $month
+     * @param int $year
+     * @return object
+     */
+    public function getSalaryForMonth($month, $year)
+    {
+        $salary = $this->salaries()
+            ->where('month', $month)
+            ->where('year', $year)
+            ->first();
+        
+        if ($salary) {
+            return $salary;
+        }
+        
+        // Если нет записи, рассчитываем
+        $startDate = Carbon::create($year, $month, 1);
+        $endDate = Carbon::create($year, $month, $startDate->daysInMonth);
+        
+        $hoursWorked = $this->calculateWorkedHours($startDate, $endDate);
+        $totalAmount = $hoursWorked * ($this->hourly_rate ?? 0);
+        
+        return (object) [
+            'hours_worked' => $hoursWorked,
+            'total_amount' => $totalAmount,
+            'is_paid' => false,
+        ];
+    }
+
+    /**
+     * Сохранить зарплату за месяц
+     * 
+     * @param int $month
+     * @param int $year
+     * @return \App\Models\Salary
+     */
+    public function saveSalaryForMonth($month, $year)
+    {
+        $startDate = Carbon::create($year, $month, 1);
+        $endDate = Carbon::create($year, $month, $startDate->daysInMonth);
+        
+        $hoursWorked = $this->calculateWorkedHours($startDate, $endDate);
+        $totalAmount = $hoursWorked * ($this->hourly_rate ?? 0);
+        
+        return $this->salaries()->updateOrCreate(
+            [
+                'month' => $month,
+                'year' => $year,
+            ],
+            [
+                'hours_worked' => $hoursWorked,
+                'hourly_rate' => $this->hourly_rate ?? 0,
+                'total_amount' => $totalAmount,
+                'is_paid' => false,
+            ]
+        );
+    }
+
     // ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ==========
     
     /**
@@ -302,5 +427,43 @@ class Employee extends Authenticatable
     public function isDirector()
     {
         return $this->role === 'director';
+    }
+
+    /**
+     * Получить отработанные часы на основе завершенных приемов (альтернативный метод)
+     * 
+     * @param \Carbon\Carbon|string $startDate
+     * @param \Carbon\Carbon|string $endDate
+     * @return int
+     */
+    public function getWorkedHoursFromAppointments($startDate, $endDate)
+    {
+        return $this->appointments()
+            ->whereBetween('date', [$startDate, $endDate])
+            ->where('status', 2)
+            ->count();
+    }
+
+    /**
+     * Получить отработанные часы с учетом длительности приемов
+     * 
+     * @param \Carbon\Carbon|string $startDate
+     * @param \Carbon\Carbon|string $endDate
+     * @return float
+     */
+    public function getWorkedHoursWithDuration($startDate, $endDate)
+    {
+        $appointments = $this->appointments()
+            ->whereBetween('date', [$startDate, $endDate])
+            ->where('status', 2)
+            ->get();
+        
+        $totalHours = 0;
+        foreach ($appointments as $appointment) {
+            // Предполагаем, что каждый прием длится 1 час
+            $totalHours += 1;
+        }
+        
+        return $totalHours;
     }
 }
