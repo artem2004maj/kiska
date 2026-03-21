@@ -13,12 +13,14 @@ class Appointment extends Model
     protected $fillable = [
         'date',
         'status',
+        'total_price',
         'employee_id',
         'client_id',
     ];
 
     protected $casts = [
         'date' => 'datetime',
+        'total_price' => 'decimal:2',
     ];
 
     public function employee()
@@ -57,6 +59,34 @@ class Appointment extends Model
         return $this->hasOne(MedicalRecord::class, 'appointment_id');
     }
 
+    public function clientContract()
+    {
+        return $this->hasOne(ClientContract::class, 'appointment_id');
+    }
+
+    /**
+     * Рассчитать итоговую стоимость приема
+     */
+    public function calculateTotalPrice()
+    {
+        $total = 0;
+        
+        // Стоимость услуг
+        foreach ($this->providedServices as $service) {
+            if ($service->service) {
+                $total += $service->service->default_price * $service->quantity;
+            }
+        }
+        
+        // Стоимость материалов (из pivot таблицы appointment_materials)
+        foreach ($this->materials as $material) {
+            $price = $material->pivot->cost_price ?? $material->price_per_unit ?? 0;
+            $total += $price * $material->pivot->quantity_used;
+        }
+        
+        return $total;
+    }
+    
     /**
      * Получить название услуги (первой) для отображения
      */

@@ -262,11 +262,33 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
-        $history = Appointment::with(['employee', 'providedServices.service', 'feedback'])
+        $history = Appointment::with(['employee', 'providedServices.service', 'feedback', 'clientContract'])
             ->where('client_id', $client->client_id)
-            ->whereIn('status', [2, 3]) // Завершенные и отмененные
+            ->whereIn('status', [2, 3])
             ->orderBy('date', 'desc')
-            ->get();
+            ->get()
+            ->map(function($appointment) {
+                return [
+                    'appointment_id' => $appointment->appointment_id,
+                    'date' => $appointment->date,
+                    'status' => $appointment->status,
+                    'total_price' => $appointment->total_price,
+                    'employee' => $appointment->employee,
+                    'provided_services' => $appointment->providedServices->map(function($ps) {
+                        return [
+                            'provided_id' => $ps->provided_id,
+                            'quantity' => $ps->quantity,
+                            'service' => $ps->service ? [
+                                'service_id' => $ps->service->service_id,
+                                'service_name' => $ps->service->service_name,
+                                'default_price' => $ps->service->default_price,
+                            ] : null,
+                        ];
+                    }),
+                    'feedback' => $appointment->feedback,
+                    'contract_number' => $appointment->clientContract?->contract_number,
+                ];
+            });
         
         return Inertia::render('Client/History', [
             'client' => [

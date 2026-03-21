@@ -66,9 +66,13 @@
                             </button>
                         </div>
                         
+                        <!-- В блоке информации о приеме добавьте отображение стоимости -->
                         <div class="text-right">
                             <p class="font-semibold text-[#14b8a6]">
                                 {{ getTotalPrice(appointment) }} ₽
+                            </p>
+                            <p v-if="appointment.contract_number" class="text-xs text-gray-400 mt-1">
+                                Чек: {{ appointment.contract_number }}
                             </p>
                         </div>
                     </div>

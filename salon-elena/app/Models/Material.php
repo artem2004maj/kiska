@@ -15,6 +15,11 @@ class Material extends Model
         'unit',
         'min_stock',
         'current_balance',
+        'price_per_unit',
+    ];
+
+    protected $casts = [
+        'price_per_unit' => 'decimal:2',
     ];
 
     public function appointments()
@@ -29,22 +34,21 @@ class Material extends Model
     }
 
     public function services()
-{
-    return $this->belongsToMany(
-        Service::class,
-        'service_material',
-        'material_id',
-        'service_id'
-    )->withPivot('quantity', 'is_required')
-     ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(
+            Service::class,
+            'service_material',
+            'material_id',
+            'service_id'
+        )->withPivot('quantity', 'is_required')
+         ->withTimestamps();
+    }
 
     public function receipts()
     {
         return $this->hasMany(MaterialReceipt::class, 'material_id');
     }
 
-    // Убираем или переделываем старую связь с consumption
     public function consumptions()
     {
         return $this->hasMany(Consumption::class, 'material_id');

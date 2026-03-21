@@ -259,10 +259,10 @@
                                 
                                 <div class="space-y-2 mb-3">
                                     <div v-for="(material, index) in selectedMaterials" :key="index"
-                                         class="flex items-center justify-between p-2 border rounded-lg">
+                                        class="flex items-center justify-between p-2 border rounded-lg">
                                         <div class="flex-1 min-w-0">
                                             <span class="text-sm sm:text-base font-medium">{{ getMaterialName(material.material_id) }}</span>
-                                            <span class="ml-2 text-xs sm:text-sm text-gray-600">{{ material.quantity }} {{ getMaterialUnit(material.material_id) }}</span>
+                                            <span class="ml-2 text-xs sm:text-sm text-gray-600">{{ material.quantity_used }} {{ getMaterialUnit(material.material_id) }}</span>
                                         </div>
                                         <button @click="removeMaterial(index)" class="ml-2 text-red-500 flex-shrink-0">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,7 +427,7 @@ const currentPeriodLabel = computed(() => {
 });
 
 const totalMaterialsQuantity = computed(() => {
-    return selectedMaterials.value.reduce((sum, m) => sum + m.quantity, 0);
+    return selectedMaterials.value.reduce((sum, m) => sum + (m.quantity_used || 0), 0);
 });
 
 const canAddMaterial = computed(() => {
@@ -589,11 +589,11 @@ const addToMaterialsList = () => {
     );
     
     if (existingIndex >= 0) {
-        selectedMaterials.value[existingIndex].quantity += newMaterial.value.quantity;
+        selectedMaterials.value[existingIndex].quantity_used += newMaterial.value.quantity; // изменено quantity → quantity_used
     } else {
         selectedMaterials.value.push({
             material_id: newMaterial.value.material_id,
-            quantity: newMaterial.value.quantity,
+            quantity_used: newMaterial.value.quantity, // изменено quantity → quantity_used
             notes: ''
         });
     }
@@ -608,18 +608,28 @@ const removeMaterial = (index) => {
 const saveAllMaterials = async () => {
     if (selectedMaterials.value.length === 0) return;
     
+    // Преобразуем данные для сервера
+    const materialsToSend = selectedMaterials.value.map(m => ({
+        material_id: m.material_id,
+        quantity_used: m.quantity_used, // используем quantity_used
+        notes: m.notes || ''
+    }));
+    
+    console.log('Sending materials:', materialsToSend);
+    
     try {
-        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials/save`, {
-            materials: selectedMaterials.value
+        const response = await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials/save`, {
+            materials: materialsToSend
         });
         
-        const response = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
-        selectedAppointment.value = response.data;
+        const response2 = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
+        selectedAppointment.value = response2.data;
         selectedMaterials.value = [];
         
         alert('Материалы успешно сохранены');
     } catch (error) {
         console.error('Error saving materials:', error);
+        console.error('Error response:', error.response?.data);
         alert(error.response?.data?.error || 'Ошибка при сохранении материалов');
     }
 };

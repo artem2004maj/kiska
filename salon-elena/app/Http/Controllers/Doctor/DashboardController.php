@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Material;
 use App\Models\Service;
 use App\Models\MedicalRecord;
+use App\Models\ClientContract;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -420,8 +421,8 @@ class DashboardController extends Controller
             $end = $targetDate->copy()->endOfWeek()->utc();
         }
         
-        // Получаем записи
-        $appointments = Appointment::with(['client', 'providedServices.service', 'materials.material'])
+        // ИСПРАВЛЕНО: убрал .material, так как materials уже загружает материалы
+        $appointments = Appointment::with(['client', 'providedServices.service', 'materials'])
             ->where('employee_id', $doctor->employee_id)
             ->whereBetween('date', [$start, $end])
             ->orderBy('date')
@@ -453,6 +454,14 @@ class DashboardController extends Controller
                             ] : null,
                         ];
                     }),
+                    'materials' => $appointment->materials->map(function($material) {
+                        return [
+                            'material_id' => $material->material_id,
+                            'name' => $material->name,
+                            'quantity_used' => $material->pivot->quantity_used,
+                            'unit' => $material->unit,
+                        ];
+                    }),
                 ];
             });
         
@@ -482,7 +491,8 @@ class DashboardController extends Controller
      */
     public function getAppointment($id)
     {
-        $appointment = Appointment::with(['client', 'providedServices.service', 'materials.material'])
+        // ИСПРАВЛЕНО: убрал .material
+        $appointment = Appointment::with(['client', 'providedServices.service', 'materials'])
             ->findOrFail($id);
         
         $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
@@ -563,25 +573,32 @@ class DashboardController extends Controller
             foreach ($request->materials as $materialData) {
                 $material = Material::find($materialData['material_id']);
                 
+                if (!$material) {
+                    throw new \Exception("Материал не найден");
+                }
+                
                 if ($material->current_balance < $materialData['quantity_used']) {
                     throw new \Exception("Недостаточно {$material->name} на складе. Доступно: {$material->current_balance} {$material->unit}");
                 }
 
+                // Уменьшаем остаток на складе
                 $material->current_balance -= $materialData['quantity_used'];
                 $material->save();
 
+                // Сохраняем в appointment_materials с ценой на момент использования
                 $appointment->materials()->attach($materialData['material_id'], [
                     'quantity_used' => $materialData['quantity_used'],
-                    'cost_price' => 0,
+                    'cost_price' => $material->price_per_unit ?? 0,
                     'notes' => $materialData['notes'] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
+                // Записываем в consumption для учета
                 DB::table('consumption')->insert([
-                    'batch_number' => 'APT-' . $id . '-' . time(),
+                    'batch_number' => 'APT-' . $id . '-' . time() . '-' . $material->material_id,
                     'quantity' => $materialData['quantity_used'],
-                    'cost_price' => 0,
+                    'cost_price' => $material->price_per_unit ?? 0,
                     'provided_id' => null,
                     'material_id' => $materialData['material_id'],
                     'created_at' => now(),
@@ -590,7 +607,15 @@ class DashboardController extends Controller
             }
             
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Материалы успешно сохранены']);
+            
+            // Пересчитываем общую сумму после добавления материалов
+            $totalPrice = $appointment->calculateTotalPrice();
+            
+            return response()->json([
+                'success' => true, 
+                'message' => 'Материалы успешно сохранены',
+                'total_price' => $totalPrice
+            ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -642,15 +667,62 @@ class DashboardController extends Controller
     }
     
     /**
-     * Завершить прием
+     * Завершить прием и создать чек
      */
     public function completeAppointment(Request $request, $id)
     {
-        $appointment = Appointment::findOrFail($id);
-        $appointment->status = 2;
-        $appointment->save();
+        $doctor = Auth::guard('employee')->user();
         
-        return response()->json(['success' => true]);
+        // Загружаем услуги и материалы для расчета
+        $appointment = Appointment::with(['providedServices.service', 'materials'])
+            ->where('appointment_id', $id)
+            ->where('employee_id', $doctor->employee_id)
+            ->firstOrFail();
+        
+        if ($appointment->status == 2) {
+            return response()->json(['error' => 'Прием уже завершен'], 422);
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Рассчитываем итоговую стоимость
+            $totalPrice = $appointment->calculateTotalPrice();
+            
+            // Обновляем статус и сумму
+            $appointment->status = 2;
+            $appointment->total_price = $totalPrice;
+            $appointment->save();
+            
+            // Генерируем номер контракта
+            $contractNumber = 'INV-' . date('Ymd') . '-' . str_pad($appointment->appointment_id, 6, '0', STR_PAD_LEFT);
+            
+            // Создаем чек (контракт)
+            $contract = ClientContract::create([
+                'contract_date' => now(),
+                'status' => 1, // 1 - оплачен/завершен
+                'contract_number' => $contractNumber,
+                'total_amount' => $totalPrice,
+                'signed_at' => now(),
+                'employee_id' => $doctor->employee_id,
+                'client_id' => $appointment->client_id,
+                'appointment_id' => $appointment->appointment_id,
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Прием завершен',
+                'total_price' => $totalPrice,
+                'contract_number' => $contractNumber,
+                'materials_used' => $appointment->materials->count(), // Это работает, если материалы загружены в with()
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Ошибка при завершении приема: ' . $e->getMessage()], 500);
+        }
     }
     
     /**
