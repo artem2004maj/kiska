@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Appointment extends Model
 {
+    // ========== КОНСТАНТЫ СТАТУСОВ ==========
+    const STATUS_PENDING = 0;      // Запланирован (ожидает подтверждения)
+    const STATUS_CONFIRMED = 1;    // Подтвержден
+    const STATUS_COMPLETED = 2;    // Завершен
+    const STATUS_CANCELLED = 3;    // Отменен
+    
     protected $table = 'appointments';
     protected $primaryKey = 'appointment_id';
 
@@ -62,6 +68,71 @@ class Appointment extends Model
     public function clientContract()
     {
         return $this->hasOne(ClientContract::class, 'appointment_id');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'appointment_id');
+    }
+
+    /**
+     * Проверить, ожидает ли запись подтверждения
+     */
+    public function isPending()
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Проверить, подтверждена ли запись
+     */
+    public function isConfirmed()
+    {
+        return $this->status === self::STATUS_CONFIRMED;
+    }
+
+    /**
+     * Проверить, завершена ли запись
+     */
+    public function isCompleted()
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Проверить, отменена ли запись
+     */
+    public function isCancelled()
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    /**
+     * Получить текстовое представление статуса
+     */
+    public function getStatusTextAttribute()
+    {
+        return match($this->status) {
+            self::STATUS_PENDING => 'Ожидает подтверждения',
+            self::STATUS_CONFIRMED => 'Подтвержден',
+            self::STATUS_COMPLETED => 'Завершен',
+            self::STATUS_CANCELLED => 'Отменен',
+            default => 'Неизвестно',
+        };
+    }
+
+    /**
+     * Получить цветовую метку статуса для CSS
+     */
+    public function getStatusColorAttribute()
+    {
+        return match($this->status) {
+            self::STATUS_PENDING => 'yellow',
+            self::STATUS_CONFIRMED => 'green',
+            self::STATUS_COMPLETED => 'gray',
+            self::STATUS_CANCELLED => 'red',
+            default => 'gray',
+        };
     }
 
     /**

@@ -182,7 +182,7 @@
             </div>
         </div>
 
-        <!-- Модальное окно приема (без изменений) -->
+        <!-- Модальное окно приема - ОБНОВЛЕНО -->
         <Teleport to="body">
             <div v-if="showAppointmentModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen p-2 sm:px-4">
@@ -215,6 +215,7 @@
                                         <h4 class="font-semibold text-sm sm:text-lg truncate">{{ selectedAppointment.client?.client_name }}</h4>
                                         <p class="text-xs sm:text-sm text-gray-500">📞 {{ selectedAppointment.client?.phone }}</p>
                                         <p class="text-xs sm:text-sm text-gray-500">📅 {{ formatDate(selectedAppointment.date) }}</p>
+                                        <p class="text-xs sm:text-sm text-gray-500">⏰ {{ formatTime(selectedAppointment.date) }}</p>
                                     </div>
                                     <button @click="viewMedicalRecord(selectedAppointment.client?.client_id)" 
                                             class="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm border border-[#2A7F6E] text-[#2A7F6E] rounded-md hover:bg-[#2A7F6E]/10 whitespace-nowrap">
@@ -250,82 +251,132 @@
                                 </div>
                             </div>
 
-                            <!-- Расход материалов -->
-                            <div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <h5 class="text-sm sm:text-base font-medium">Расход материалов:</h5>
-                                    <span class="text-xs sm:text-sm text-gray-500">Всего: {{ totalMaterialsQuantity }} ед.</span>
+                            <!-- ========== РЕЖИМ 1: ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ (status = 0) ========== -->
+                            <div v-if="selectedAppointment.status === 0" class="space-y-4">
+                                <div class="bg-yellow-50 p-4 rounded-lg">
+                                    <p class="text-yellow-800 font-medium">Эта запись ожидает подтверждения</p>
+                                    <p class="text-sm text-yellow-600 mt-1">Подтвердите или отклоните запись клиента</p>
                                 </div>
                                 
-                                <div class="space-y-2 mb-3">
-                                    <div v-for="(material, index) in selectedMaterials" :key="index"
-                                        class="flex items-center justify-between p-2 border rounded-lg">
-                                        <div class="flex-1 min-w-0">
-                                            <span class="text-sm sm:text-base font-medium">{{ getMaterialName(material.material_id) }}</span>
-                                            <span class="ml-2 text-xs sm:text-sm text-gray-600">{{ material.quantity_used }} {{ getMaterialUnit(material.material_id) }}</span>
-                                        </div>
-                                        <button @click="removeMaterial(index)" class="ml-2 text-red-500 flex-shrink-0">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
+                                <div class="border-t pt-4">
+                                    <div v-if="showRejectionReason" class="mb-3">
+                                        <label class="block text-sm font-medium mb-1">Причина отклонения</label>
+                                        <textarea v-model="rejectionReason" rows="2"
+                                                  class="w-full px-3 py-2 border rounded-md"
+                                                  placeholder="Укажите причину отклонения записи..."></textarea>
+                                    </div>
+                                    
+                                    <div class="flex gap-3">
+                                        <button @click="confirmAppointment" 
+                                                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                            Подтвердить
+                                        </button>
+                                        <button v-if="!showRejectionReason" 
+                                                @click="showRejectionReason = true" 
+                                                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                            Отклонить
+                                        </button>
+                                        <button v-else 
+                                                @click="rejectAppointment" 
+                                                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                            Подтвердить отклонение
                                         </button>
                                     </div>
-                                </div>
-                                
-                                <div v-if="selectedAppointment.materials?.length" class="mt-2">
-                                    <p class="text-xs sm:text-sm text-gray-500 mb-1">Ранее сохраненные:</p>
-                                    <div v-for="material in selectedAppointment.materials" :key="material.consumption_id"
-                                         class="flex items-center justify-between p-2 bg-gray-50 rounded-lg mb-1">
-                                        <span class="text-sm">{{ material.material?.name }}</span>
-                                        <span class="text-sm font-medium">{{ material.quantity }} {{ material.material?.unit }}</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-3 sm:mt-4 p-3 sm:p-4 border border-dashed rounded-lg">
-                                    <h6 class="text-xs sm:text-sm font-medium mb-2 sm:mb-3">Добавить материал</h6>
-                                    <div class="space-y-2 sm:space-y-3">
-                                        <select v-model="newMaterial.material_id" 
-                                                class="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
-                                            <option value="">Выберите материал</option>
-                                            <option v-for="mat in availableMaterials" :key="mat.material_id" :value="mat.material_id">
-                                                {{ mat.name }} (доступно: {{ mat.current_balance }} {{ mat.unit }})
-                                            </option>
-                                        </select>
-                                        <div class="flex gap-2">
-                                            <input type="number" v-model="newMaterial.quantity" min="1" 
-                                                   placeholder="Количество"
-                                                   class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
-                                            <button @click="addToMaterialsList" 
-                                                    class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#2A7F6E] text-white text-sm rounded-md hover:bg-[#2A7F6E]/90"
-                                                    :disabled="!canAddMaterial">
-                                                Добавить
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <button v-if="showRejectionReason" 
+                                            @click="showRejectionReason = false; rejectionReason = ''" 
+                                            class="mt-2 text-sm text-gray-500 hover:text-gray-700">
+                                        Отмена
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Статус приема и действия -->
-                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
-                                <select v-model="selectedAppointment.status" @change="updateAppointmentStatus"
-                                        class="px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
-                                    <option value="0">Запланирован</option>
-                                    <option value="1">Подтвержден</option>
-                                    <option value="2">Завершен</option>
-                                    <option value="3">Отменен</option>
-                                </select>
-                                
-                                <div class="flex gap-2">
-                                    <button @click="saveAllMaterials" 
-                                            class="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                            :disabled="selectedMaterials.length === 0">
-                                        Сохранить
-                                    </button>
+                            <!-- ========== РЕЖИМ 2: ПОДТВЕРЖДЕН (status = 1) ========== -->
+                            <div v-else-if="selectedAppointment.status === 1" class="space-y-4">
+                                <!-- Расход материалов -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h5 class="text-sm sm:text-base font-medium">Расход материалов:</h5>
+                                        <span class="text-xs sm:text-sm text-gray-500">Всего: {{ totalMaterialsQuantity }} ед.</span>
+                                    </div>
+                                    
+                                    <!-- Список добавленных материалов -->
+                                    <div class="space-y-2 mb-3">
+                                        <div v-for="(material, index) in selectedMaterials" :key="index"
+                                            class="flex items-center justify-between p-2 border rounded-lg">
+                                            <div class="flex-1 min-w-0">
+                                                <span class="text-sm sm:text-base font-medium">{{ getMaterialName(material.material_id) }}</span>
+                                                <span class="ml-2 text-xs sm:text-sm text-gray-600">{{ material.quantity_used }} {{ getMaterialUnit(material.material_id) }}</span>
+                                            </div>
+                                            <button @click="removeMaterial(index)" class="ml-2 text-red-500 flex-shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Ранее сохраненные материалы -->
+                                    <div v-if="selectedAppointment.materials?.length" class="mt-2">
+                                        <p class="text-xs sm:text-sm text-gray-500 mb-1">Ранее сохраненные:</p>
+                                        <div v-for="material in selectedAppointment.materials" :key="material.consumption_id"
+                                             class="flex items-center justify-between p-2 bg-gray-50 rounded-lg mb-1">
+                                            <span class="text-sm">{{ material.material?.name }}</span>
+                                            <span class="text-sm font-medium">{{ material.quantity }} {{ material.material?.unit }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Добавление новых материалов -->
+                                    <div class="mt-3 sm:mt-4 p-3 sm:p-4 border border-dashed rounded-lg">
+                                        <h6 class="text-xs sm:text-sm font-medium mb-2 sm:mb-3">Добавить материал</h6>
+                                        <div class="space-y-2 sm:space-y-3">
+                                            <select v-model="newMaterial.material_id" 
+                                                    class="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
+                                                <option value="">Выберите материал</option>
+                                                <option v-for="mat in availableMaterials" :key="mat.material_id" :value="mat.material_id">
+                                                    {{ mat.name }} (доступно: {{ mat.current_balance }} {{ mat.unit }})
+                                                </option>
+                                            </select>
+                                            <div class="flex gap-2">
+                                                <input type="number" v-model="newMaterial.quantity" min="1" 
+                                                       placeholder="Количество"
+                                                       class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-md">
+                                                <button @click="addToMaterialsList" 
+                                                        class="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#2A7F6E] text-white text-sm rounded-md hover:bg-[#2A7F6E]/90"
+                                                        :disabled="!canAddMaterial">
+                                                    Добавить
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Кнопка завершения приема -->
+                                <div class="flex justify-end pt-4 border-t">
                                     <button @click="completeAppointmentWithMaterials" 
-                                            class="flex-1 sm:flex-none px-4 sm:px-6 py-1.5 sm:py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">
-                                        Завершить
+                                            class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                            :disabled="completing">
+                                        {{ completing ? 'Завершение...' : 'Завершить прием' }}
                                     </button>
                                 </div>
+                            </div>
+
+                            <!-- ========== РЕЖИМ 3: ЗАВЕРШЕН (status = 2) ========== -->
+                            <div v-else-if="selectedAppointment.status === 2" class="text-center py-8">
+                                <svg class="w-16 h-16 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-gray-600">Прием завершен</p>
+                                <p v-if="selectedAppointment.total_price" class="text-sm text-gray-500 mt-1">
+                                    Итоговая сумма: {{ selectedAppointment.total_price }} ₽
+                                </p>
+                            </div>
+
+                            <!-- ========== РЕЖИМ 4: ОТМЕНЕН (status = 3) ========== -->
+                            <div v-else-if="selectedAppointment.status === 3" class="text-center py-8">
+                                <svg class="w-16 h-16 mx-auto text-red-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <p class="text-gray-600">Запись отклонена</p>
                             </div>
                         </div>
                     </div>
@@ -376,6 +427,9 @@ const selectedAppointment = ref(null);
 const availableMaterials = ref([]);
 const selectedMaterials = ref([]);
 const newMaterial = ref({ material_id: '', quantity: 1 });
+const rejectionReason = ref('');
+const showRejectionReason = ref(false);
+const completing = ref(false);
 
 // Рабочие часы для недельного вида (фиксированные 9-20)
 const workHours = Array.from({ length: 11 }, (_, i) => i + 9);
@@ -467,7 +521,6 @@ const getAppointmentClass = (status) => {
 const getAppointmentsAtTime = (date, hour) => {
     if (!appointments.value) return [];
     
-    // Для дневного вида проверяем расписание
     if (calendarView.value === 'day') {
         const dayOfWeek = new Date(date).getDay();
         const daySchedule = schedule.value[dayOfWeek];
@@ -553,6 +606,8 @@ const openAppointmentModal = async (appointment) => {
         
         selectedMaterials.value = [];
         newMaterial.value = { material_id: '', quantity: 1 };
+        rejectionReason.value = '';
+        showRejectionReason.value = false;
         
         showAppointmentModal.value = true;
     } catch (error) {
@@ -560,7 +615,55 @@ const openAppointmentModal = async (appointment) => {
     }
 };
 
+// ========== МЕТОДЫ ДЛЯ ПОДТВЕРЖДЕНИЯ/ОТКЛОНЕНИЯ ==========
+
+const confirmAppointment = async () => {
+    try {
+        await axios.put(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/confirm`, {
+            status: 1
+        });
+        
+        showAppointmentModal.value = false;
+        await loadAppointments();
+        
+        alert('Запись подтверждена');
+    } catch (error) {
+        console.error('Error confirming appointment:', error);
+        alert(error.response?.data?.error || 'Ошибка при подтверждении');
+    }
+};
+
+const rejectAppointment = async () => {
+    if (!rejectionReason.value.trim()) {
+        alert('Укажите причину отклонения');
+        return;
+    }
+    
+    try {
+        await axios.put(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/confirm`, {
+            status: 3,
+            reason: rejectionReason.value
+        });
+        
+        showAppointmentModal.value = false;
+        rejectionReason.value = '';
+        showRejectionReason.value = false;
+        await loadAppointments();
+        
+        alert('Запись отклонена');
+    } catch (error) {
+        console.error('Error rejecting appointment:', error);
+        alert(error.response?.data?.error || 'Ошибка при отклонении');
+    }
+};
+
 const updateAppointmentStatus = async () => {
+    // Запрещаем изменение статуса на завершенный через этот метод
+    if (selectedAppointment.value.status === 2) {
+        alert('Для завершения приема используйте кнопку "Завершить прием"');
+        return;
+    }
+    
     try {
         await axios.put(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/status`, {
             status: selectedAppointment.value.status
@@ -589,11 +692,11 @@ const addToMaterialsList = () => {
     );
     
     if (existingIndex >= 0) {
-        selectedMaterials.value[existingIndex].quantity_used += newMaterial.value.quantity; // изменено quantity → quantity_used
+        selectedMaterials.value[existingIndex].quantity_used += newMaterial.value.quantity;
     } else {
         selectedMaterials.value.push({
             material_id: newMaterial.value.material_id,
-            quantity_used: newMaterial.value.quantity, // изменено quantity → quantity_used
+            quantity_used: newMaterial.value.quantity,
             notes: ''
         });
     }
@@ -608,33 +711,31 @@ const removeMaterial = (index) => {
 const saveAllMaterials = async () => {
     if (selectedMaterials.value.length === 0) return;
     
-    // Преобразуем данные для сервера
     const materialsToSend = selectedMaterials.value.map(m => ({
         material_id: m.material_id,
-        quantity_used: m.quantity_used, // используем quantity_used
+        quantity_used: m.quantity_used,
         notes: m.notes || ''
     }));
     
-    console.log('Sending materials:', materialsToSend);
-    
     try {
-        const response = await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials/save`, {
+        await axios.post(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}/materials/save`, {
             materials: materialsToSend
         });
         
-        const response2 = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
-        selectedAppointment.value = response2.data;
+        const response = await axios.get(`/api/doctor/appointments/${selectedAppointment.value.appointment_id}`);
+        selectedAppointment.value = response.data;
         selectedMaterials.value = [];
         
         alert('Материалы успешно сохранены');
     } catch (error) {
         console.error('Error saving materials:', error);
-        console.error('Error response:', error.response?.data);
         alert(error.response?.data?.error || 'Ошибка при сохранении материалов');
     }
 };
 
 const completeAppointmentWithMaterials = async () => {
+    completing.value = true;
+    
     try {
         if (selectedMaterials.value.length > 0) {
             await saveAllMaterials();
@@ -644,8 +745,13 @@ const completeAppointmentWithMaterials = async () => {
         
         showAppointmentModal.value = false;
         await loadAppointments();
+        
+        alert('Прием успешно завершен');
     } catch (error) {
         console.error('Error completing appointment:', error);
+        alert(error.response?.data?.error || 'Ошибка при завершении приема');
+    } finally {
+        completing.value = false;
     }
 };
 

@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\MedicalRecord;
 use App\Models\Feedback;
 use App\Models\Employee;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,7 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
-        // Получаем все записи клиента для статистики с правильной обработкой
+        // Получаем все записи клиента
         $appointments = Appointment::with(['employee', 'providedServices.service'])
             ->where('client_id', $client->client_id)
             ->orderBy('date', 'desc')
@@ -37,6 +38,8 @@ class DashboardController extends Controller
                     'appointment_id' => $appointment->appointment_id,
                     'date' => $appointment->date,
                     'status' => $appointment->status,
+                    'status_text' => $appointment->status_text,
+                    'status_color' => $appointment->status_color,
                     'employee' => $appointment->employee,
                     'provided_services' => $appointment->providedServices->map(function($ps) {
                         return [
@@ -62,13 +65,13 @@ class DashboardController extends Controller
             ->orderBy('date', 'asc')
             ->first();
         
-        // Если есть ближайшая запись, обрабатываем её
         $nextAppointmentData = null;
         if ($nextAppointment) {
             $nextAppointmentData = [
                 'appointment_id' => $nextAppointment->appointment_id,
                 'date' => $nextAppointment->date,
                 'status' => $nextAppointment->status,
+                'status_text' => $nextAppointment->status_text,
                 'employee' => $nextAppointment->employee,
                 'provided_services' => $nextAppointment->providedServices->map(function($ps) {
                     return [
@@ -86,7 +89,22 @@ class DashboardController extends Controller
             ];
         }
         
-        // Уведомления
+        // Получаем уведомления из базы данных
+        $dbNotifications = Notification::where('client_id', $client->client_id)
+            ->where('is_read', false)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($notification) {
+                return [
+                    'id' => $notification->id,
+                    'type' => $notification->type,
+                    'message' => $notification->message,
+                    'appointment_id' => $notification->appointment_id,
+                    'created_at' => $notification->created_at,
+                ];
+            });
+        
+        // Создаем массив уведомлений (временные + из БД)
         $notifications = [];
         
         // Напоминание о ближайшей записи
@@ -94,9 +112,10 @@ class DashboardController extends Controller
             $daysUntil = Carbon::parse($nextAppointment->date)->diffInDays(now());
             if ($daysUntil <= 1) {
                 $notifications[] = [
-                    'id' => 1,
+                    'id' => 'temp_reminder',
                     'type' => 'reminder',
                     'message' => "Напоминание: завтра запись к {$nextAppointment->employee->employee_name} в " . Carbon::parse($nextAppointment->date)->format('H:i'),
+                    'appointment_id' => $nextAppointment->appointment_id,
                     'created_at' => now(),
                 ];
             }
@@ -120,13 +139,16 @@ class DashboardController extends Controller
             }
             
             $notifications[] = [
-                'id' => 2,
+                'id' => 'temp_feedback',
                 'type' => 'feedback',
                 'message' => "Спасибо за визит! " . ($serviceName ? "Оставьте отзыв о услуге {$serviceName}" : "Оставьте отзыв о посещении"),
                 'appointment_id' => $completedWithoutFeedback->appointment_id,
                 'created_at' => now(),
             ];
         }
+        
+        // Добавляем уведомления из БД
+        $notifications = array_merge($notifications, $dbNotifications->toArray());
         
         // Акции
         $promotions = [
@@ -159,15 +181,47 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
+                'age' => $client->age,
             ],
             'appointments' => $appointments,
             'nextAppointment' => $nextAppointmentData,
             'notifications' => $notifications,
             'promotions' => $promotions,
             'popularServices' => $popularServices,
+            'unreadNotificationsCount' => $client->unread_notifications_count,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
+    }
+    
+    /**
+     * Отметить уведомление как прочитанное
+     */
+    public function markNotificationAsRead(Request $request, $id)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $notification = Notification::where('id', $id)
+            ->where('client_id', $client->client_id)
+            ->firstOrFail();
+        
+        $notification->is_read = true;
+        $notification->save();
+        
+        return response()->json(['success' => true]);
+    }
+    
+    /**
+     * Отметить все уведомления как прочитанные
+     */
+    public function markAllNotificationsAsRead(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        
+        $client->markAllNotificationsAsRead();
+        
+        return response()->json(['success' => true]);
     }
     
     /**
@@ -177,7 +231,6 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
-        // Получаем услуги с привязанными врачами
         $services = Service::where('is_active', 1)
             ->with(['doctors' => function($query) {
                 $query->select('employee_id', 'employee_name', 'role');
@@ -196,6 +249,7 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
             ],
             'services' => $services,
             'laravelVersion' => app()->version(),
@@ -203,7 +257,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    
     /**
      * Страница "Мои записи" (активные)
      */
@@ -221,6 +274,8 @@ class DashboardController extends Controller
                     'appointment_id' => $appointment->appointment_id,
                     'date' => $appointment->date,
                     'status' => $appointment->status,
+                    'status_text' => $appointment->status_text,
+                    'status_color' => $appointment->status_color,
                     'employee' => $appointment->employee,
                     'provided_services' => $appointment->providedServices->map(function($ps) {
                         return [
@@ -248,6 +303,7 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
             ],
             'appointments' => $appointments,
             'laravelVersion' => app()->version(),
@@ -272,6 +328,8 @@ class DashboardController extends Controller
                     'appointment_id' => $appointment->appointment_id,
                     'date' => $appointment->date,
                     'status' => $appointment->status,
+                    'status_text' => $appointment->status_text,
+                    'status_color' => $appointment->status_color,
                     'total_price' => $appointment->total_price,
                     'employee' => $appointment->employee,
                     'provided_services' => $appointment->providedServices->map(function($ps) {
@@ -299,6 +357,7 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
             ],
             'history' => $history,
             'laravelVersion' => app()->version(),
@@ -327,6 +386,7 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
             ],
             'records' => $records,
             'laravelVersion' => app()->version(),
@@ -341,7 +401,6 @@ class DashboardController extends Controller
     {
         $client = Auth::guard('client')->user();
         
-        // Получаем статистику для профиля
         $appointments = Appointment::where('client_id', $client->client_id)->get();
         $feedback = Feedback::where('client_id', $client->client_id)->get();
         
@@ -354,6 +413,8 @@ class DashboardController extends Controller
                 'birth_date' => $client->birth_date,
                 'photo' => $client->photo,
                 'photo_url' => $client->photo ? Storage::url($client->photo) : null,
+                'initials' => $client->initials,
+                'age' => $client->age,
             ],
             'appointments' => $appointments,
             'feedback' => $feedback,
@@ -382,9 +443,8 @@ class DashboardController extends Controller
         
         $doctor = $service->doctors->first();
         $date = Carbon::parse($request->date, 'Europe/Moscow');
-        $dayOfWeek = $date->dayOfWeek; // 0-6
+        $dayOfWeek = $date->dayOfWeek;
         
-        // Получаем расписание врача на этот день
         $schedule = $doctor->getScheduleForDay($dayOfWeek);
         
         if (!$schedule || !$schedule->start_time || !$schedule->end_time) {
@@ -396,15 +456,13 @@ class DashboardController extends Controller
             ]);
         }
         
-        // Получаем рабочие часы
         $workHours = $doctor->getWorkingHoursForDate($date);
         
-        // Получаем занятые слоты
         $busySlots = Appointment::where('employee_id', $doctor->employee_id)
             ->whereDate('date', $date->toDateString())
             ->whereIn('status', [0, 1])
             ->get()
-            ->map(function($appointment) {
+            ->map(function($appointment) use ($date) {
                 return Carbon::parse($appointment->date)->timezone('Europe/Moscow')->format('H:i');
             })
             ->toArray();
@@ -413,9 +471,7 @@ class DashboardController extends Controller
         $now = Carbon::now('Europe/Moscow');
         
         foreach ($workHours as $time) {
-            // Проверяем, не занят ли слот
             if (!in_array($time, $busySlots)) {
-                // Если сегодня, проверяем, не прошло ли время
                 if ($date->isToday()) {
                     $slotTime = Carbon::parse($date->toDateString() . ' ' . $time, 'Europe/Moscow');
                     if ($slotTime->isFuture()) {
@@ -459,16 +515,19 @@ class DashboardController extends Controller
         }
         
         $doctorId = $service->doctors->first()->employee_id;
+        $doctor = $service->doctors->first();
         
-        // Создаем время в московском часовом поясе
         $dateTime = Carbon::parse($request->date . ' ' . $request->time, 'Europe/Moscow');
         
-        // Проверяем, что выбранное время в будущем
         if ($dateTime->isPast()) {
             return response()->json(['error' => 'Выбранное время уже прошло'], 422);
         }
         
-        // Проверяем, не занято ли время
+        // Проверяем, что врач работает в это время
+        if (!$doctor->isWorkingAtDateTime($dateTime)) {
+            return response()->json(['error' => 'Врач не работает в выбранное время'], 422);
+        }
+        
         $exists = Appointment::where('employee_id', $doctorId)
             ->whereDate('date', $dateTime->toDateString())
             ->whereTime('date', $dateTime->toTimeString())
@@ -482,9 +541,8 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
-            // Сохраняем в UTC (Carbon автоматически сконвертирует)
             $appointment = Appointment::create([
-                'date' => $dateTime, // Carbon сам сконвертирует в UTC при сохранении
+                'date' => $dateTime,
                 'status' => 0,
                 'employee_id' => $doctorId,
                 'client_id' => $client->client_id,
@@ -530,7 +588,7 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Нельзя отменить эту запись'], 422);
         }
         
-        $appointment->status = 3; // Отменен
+        $appointment->status = 3;
         $appointment->save();
         
         return response()->json(['success' => true]);
@@ -558,7 +616,6 @@ class DashboardController extends Controller
         
         $dateTime = Carbon::parse($request->date . ' ' . $request->time);
         
-        // Проверяем, не занято ли время
         $exists = Appointment::where('employee_id', $appointment->employee_id)
             ->where('appointment_id', '!=', $id)
             ->whereDate('date', $dateTime->toDateString())
@@ -589,13 +646,11 @@ class DashboardController extends Controller
             'comment' => 'required|string|max:500',
         ]);
         
-        // Проверяем, что запись принадлежит клиенту и завершена
         $appointment = Appointment::where('appointment_id', $request->appointment_id)
             ->where('client_id', $client->client_id)
             ->where('status', 2)
             ->firstOrFail();
         
-        // Проверяем, нет ли уже отзыва
         if (Feedback::where('appointment_id', $request->appointment_id)->exists()) {
             return response()->json(['error' => 'Отзыв уже оставлен'], 422);
         }
@@ -624,13 +679,10 @@ class DashboardController extends Controller
             'birth_date' => 'nullable|date',
         ]);
         
-        // Явно присваиваем значения полям
         $client->client_name = $request->client_name;
         $client->email = $request->email;
         
-        // Преобразуем телефон в число (int), так как в БД поле phone имеет тип int
         if ($request->filled('phone')) {
-            // Удаляем все нецифровые символы
             $phone = preg_replace('/[^0-9]/', '', $request->phone);
             $client->phone = (int)$phone;
         }
@@ -647,7 +699,7 @@ class DashboardController extends Controller
         ]);
     }
     
-    // ====================== НОВЫЕ МЕТОДЫ ДЛЯ ФОТО ======================
+    // ====================== МЕТОДЫ ДЛЯ РАБОТЫ С ФОТО ======================
 
     /**
      * Загрузка фото профиля
@@ -657,18 +709,15 @@ class DashboardController extends Controller
         $client = Auth::guard('client')->user();
         
         $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // максимум 2MB
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
         
-        // Удаляем старое фото, если есть
         if ($client->photo) {
             Storage::disk('public')->delete($client->photo);
         }
         
-        // Сохраняем новое фото
         $path = $request->file('photo')->store('clients', 'public');
         
-        // Обновляем запись в БД
         $client->photo = $path;
         $client->save();
         

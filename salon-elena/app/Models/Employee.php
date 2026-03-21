@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB; // ДОБАВЛЕНО
 
 class Employee extends Authenticatable
 {
@@ -177,7 +178,7 @@ class Employee extends Authenticatable
     public function getWorkingHoursForDate($date)
     {
         $date = Carbon::parse($date);
-        $dayOfWeek = $date->dayOfWeek; // 0-6
+        $dayOfWeek = $date->dayOfWeek;
         $schedule = $this->getScheduleForDay($dayOfWeek);
         
         if (!$schedule || !$schedule->start_time || !$schedule->end_time) {
@@ -259,5 +260,47 @@ class Employee extends Authenticatable
         }
         
         return $schedule;
+    }
+    
+    // ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ==========
+    
+    /**
+     * Получить имя врача для отображения
+     */
+    public function getFullNameAttribute()
+    {
+        return $this->employee_name;
+    }
+    
+    /**
+     * Проверить, является ли сотрудник доктором
+     */
+    public function isDoctor()
+    {
+        return $this->role === 'doctor';
+    }
+    
+    /**
+     * Проверить, является ли сотрудник администратором
+     */
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+    
+    /**
+     * Проверить, является ли сотрудник бухгалтером
+     */
+    public function isAccountant()
+    {
+        return $this->role === 'accountant';
+    }
+    
+    /**
+     * Проверить, является ли сотрудник директором
+     */
+    public function isDirector()
+    {
+        return $this->role === 'director';
     }
 }

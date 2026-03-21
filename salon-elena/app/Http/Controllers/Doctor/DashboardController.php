@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use App\Models\Notification;
 
 class DashboardController extends Controller
 {
@@ -400,6 +401,11 @@ class DashboardController extends Controller
         ]);
     }
     
+
+
+
+
+    
     // ====================== ОСТАЛЬНЫЕ API МЕТОДЫ ======================
     
     /**
@@ -542,11 +548,20 @@ class DashboardController extends Controller
     }
     
     /**
-     * Обновить статус приема
+     * Обновить статус приема (старый метод, оставляем для совместимости, но ограничиваем)
      */
     public function updateStatus(Request $request, $id)
     {
-        $appointment = Appointment::findOrFail($id);
+        $doctor = Auth::guard('employee')->user();
+        $appointment = Appointment::where('appointment_id', $id)
+            ->where('employee_id', $doctor->employee_id)
+            ->firstOrFail();
+        
+        // Запрещаем изменение статуса на завершенный через этот метод
+        if ($request->status == Appointment::STATUS_COMPLETED) {
+            return response()->json(['error' => 'Используйте метод completeAppointment для завершения'], 422);
+        }
+        
         $appointment->status = $request->status;
         $appointment->save();
         
@@ -667,6 +682,72 @@ class DashboardController extends Controller
     }
     
     /**
+     * Подтвердить или отклонить запись
+     */
+    public function confirmAppointment(Request $request, $id)
+    {
+        $doctor = Auth::guard('employee')->user();
+        
+        $request->validate([
+            'status' => 'required|in:1,3', // 1 - подтвердить, 3 - отклонить
+            'reason' => 'nullable|string|max:255', // причина отклонения
+        ]);
+        
+        $appointment = Appointment::with(['client', 'providedServices.service'])
+            ->where('appointment_id', $id)
+            ->where('employee_id', $doctor->employee_id)
+            ->firstOrFail();
+        
+        // Проверяем, что запись ожидает подтверждения
+        if ($appointment->status != Appointment::STATUS_PENDING) {
+            return response()->json(['error' => 'Запись уже обработана'], 422);
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            // Обновляем статус
+            $appointment->status = $request->status;
+            $appointment->save();
+            
+            // Формируем сообщение для клиента
+            $formattedDate = Carbon::parse($appointment->date)->timezone('Europe/Moscow')->format('d.m.Y H:i');
+            $serviceName = $appointment->services_list;
+            
+            if ($request->status == Appointment::STATUS_CONFIRMED) {
+                $message = "✅ Ваша запись на {$formattedDate} (услуга: {$serviceName}) подтверждена! Ждем вас в салоне.";
+            } else {
+                $message = "❌ Ваша запись на {$formattedDate} (услуга: {$serviceName}) отклонена. Причина: " . ($request->reason ?? 'не указана');
+            }
+            
+            // Создаем уведомление для клиента
+            Notification::create([
+                'client_id' => $appointment->client_id,
+                'appointment_id' => $appointment->appointment_id,
+                'type' => $request->status == Appointment::STATUS_CONFIRMED ? 'confirmation' : 'rejection',
+                'message' => $message,
+                'is_read' => false,
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => $request->status == Appointment::STATUS_CONFIRMED ? 'Запись подтверждена' : 'Запись отклонена',
+                'appointment' => [
+                    'id' => $appointment->appointment_id,
+                    'status' => $appointment->status,
+                ],
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Confirm appointment error: ' . $e->getMessage());
+            return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
+    }
+    
+    /**
      * Завершить прием и создать чек
      */
     public function completeAppointment(Request $request, $id)
@@ -674,13 +755,14 @@ class DashboardController extends Controller
         $doctor = Auth::guard('employee')->user();
         
         // Загружаем услуги и материалы для расчета
-        $appointment = Appointment::with(['providedServices.service', 'materials'])
+        $appointment = Appointment::with(['providedServices.service', 'materials', 'client'])
             ->where('appointment_id', $id)
             ->where('employee_id', $doctor->employee_id)
             ->firstOrFail();
         
-        if ($appointment->status == 2) {
-            return response()->json(['error' => 'Прием уже завершен'], 422);
+        // Проверяем, что запись подтверждена
+        if ($appointment->status != Appointment::STATUS_CONFIRMED) {
+            return response()->json(['error' => 'Прием должен быть подтвержден перед завершением'], 422);
         }
         
         DB::beginTransaction();
@@ -690,7 +772,7 @@ class DashboardController extends Controller
             $totalPrice = $appointment->calculateTotalPrice();
             
             // Обновляем статус и сумму
-            $appointment->status = 2;
+            $appointment->status = Appointment::STATUS_COMPLETED;
             $appointment->total_price = $totalPrice;
             $appointment->save();
             
@@ -709,6 +791,18 @@ class DashboardController extends Controller
                 'appointment_id' => $appointment->appointment_id,
             ]);
             
+            // Создаем уведомление о завершении приема
+            $formattedDate = Carbon::parse($appointment->date)->timezone('Europe/Moscow')->format('d.m.Y H:i');
+            $message = "💫 Прием {$formattedDate} завершен. Спасибо за визит! Если вам понравилось, оставьте отзыв.";
+            
+            Notification::create([
+                'client_id' => $appointment->client_id,
+                'appointment_id' => $appointment->appointment_id,
+                'type' => 'completion',
+                'message' => $message,
+                'is_read' => false,
+            ]);
+            
             DB::commit();
             
             return response()->json([
@@ -716,11 +810,12 @@ class DashboardController extends Controller
                 'message' => 'Прием завершен',
                 'total_price' => $totalPrice,
                 'contract_number' => $contractNumber,
-                'materials_used' => $appointment->materials->count(), // Это работает, если материалы загружены в with()
+                'materials_used' => $appointment->materials->count(),
             ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Complete appointment error: ' . $e->getMessage());
             return response()->json(['error' => 'Ошибка при завершении приема: ' . $e->getMessage()], 500);
         }
     }

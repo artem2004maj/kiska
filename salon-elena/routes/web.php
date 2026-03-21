@@ -90,6 +90,8 @@ Route::middleware('auth:client')->group(function () {
         Route::put('/profile', [App\Http\Controllers\Client\DashboardController::class, 'updateProfile']);
         Route::post('/upload-photo', [App\Http\Controllers\Client\DashboardController::class, 'uploadPhoto']);
         Route::delete('/delete-photo', [App\Http\Controllers\Client\DashboardController::class, 'deletePhoto']);
+        Route::put('/notifications/{id}/read', [App\Http\Controllers\Client\DashboardController::class, 'markNotificationAsRead']);
+        Route::put('/notifications/read-all', [App\Http\Controllers\Client\DashboardController::class, 'markAllNotificationsAsRead']);
     });
 });
 
@@ -134,6 +136,7 @@ Route::middleware('auth:employee')->group(function () {
         // API для фото:
         Route::post('/upload-photo', [DoctorDashboardController::class, 'uploadPhoto']);
         Route::delete('/delete-photo', [DoctorDashboardController::class, 'deletePhoto']);
+        Route::put('/appointments/{id}/confirm', [DoctorDashboardController::class, 'confirmAppointment']);
     });
     
     // Директор
