@@ -498,7 +498,7 @@ class DashboardController extends Controller
     public function getAppointment($id)
     {
         // ИСПРАВЛЕНО: убрал .material
-        $appointment = Appointment::with(['client', 'providedServices.service', 'materials'])
+        $appointment = Appointment::with(['client', 'providedServices.service', 'materials', 'clientContract'])
             ->findOrFail($id);
         
         $localTime = Carbon::parse($appointment->date)->timezone('Europe/Moscow');
@@ -509,6 +509,8 @@ class DashboardController extends Controller
             'local_date' => $localTime->toDateString(),
             'local_time' => $localTime->format('H:i'),
             'status' => $appointment->status,
+            'total_price' => $appointment->total_price, // ДОБАВЛЕНО
+            'contract_number' => $appointment->clientContract?->contract_number, // ДОБАВЛЕНО
             'client' => $appointment->client ? [
                 'client_id' => $appointment->client->client_id,
                 'client_name' => $appointment->client->client_name,
@@ -533,6 +535,7 @@ class DashboardController extends Controller
                 return [
                     'consumption_id' => $material->pivot->id ?? null,
                     'quantity' => $material->pivot->quantity_used,
+                    'cost_price' => $material->pivot->cost_price, // ДОБАВЛЕНО для отображения цены
                     'material' => [
                         'material_id' => $material->material_id,
                         'name' => $material->name,

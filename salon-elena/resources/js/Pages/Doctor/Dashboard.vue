@@ -361,14 +361,110 @@
                             </div>
 
                             <!-- ========== РЕЖИМ 3: ЗАВЕРШЕН (status = 2) ========== -->
-                            <div v-else-if="selectedAppointment.status === 2" class="text-center py-8">
-                                <svg class="w-16 h-16 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p class="text-gray-600">Прием завершен</p>
-                                <p v-if="selectedAppointment.total_price" class="text-sm text-gray-500 mt-1">
-                                    Итоговая сумма: {{ selectedAppointment.total_price }} ₽
-                                </p>
+                            <div v-else-if="selectedAppointment.status === 2" class="space-y-6">
+                                <!-- Итоговая сумма -->
+                                <div class="bg-green-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-green-700">
+                                        {{ formatPrice(selectedAppointment.total_price) }} ₽
+                                    </div>
+                                    <p class="text-sm text-green-600 mt-1">Итоговая сумма к оплате</p>
+                                </div>
+                                
+                                <!-- Услуги -->
+                                <div>
+                                    <h5 class="text-sm sm:text-base font-medium mb-2 flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-[#2A7F6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                        Оказанные услуги
+                                    </h5>
+                                    <div class="space-y-2">
+                                        <div v-for="service in selectedAppointment.provided_services" :key="service.provided_id"
+                                            class="p-3 bg-gray-50 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <span class="font-medium">{{ service.service?.service_name || 'Услуга не указана' }}</span>
+                                                    <p v-if="service.service?.service_category" class="text-xs text-gray-500">
+                                                        {{ service.service.service_category }}
+                                                    </p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-sm font-medium text-[#2A7F6E]">
+                                                        {{ formatPrice(service.service?.default_price) }} ₽
+                                                    </span>
+                                                    <p class="text-xs text-gray-400">x{{ service.quantity }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Использованные материалы -->
+                                <div>
+                                    <h5 class="text-sm sm:text-base font-medium mb-2 flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-[#2A7F6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-4.5M20 7v4.5M20 7l-6 6m-2-2l-4 4" />
+                                        </svg>
+                                        Использованные материалы
+                                    </h5>
+                                    
+                                    <div v-if="selectedAppointment.materials?.length" class="space-y-2">
+                                        <div v-for="material in selectedAppointment.materials" :key="material.consumption_id"
+                                            class="p-3 bg-gray-50 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <span class="font-medium">{{ material.material?.name || 'Материал не указан' }}</span>
+                                                    <p class="text-xs text-gray-500">Ед. изм: {{ material.material?.unit || 'шт' }}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-sm font-medium text-[#2A7F6E]">
+                                                        {{ formatPrice(material.cost_price) }} ₽
+                                                    </span>
+                                                    <p class="text-xs text-gray-400">x{{ material.quantity }}</p>
+                                                </div>
+                                            </div>
+                                            <div v-if="material.notes" class="mt-2 text-xs text-gray-500 italic">
+                                                📝 {{ material.notes }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div v-else class="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
+                                        <svg class="w-8 h-8 mx-auto text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-4.5M20 7v4.5M20 7l-6 6m-2-2l-4 4" />
+                                        </svg>
+                                        <p class="text-sm">Материалы не использовались</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Итоговая детализация -->
+                                <div class="border-t pt-4">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-gray-600">Стоимость услуг:</span>
+                                        <span class="font-medium">{{ formatPrice(getServicesTotal) }} ₽</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm mt-2">
+                                        <span class="text-gray-600">Стоимость материалов:</span>
+                                        <span class="font-medium">{{ formatPrice(getMaterialsTotal) }} ₽</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-lg font-bold mt-3 pt-3 border-t">
+                                        <span>Итого:</span>
+                                        <span class="text-[#2A7F6E]">{{ formatPrice(selectedAppointment.total_price) }} ₽</span>
+                                    </div>
+                                    
+                                    <!-- Номер чека -->
+                                    <div v-if="selectedAppointment.contract_number" class="mt-4 text-center text-sm text-gray-500">
+                                        Чек № {{ selectedAppointment.contract_number }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Кнопка закрытия -->
+                                <div class="flex justify-end pt-2">
+                                    <button @click="showAppointmentModal = false" 
+                                            class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                                        Закрыть
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- ========== РЕЖИМ 4: ОТМЕНЕН (status = 3) ========== -->
@@ -731,6 +827,26 @@ const saveAllMaterials = async () => {
         console.error('Error saving materials:', error);
         alert(error.response?.data?.error || 'Ошибка при сохранении материалов');
     }
+};
+// Вычисляемые свойства для завершенного приема
+const getServicesTotal = computed(() => {
+    if (!selectedAppointment.value?.provided_services) return 0;
+    return selectedAppointment.value.provided_services.reduce((sum, service) => {
+        return sum + (service.service?.default_price || 0) * service.quantity;
+    }, 0);
+});
+
+const getMaterialsTotal = computed(() => {
+    if (!selectedAppointment.value?.materials) return 0;
+    return selectedAppointment.value.materials.reduce((sum, material) => {
+        return sum + (material.cost_price || 0) * material.quantity;
+    }, 0);
+});
+
+// Форматирование цены
+const formatPrice = (price) => {
+    if (!price && price !== 0) return '0';
+    return new Intl.NumberFormat('ru-RU').format(price);
 };
 
 const completeAppointmentWithMaterials = async () => {

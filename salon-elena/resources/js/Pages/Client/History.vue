@@ -66,14 +66,25 @@
                             </button>
                         </div>
                         
-                        <!-- В блоке информации о приеме добавьте отображение стоимости -->
+                        <!-- Блок с итоговой стоимостью -->
                         <div class="text-right">
-                            <p class="font-semibold text-[#14b8a6]">
-                                {{ getTotalPrice(appointment) }} ₽
-                            </p>
-                            <p v-if="appointment.contract_number" class="text-xs text-gray-400 mt-1">
-                                Чек: {{ appointment.contract_number }}
-                            </p>
+                            <!-- Для завершенных приемов показываем итоговую сумму -->
+                            <div v-if="appointment.status === 2">
+                                <p class="font-semibold text-[#14b8a6] text-lg">
+                                    {{ formatPrice(appointment.total_price) }} ₽
+                                </p>
+                                <p v-if="appointment.contract_number" class="text-xs text-gray-400 mt-1">
+                                    Чек: {{ appointment.contract_number }}
+                                </p>
+                            </div>
+                            <!-- Для отмененных приемов не показываем цену -->
+                            <div v-else-if="appointment.status === 3">
+                                <p class="text-sm text-gray-400">Запись отменена</p>
+                            </div>
+                            <!-- Для других статусов (запланирован, подтвержден) не показываем -->
+                            <div v-else>
+                                <p class="text-sm text-gray-400">Ожидает проведения</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -204,13 +215,18 @@ const formatDate = (date) => {
     });
 };
 
+const formatPrice = (price) => {
+    if (!price && price !== 0) return '0';
+    return new Intl.NumberFormat('ru-RU').format(price);
+};
+
 const getServiceNames = (appointment) => {
     if (!appointment?.provided_services?.length) return 'Услуга не указана';
     return appointment.provided_services.map(ps => ps.service?.service_name).join(', ');
 };
 
 const getStatusClass = (status) => {
-    switch(status) {
+    switch(Number(status)) {
         case 2: return 'bg-green-100 text-green-800';
         case 3: return 'bg-red-100 text-red-800';
         default: return 'bg-gray-100 text-gray-800';
@@ -218,18 +234,13 @@ const getStatusClass = (status) => {
 };
 
 const getStatusText = (status) => {
-    switch(status) {
+    switch(Number(status)) {
         case 2: return 'Завершен';
         case 3: return 'Отменен';
+        case 0: return 'Ожидает подтверждения';
+        case 1: return 'Подтвержден';
         default: return 'Неизвестно';
     }
-};
-
-const getTotalPrice = (appointment) => {
-    if (!appointment?.provided_services?.length) return 0;
-    return appointment.provided_services.reduce((sum, ps) => {
-        return sum + (ps.service?.default_price || 0) * ps.quantity;
-    }, 0);
 };
 
 const openFeedbackModal = (appointment) => {
