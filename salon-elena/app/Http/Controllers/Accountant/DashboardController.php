@@ -18,19 +18,54 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
+    /**
+     * Получить статистику для сайдбара
+     */
+    private function getSidebarStats()
+    {
+        $today = Carbon::today();
+        
+        // Выручка сегодня (оплаченные услуги)
+        $todayRevenue = ClientContract::whereDate('created_at', $today)->sum('total_amount');
+        
+        // Неоплаченные услуги
+        $unpaidServices = Appointment::where('status', 2)
+            ->whereDoesntHave('clientContract')
+            ->get();
+        $pendingPayments = 0;
+        foreach ($unpaidServices as $service) {
+            $pendingPayments += $service->calculateTotalPrice();
+        }
+        
+        // Критические материалы
+        $criticalCount = Material::where('current_balance', '<=', DB::raw('min_stock'))->count();
+        
+        // Неоплаченные услуги (количество)
+        $unpaidCount = $unpaidServices->count();
+        
+        return [
+            'unpaidCount' => $unpaidCount,
+            'criticalCount' => $criticalCount,
+            'todayRevenue' => $todayRevenue,
+            'pendingPayments' => $pendingPayments,
+        ];
+    }
+
     /**
      * Главная страница с уведомлениями
      */
     public function index()
     {
         $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
         
         // Неоплаченные услуги (завершенные, но без чека)
         $unpaidServices = Appointment::with(['client', 'providedServices.service'])
-            ->where('status', 2) // Завершенные
+            ->where('status', 2)
             ->whereDoesntHave('clientContract')
             ->orderBy('date', 'desc')
             ->get()
@@ -59,12 +94,6 @@ class DashboardController extends Controller
                 ];
             });
         
-        // Статистика за сегодня
-        $today = Carbon::today();
-        $todayRevenue = ClientContract::whereDate('created_at', $today)->sum('total_amount');
-        
-        $pendingPayments = $unpaidServices->sum('total_price');
-        
         // Последние операции
         $recentPayments = ClientContract::with(['client', 'appointment'])
             ->latest()
@@ -89,10 +118,10 @@ class DashboardController extends Controller
                 'role' => $user->role,
             ],
             'stats' => [
-                'unpaid_count' => $unpaidServices->count(),
-                'critical_count' => $criticalMaterials->count(),
-                'today_revenue' => $todayRevenue,
-                'pending_payments' => $pendingPayments,
+                'unpaid_count' => $stats['unpaidCount'],
+                'critical_count' => $stats['criticalCount'],
+                'today_revenue' => $stats['todayRevenue'],
+                'pending_payments' => $stats['pendingPayments'],
             ],
             'unpaidServices' => $unpaidServices,
             'criticalMaterials' => $criticalMaterials,
@@ -108,9 +137,10 @@ class DashboardController extends Controller
     public function payments()
     {
         $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
         
         $appointments = Appointment::with(['client', 'providedServices.service', 'clientContract'])
-            ->where('status', 2) // Завершенные
+            ->where('status', 2)
             ->orderBy('date', 'desc')
             ->get()
             ->map(function($appointment) {
@@ -136,6 +166,10 @@ class DashboardController extends Controller
                 'role' => $user->role,
             ],
             'payments' => $appointments,
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
@@ -192,6 +226,7 @@ class DashboardController extends Controller
     public function warehouse()
     {
         $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
         
         $materials = Material::orderBy('name')->get()
             ->map(function($material) {
@@ -216,7 +251,7 @@ class DashboardController extends Controller
         $suppliers = Supplier::all();
         
         // Активные заказы
-        $activeOrders = SupplierContract::where('status', 1) // активные
+        $activeOrders = SupplierContract::where('status', 1)
             ->with(['supplier'])
             ->get()
             ->map(function($contract) {
@@ -241,6 +276,10 @@ class DashboardController extends Controller
             'materials' => $materials,
             'suppliers' => $suppliers,
             'activeOrders' => $activeOrders,
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
@@ -268,7 +307,7 @@ class DashboardController extends Controller
             $contract = SupplierContract::create([
                 'number' => $contractNumber,
                 'date' => now(),
-                'status' => 0, // 0 - ожидает
+                'status' => 0,
                 'valid_from' => now(),
                 'valid_to' => Carbon::now()->addMonths(1),
                 'supplier_id' => $request->supplier_id,
@@ -289,7 +328,7 @@ class DashboardController extends Controller
                     'expiry_date' => Carbon::now()->addYears(1)->timestamp,
                     'receipt_date' => now(),
                     'invoice_number' => 'INV-' . time(),
-                    'status' => 0, // 0 - ожидает поступления
+                    'status' => 0,
                     'material_id' => $item['material_id'],
                     'contract_id' => $contract->contract_id,
                 ]);
@@ -357,6 +396,7 @@ class DashboardController extends Controller
     public function salary()
     {
         $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
         
         $currentMonth = date('n');
         $currentYear = date('Y');
@@ -393,6 +433,10 @@ class DashboardController extends Controller
             'currentMonth' => Carbon::now()->translatedFormat('F Y'),
             'currentMonthNumber' => $currentMonth,
             'currentYear' => $currentYear,
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
@@ -559,5 +603,216 @@ class DashboardController extends Controller
             ->get();
         
         return response()->json($revenues);
+    }
+    
+    /**
+     * Страница управления поставщиками
+     */
+    public function suppliers()
+    {
+        $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
+        
+        $suppliers = Supplier::orderBy('supplier_name')->get();
+        
+        return Inertia::render('Accountant/Suppliers', [
+            'accountant' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'suppliers' => $suppliers,
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+    
+    /**
+     * Создать нового поставщика
+     */
+    public function createSupplier(Request $request)
+    {
+        $request->validate([
+            'supplier_name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+        
+        $supplier = Supplier::create($request->all());
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Поставщик добавлен',
+            'supplier' => $supplier,
+        ]);
+    }
+    
+    /**
+     * Обновить данные поставщика
+     */
+    public function updateSupplier(Request $request, $id)
+    {
+        $supplier = Supplier::findOrFail($id);
+        
+        $request->validate([
+            'supplier_name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+        
+        $supplier->update($request->all());
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Данные поставщика обновлены',
+            'supplier' => $supplier,
+        ]);
+    }
+    
+    /**
+     * Удалить поставщика
+     */
+    public function deleteSupplier($id)
+    {
+        $supplier = Supplier::findOrFail($id);
+        
+        // Проверяем, есть ли у поставщика активные контракты
+        $hasActiveContracts = $supplier->contracts()
+            ->where('status', 1)
+            ->exists();
+        
+        if ($hasActiveContracts) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Нельзя удалить поставщика с активными контрактами',
+            ], 422);
+        }
+        
+        $supplier->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Поставщик удален',
+        ]);
+    }
+    
+
+    /**
+     * Страница профиля бухгалтера
+     */
+    public function profile()
+    {
+        $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
+        
+        // Получаем статистику для профиля
+        $appointmentsCount = Appointment::where('employee_id', $user->employee_id)->count();
+        $completedCount = Appointment::where('employee_id', $user->employee_id)
+            ->where('status', 2)
+            ->count();
+        
+        return Inertia::render('Accountant/Profile', [
+            'accountant' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'employee_phone' => $user->employee_phone,
+                'photo' => $user->photo,
+                'photo_url' => $user->photo ? Storage::url($user->photo) : null,
+                'role' => $user->role,
+                'hourly_rate' => $user->hourly_rate,
+            ],
+            'stats' => [
+                'total_appointments' => $appointmentsCount,
+                'completed_appointments' => $completedCount,
+                'unpaid_count' => $stats['unpaidCount'],
+                'critical_count' => $stats['criticalCount'],
+                'today_revenue' => $stats['todayRevenue'],
+                'pending_payments' => $stats['pendingPayments'],
+            ],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+
+    /**
+     * Обновить профиль бухгалтера
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::guard('employee')->user();
+        
+        $request->validate([
+            'employee_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:employees,email,' . $user->employee_id . ',employee_id',
+            'employee_phone' => 'nullable|string|max:20',
+        ]);
+        
+        $user->employee_name = $request->employee_name;
+        $user->email = $request->email;
+        $user->employee_phone = $request->employee_phone;
+        $user->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Профиль успешно обновлен',
+        ]);
+    }
+
+    /**
+     * Загрузить фото профиля
+     */
+    public function uploadPhoto(Request $request)
+    {
+        $user = Auth::guard('employee')->user();
+        
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+        
+        if ($user->photo) {
+            Storage::disk('public')->delete($user->photo);
+        }
+        
+        $path = $request->file('photo')->store('employees', 'public');
+        
+        $user->photo = $path;
+        $user->save();
+        
+        return response()->json([
+            'success' => true,
+            'photo_url' => Storage::url($path),
+            'message' => 'Фото успешно загружено',
+        ]);
+    }
+
+    /**
+     * Удалить фото профиля
+     */
+    public function deletePhoto()
+    {
+        $user = Auth::guard('employee')->user();
+        
+        if ($user->photo) {
+            Storage::disk('public')->delete($user->photo);
+            $user->photo = null;
+            $user->save();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Фото удалено',
+        ]);
     }
 }

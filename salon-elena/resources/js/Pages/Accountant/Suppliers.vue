@@ -1,0 +1,314 @@
+<!-- resources/js/Pages/Accountant/Suppliers.vue -->
+<template>
+    <AccountantLayout 
+        :accountant="accountant"
+        :pageTitle="'ПОСТАВЩИКИ'"
+        :unpaidCount="unpaidCount"
+        :criticalCount="criticalCount"
+        :todayRevenue="todayRevenue"
+        :pendingPayments="pendingPayments"
+    >
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-black dark:text-white">СПИСОК ПОСТАВЩИКОВ</h2>
+                <button @click="openAddModal" 
+                        class="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Добавить поставщика
+                </button>
+            </div>
+
+            <!-- Поиск -->
+            <div class="mb-6">
+                <input type="text" v-model="searchQuery" 
+                       placeholder="Поиск по названию, контактному лицу или телефону..."
+                       class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md" />
+            </div>
+
+            <!-- Таблица поставщиков -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-zinc-700">
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Название</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Контактное лицо</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Телефон</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Email</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Адрес</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="supplier in filteredSuppliers" :key="supplier.supplier_id" 
+                            class="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <td class="py-3 text-black dark:text-white/70 font-medium">{{ supplier.supplier_name }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ supplier.contact_person || '—' }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ supplier.phone || '—' }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ supplier.email || '—' }}</td>
+                            <td class="py-3 text-black dark:text-white/70 max-w-xs truncate">{{ supplier.address || '—' }}</td>
+                            <td class="py-3">
+                                <div class="flex gap-2">
+                                    <button @click="editSupplier(supplier)" 
+                                            class="text-[#3b82f6] hover:underline text-sm">
+                                        Редактировать
+                                    </button>
+                                    <button @click="deleteSupplier(supplier.supplier_id)" 
+                                            class="text-red-500 hover:underline text-sm">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filteredSuppliers.length === 0">
+                            <td colspan="6" class="py-8 text-center text-gray-500">
+                                Поставщики не найдены
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Модальное окно добавления/редактирования поставщика -->
+        <Teleport to="body">
+            <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeModal"></div>
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">{{ isEditing ? 'Редактировать поставщика' : 'Добавить поставщика' }}</h3>
+                            <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Название поставщика <span class="text-red-500">*</span></label>
+                                <input type="text" v-model="form.supplier_name" 
+                                       class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                       placeholder="ООО 'МедСнаб'" />
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Контактное лицо</label>
+                                <input type="text" v-model="form.contact_person" 
+                                       class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                       placeholder="Иванов Иван Иванович" />
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Телефон</label>
+                                    <input type="tel" v-model="form.phone" 
+                                           class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                           placeholder="+7 (999) 123-45-67" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Email</label>
+                                    <input type="email" v-model="form.email" 
+                                           class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                           placeholder="supplier@example.com" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Адрес</label>
+                                <textarea v-model="form.address" rows="2" 
+                                          class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                          placeholder="г. Москва, ул. Примерная, д. 1"></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Примечания</label>
+                                <textarea v-model="form.notes" rows="3" 
+                                          class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                          placeholder="Дополнительная информация о поставщике..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="sticky bottom-0 bg-white dark:bg-zinc-900 px-6 py-4 border-t flex justify-end gap-3">
+                            <button @click="closeModal" 
+                                    class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                                Отмена
+                            </button>
+                            <button @click="saveSupplier" 
+                                    :disabled="loading"
+                                    class="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 disabled:opacity-50">
+                                {{ loading ? 'Сохранение...' : (isEditing ? 'Сохранить' : 'Добавить') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- Уведомления -->
+        <Teleport to="body">
+            <div v-if="notification.show" 
+                 class="fixed bottom-4 right-4 z-50 animate-slide-up"
+                 :class="notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'">
+                <div class="px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-3">
+                    <svg v-if="notification.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ notification.message }}</span>
+                </div>
+            </div>
+        </Teleport>
+    </AccountantLayout>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+import axios from 'axios';
+import AccountantLayout from '@/Layouts/AccountantLayout.vue';
+
+const props = defineProps({
+    accountant: Object,
+    suppliers: Array,
+    unpaidCount: Number,
+    criticalCount: Number,
+    todayRevenue: Number,
+    pendingPayments: Number
+});
+
+const searchQuery = ref('');
+const showModal = ref(false);
+const isEditing = ref(false);
+const loading = ref(false);
+const form = ref({
+    supplier_id: null,
+    supplier_name: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    notes: ''
+});
+
+const notification = ref({
+    show: false,
+    type: 'success',
+    message: ''
+});
+
+const filteredSuppliers = computed(() => {
+    if (!searchQuery.value) return props.suppliers;
+    const query = searchQuery.value.toLowerCase();
+    return props.suppliers.filter(s => 
+        s.supplier_name.toLowerCase().includes(query) ||
+        (s.contact_person && s.contact_person.toLowerCase().includes(query)) ||
+        (s.phone && s.phone.includes(query))
+    );
+});
+
+const showNotification = (type, message) => {
+    notification.value = { show: true, type, message };
+    setTimeout(() => {
+        notification.value.show = false;
+    }, 3000);
+};
+
+const openAddModal = () => {
+    isEditing.value = false;
+    form.value = {
+        supplier_id: null,
+        supplier_name: '',
+        contact_person: '',
+        phone: '',
+        email: '',
+        address: '',
+        notes: ''
+    };
+    showModal.value = true;
+};
+
+const editSupplier = (supplier) => {
+    isEditing.value = true;
+    form.value = {
+        supplier_id: supplier.supplier_id,
+        supplier_name: supplier.supplier_name,
+        contact_person: supplier.contact_person || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+        notes: supplier.notes || ''
+    };
+    showModal.value = true;
+};
+
+const closeModal = () => {
+    showModal.value = false;
+    form.value = {
+        supplier_id: null,
+        supplier_name: '',
+        contact_person: '',
+        phone: '',
+        email: '',
+        address: '',
+        notes: ''
+    };
+};
+
+const saveSupplier = async () => {
+    if (!form.value.supplier_name.trim()) {
+        showNotification('error', 'Введите название поставщика');
+        return;
+    }
+    
+    loading.value = true;
+    
+    try {
+        if (isEditing.value) {
+            await axios.put(`/api/accountant/suppliers/${form.value.supplier_id}`, form.value);
+            showNotification('success', 'Данные поставщика обновлены');
+        } else {
+            await axios.post('/api/accountant/suppliers', form.value);
+            showNotification('success', 'Поставщик добавлен');
+        }
+        closeModal();
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+        showNotification('error', error.response?.data?.error || 'Ошибка при сохранении');
+    } finally {
+        loading.value = false;
+    }
+};
+
+const deleteSupplier = async (id) => {
+    if (!confirm('Вы уверены, что хотите удалить этого поставщика?')) return;
+    
+    try {
+        await axios.delete(`/api/accountant/suppliers/${id}`);
+        showNotification('success', 'Поставщик удален');
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+        showNotification('error', error.response?.data?.error || 'Ошибка при удалении');
+    }
+};
+</script>
+
+<style scoped>
+@keyframes slide-up {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+}
+</style>

@@ -158,7 +158,20 @@ Route::middleware('auth:employee')->group(function () {
         
         Route::get('/accountant/salary', [App\Http\Controllers\Accountant\DashboardController::class, 'salary'])
             ->name('accountant.salary');
-        
+        // В секцию бухгалтера добавьте:
+        Route::get('/accountant/suppliers', [App\Http\Controllers\Accountant\DashboardController::class, 'suppliers'])
+            ->name('accountant.suppliers');
+
+        Route::post('/api/accountant/suppliers', [App\Http\Controllers\Accountant\DashboardController::class, 'createSupplier']);
+        Route::put('/api/accountant/suppliers/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplier']);
+        Route::delete('/api/accountant/suppliers/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'deleteSupplier']);
+        // В секцию бухгалтера добавьте:
+        Route::get('/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'profile'])
+            ->name('accountant.profile');
+
+        Route::put('/api/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'updateProfile']);
+        Route::post('/api/accountant/upload-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'uploadPhoto']);
+        Route::delete('/api/accountant/delete-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'deletePhoto']);
         // API маршруты для бухгалтера
         Route::prefix('api/accountant')->name('accountant.api.')->group(function () {
             Route::post('/payments/{id}/accept', [App\Http\Controllers\Accountant\DashboardController::class, 'acceptPayment']);
