@@ -90,45 +90,88 @@
                             <div>
                                 <label class="block text-sm font-medium mb-1">Название поставщика <span class="text-red-500">*</span></label>
                                 <input type="text" v-model="form.supplier_name" 
-                                       class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                       placeholder="ООО 'МедСнаб'" />
+                                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                    placeholder="ООО 'МедСнаб'" />
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium mb-1">Контактное лицо</label>
                                 <input type="text" v-model="form.contact_person" 
-                                       class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                       placeholder="Иванов Иван Иванович" />
+                                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                    placeholder="Иванов Иван Иванович" />
                             </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1">Телефон</label>
                                     <input type="tel" v-model="form.phone" 
-                                           class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                           placeholder="+7 (999) 123-45-67" />
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                        placeholder="+7 (999) 123-45-67" />
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium mb-1">Email</label>
                                     <input type="email" v-model="form.email" 
-                                           class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                           placeholder="supplier@example.com" />
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                        placeholder="supplier@example.com" />
                                 </div>
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium mb-1">Адрес</label>
                                 <textarea v-model="form.address" rows="2" 
-                                          class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                          placeholder="г. Москва, ул. Примерная, д. 1"></textarea>
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                        placeholder="г. Москва, ул. Примерная, д. 1"></textarea>
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium mb-1">Примечания</label>
-                                <textarea v-model="form.notes" rows="3" 
-                                          class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                          placeholder="Дополнительная информация о поставщике..."></textarea>
+                                <textarea v-model="form.notes" rows="2" 
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                        placeholder="Дополнительная информация..."></textarea>
                             </div>
+                            <!-- Дополнительные поля (опционально, можно добавить по желанию) -->
+                            <details class="mt-4">
+                                <summary class="text-sm text-gray-500 cursor-pointer">Дополнительные реквизиты</summary>
+                                <div class="mt-3 space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium mb-1">ИНН</label>
+                                            <input type="text" v-model="form.inn" 
+                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium mb-1">Директор</label>
+                                            <input type="text" v-model="form.director_fio" 
+                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1">Банк</label>
+                                        <input type="text" v-model="form.bank_name" 
+                                            class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium mb-1">БИК</label>
+                                            <input type="text" v-model="form.bic" 
+                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium mb-1">Расчетный счет</label>
+                                            <input type="text" v-model="form.payment_account" 
+                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1">Дни поставки</label>
+                                        <input type="number" v-model="form.delivery_days" min="1" max="30"
+                                            class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                    </div>
+                                </div>
+                            </details>
                         </div>
                         
                         <div class="sticky bottom-0 bg-white dark:bg-zinc-900 px-6 py-4 border-t flex justify-end gap-3">
@@ -191,7 +234,15 @@ const form = ref({
     phone: '',
     email: '',
     address: '',
-    notes: ''
+    notes: '',
+    // Дополнительные поля с пустыми значениями
+    inn: '',
+    director_fio: '',
+    accountant_fio: '',
+    bank_name: '',
+    bic: '',
+    payment_account: '',
+    delivery_days: ''
 });
 
 const notification = ref({

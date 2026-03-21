@@ -181,6 +181,11 @@ Route::middleware('auth:employee')->group(function () {
             Route::post('/salary/pay', [App\Http\Controllers\Accountant\DashboardController::class, 'paySalary']);
             Route::post('/salary/pay-all', [App\Http\Controllers\Accountant\DashboardController::class, 'payAllSalaries']);
             Route::get('/revenue-stats', [App\Http\Controllers\Accountant\DashboardController::class, 'getRevenueStats']);
+            // В секцию API бухгалтера добавьте:
+            Route::post('/salary/preview', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalaryPreview']);
+            Route::post('/salary/calculate', [App\Http\Controllers\Accountant\DashboardController::class, 'saveSalaryCalculation']);
+            Route::get('/salary/form/{employeeId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryForm']);
+            Route::put('/employees/{id}/hourly-rate', [App\Http\Controllers\Accountant\DashboardController::class, 'updateHourlyRate']);
         });
     });
 });

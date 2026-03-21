@@ -277,6 +277,76 @@ class Employee extends Authenticatable
     // ========== МЕТОДЫ ДЛЯ РАСЧЕТА ЗАРПЛАТЫ ==========
     
     /**
+     * Константы типов оплаты
+     */
+    const PAYMENT_TYPE_HOURLY = 'hourly';  // Почасовая оплата
+    const PAYMENT_TYPE_DAILY = 'daily';    // Дневная оплата
+
+    /**
+     * Получить зарплату за месяц с учетом типа оплаты
+     * 
+     * @param int $month
+     * @param int $year
+     * @param string $paymentType
+     * @param float $hoursOrDays
+     * @param float $bonus
+     * @return array
+     */
+    public function calculateSalary($month, $year, $paymentType, $hoursOrDays, $bonus = 0)
+    {
+        $hourlyRate = $this->hourly_rate ?? 0;
+        
+        if ($paymentType === self::PAYMENT_TYPE_HOURLY) {
+            $baseSalary = $hourlyRate * $hoursOrDays;
+        } else {
+            // Для дневной оплаты считаем 8-часовой рабочий день
+            $dailyRate = $hourlyRate * 8;
+            $baseSalary = $dailyRate * $hoursOrDays;
+        }
+        
+        $totalAccrued = $baseSalary + $bonus;
+        $ndfl = round($totalAccrued * 0.13, 2); // НДФЛ 13%
+        $netSalary = $totalAccrued - $ndfl;
+        
+        return [
+            'base_salary' => $baseSalary,
+            'bonus' => $bonus,
+            'total_accrued' => $totalAccrued,
+            'ndfl' => $ndfl,
+            'net_salary' => $netSalary,
+            'hourly_rate' => $hourlyRate,
+            'payment_type' => $paymentType,
+            'hours_or_days' => $hoursOrDays,
+        ];
+    }
+
+    /**
+     * Сохранить расчет зарплаты в таблицу salaries
+     */
+    public function saveSalaryCalculation($month, $year, $paymentType, $hoursOrDays, $bonus = 0)
+    {
+        $calculation = $this->calculateSalary($month, $year, $paymentType, $hoursOrDays, $bonus);
+        
+        return $this->salaries()->updateOrCreate(
+            [
+                'month' => $month,
+                'year' => $year,
+            ],
+            [
+                'hours_worked' => $paymentType === self::PAYMENT_TYPE_HOURLY ? $hoursOrDays : $hoursOrDays * 8,
+                'hourly_rate' => $this->hourly_rate ?? 0,
+                'total_amount' => $calculation['net_salary'],
+                'is_paid' => false,
+                'payment_date' => null,
+                'calculation_data' => json_encode($calculation), // Сохраняем полные данные расчета
+            ]
+        );
+    }
+
+
+
+
+    /**
      * Рассчитать отработанные часы за период (на основе расписания, а не записей)
      * 
      * @param \Carbon\Carbon|string $startDate

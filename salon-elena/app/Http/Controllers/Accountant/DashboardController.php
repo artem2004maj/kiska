@@ -443,6 +443,113 @@ class DashboardController extends Controller
     }
     
     /**
+     * Получить форму расчета зарплаты для сотрудника
+     */
+    public function getSalaryForm($employeeId)
+    {
+        $employee = Employee::findOrFail($employeeId);
+        $currentMonth = date('n');
+        $currentYear = date('Y');
+        
+        // Получаем сохраненный расчет, если есть
+        $existingSalary = $employee->salaries()
+            ->where('month', $currentMonth)
+            ->where('year', $currentYear)
+            ->first();
+        
+        return response()->json([
+            'employee' => [
+                'id' => $employee->employee_id,
+                'name' => $employee->employee_name,
+                'role' => $employee->role,
+                'hourly_rate' => $employee->hourly_rate,
+            ],
+            'existing_calculation' => $existingSalary ? $existingSalary->calculation_details : null,
+            'current_month' => $currentMonth,
+            'current_year' => $currentYear,
+        ]);
+    }
+
+    /**
+     * Рассчитать зарплату
+     */
+    public function calculateSalaryPreview(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|exists:employees,employee_id',
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|min:2020|max:2030',
+            'payment_type' => 'required|in:hourly,daily',
+            'hours_or_days' => 'required|numeric|min:0',
+            'bonus' => 'nullable|numeric|min:0',
+        ]);
+        
+        $employee = Employee::findOrFail($request->employee_id);
+        $bonus = $request->bonus ?? 0;
+        
+        $calculation = $employee->calculateSalary(
+            $request->month,
+            $request->year,
+            $request->payment_type,
+            $request->hours_or_days,
+            $bonus
+        );
+        
+        // Добавляем информацию о сотруднике
+        $calculation['employee_name'] = $employee->employee_name;
+        $calculation['employee_role'] = $employee->role;
+        $calculation['payment_type'] = $request->payment_type;
+        $calculation['hours_or_days'] = $request->hours_or_days;
+        $calculation['month'] = $request->month;
+        $calculation['year'] = $request->year;
+        
+        return response()->json($calculation);
+    }
+
+    /**
+     * Сохранить расчет зарплаты
+     */
+    public function saveSalaryCalculation(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|exists:employees,employee_id',
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|min:2020|max:2030',
+            'payment_type' => 'required|in:hourly,daily',
+            'hours_or_days' => 'required|numeric|min:0',
+            'bonus' => 'nullable|numeric|min:0',
+        ]);
+        
+        $employee = Employee::findOrFail($request->employee_id);
+        $bonus = $request->bonus ?? 0;
+        
+        DB::beginTransaction();
+        
+        try {
+            $salary = $employee->saveSalaryCalculation(
+                $request->month,
+                $request->year,
+                $request->payment_type,
+                $request->hours_or_days,
+                $bonus
+            );
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Расчет сохранен',
+                'salary_id' => $salary->salary_id,
+                'calculation' => $salary->calculation_details,
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Рассчитать зарплату за выбранный месяц
      */
     public function calculateSalary(Request $request)
@@ -478,6 +585,26 @@ class DashboardController extends Controller
         return response()->json([
             'employees' => $employees,
             'totalSalary' => $totalSalary,
+        ]);
+    }
+
+    /**
+     * Обновить почасовую ставку сотрудника
+     */
+    public function updateHourlyRate(Request $request, $employeeId)
+    {
+        $request->validate([
+            'hourly_rate' => 'required|numeric|min:0|max:10000',
+        ]);
+        
+        $employee = Employee::findOrFail($employeeId);
+        $employee->hourly_rate = $request->hourly_rate;
+        $employee->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Ставка обновлена',
+            'hourly_rate' => $employee->hourly_rate,
         ]);
     }
     
@@ -644,9 +771,30 @@ class DashboardController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'notes' => 'nullable|string|max:1000',
+            'inn' => 'nullable|string|max:20',
+            'director_fio' => 'nullable|string|max:255',
+            'accountant_fio' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bic' => 'nullable|string|max:20',
+            'payment_account' => 'nullable|string|max:50',
+            'delivery_days' => 'nullable|integer|min:1|max:30',
         ]);
         
-        $supplier = Supplier::create($request->all());
+        $supplier = Supplier::create([
+            'supplier_name' => $request->supplier_name,
+            'contact_person' => $request->contact_person,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'address' => $request->address,
+            'notes' => $request->notes,
+            'inn' => $request->inn,
+            'director_fio' => $request->director_fio,
+            'accountant_fio' => $request->accountant_fio ?? '', // Добавляем пустую строку, если null
+            'bank_name' => $request->bank_name,
+            'bic' => $request->bic,
+            'payment_account' => $request->payment_account,
+            'delivery_days' => $request->delivery_days,
+        ]);
         
         return response()->json([
             'success' => true,
