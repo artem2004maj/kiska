@@ -732,7 +732,7 @@ class DashboardController extends Controller
         return response()->json($revenues);
     }
     
-    /**
+        /**
      * Страница управления поставщиками
      */
     public function suppliers()
@@ -741,6 +741,21 @@ class DashboardController extends Controller
         $stats = $this->getSidebarStats();
         
         $suppliers = Supplier::orderBy('supplier_name')->get();
+        
+        // Добавляем имя бухгалтера для отображения
+        $suppliers = $suppliers->map(function($supplier) {
+            return [
+                'supplier_id' => $supplier->supplier_id,
+                'supplier_name' => $supplier->supplier_name,
+                'contact_person' => $supplier->contact_person,
+                'phone' => $supplier->phone,
+                'email' => $supplier->email,
+                'address' => $supplier->address,
+                'notes' => $supplier->notes,
+                'accountant_fio' => $supplier->accountant_fio,
+                'created_at' => $supplier->created_at,
+            ];
+        });
         
         return Inertia::render('Accountant/Suppliers', [
             'accountant' => [
@@ -764,6 +779,8 @@ class DashboardController extends Controller
      */
     public function createSupplier(Request $request)
     {
+        $user = Auth::guard('employee')->user();
+
         $request->validate([
             'supplier_name' => 'required|string|max:255',
             'contact_person' => 'nullable|string|max:255',
@@ -789,7 +806,7 @@ class DashboardController extends Controller
             'notes' => $request->notes,
             'inn' => $request->inn,
             'director_fio' => $request->director_fio,
-            'accountant_fio' => $request->accountant_fio ?? '', // Добавляем пустую строку, если null
+            'accountant_fio' => $user->employee_name,
             'bank_name' => $request->bank_name,
             'bic' => $request->bic,
             'payment_account' => $request->payment_account,
@@ -803,11 +820,12 @@ class DashboardController extends Controller
         ]);
     }
     
-    /**
+        /**
      * Обновить данные поставщика
      */
     public function updateSupplier(Request $request, $id)
     {
+        $user = Auth::guard('employee')->user();
         $supplier = Supplier::findOrFail($id);
         
         $request->validate([
@@ -817,9 +835,29 @@ class DashboardController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'notes' => 'nullable|string|max:1000',
+            'inn' => 'nullable|string|max:20',
+            'director_fio' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bic' => 'nullable|string|max:20',
+            'payment_account' => 'nullable|string|max:50',
+            'delivery_days' => 'nullable|integer|min:1|max:30',
         ]);
         
-        $supplier->update($request->all());
+        $supplier->update([
+            'supplier_name' => $request->supplier_name,
+            'contact_person' => $request->contact_person,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'address' => $request->address,
+            'notes' => $request->notes,
+            'inn' => $request->inn,
+            'director_fio' => $request->director_fio,
+            'accountant_fio' => $user->employee_name, // При обновлении тоже подставляем имя текущего бухгалтера
+            'bank_name' => $request->bank_name,
+            'bic' => $request->bic,
+            'payment_account' => $request->payment_account,
+            'delivery_days' => $request->delivery_days,
+        ]);
         
         return response()->json([
             'success' => true,

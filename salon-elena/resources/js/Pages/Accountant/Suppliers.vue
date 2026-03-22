@@ -27,7 +27,7 @@
                        class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md" />
             </div>
 
-            <!-- Таблица поставщиков -->
+            <!-- Таблица поставщиков - ОБНОВЛЕНО с колонкой "Ответственный" -->
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
@@ -36,7 +36,7 @@
                             <th class="text-left py-3 text-black dark:text-white font-medium">Контактное лицо</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Телефон</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Email</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Адрес</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Ответственный</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
                         </tr>
                     </thead>
@@ -47,7 +47,11 @@
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.contact_person || '—' }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.phone || '—' }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.email || '—' }}</td>
-                            <td class="py-3 text-black dark:text-white/70 max-w-xs truncate">{{ supplier.address || '—' }}</td>
+                            <td class="py-3">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                    {{ supplier.accountant_fio || 'Не назначен' }}
+                                </span>
+                            </td>
                             <td class="py-3">
                                 <div class="flex gap-2">
                                     <button @click="editSupplier(supplier)" 
@@ -129,7 +133,8 @@
                                         class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
                                         placeholder="Дополнительная информация..."></textarea>
                             </div>
-                            <!-- Дополнительные поля (опционально, можно добавить по желанию) -->
+                            
+                            <!-- Дополнительные реквизиты -->
                             <details class="mt-4">
                                 <summary class="text-sm text-gray-500 cursor-pointer">Дополнительные реквизиты</summary>
                                 <div class="mt-3 space-y-4">
@@ -235,7 +240,6 @@ const form = ref({
     email: '',
     address: '',
     notes: '',
-    // Дополнительные поля с пустыми значениями
     inn: '',
     director_fio: '',
     accountant_fio: '',
@@ -277,7 +281,14 @@ const openAddModal = () => {
         phone: '',
         email: '',
         address: '',
-        notes: ''
+        notes: '',
+        inn: '',
+        director_fio: '',
+        accountant_fio: '',
+        bank_name: '',
+        bic: '',
+        payment_account: '',
+        delivery_days: ''
     };
     showModal.value = true;
 };
@@ -291,7 +302,14 @@ const editSupplier = (supplier) => {
         phone: supplier.phone || '',
         email: supplier.email || '',
         address: supplier.address || '',
-        notes: supplier.notes || ''
+        notes: supplier.notes || '',
+        inn: supplier.inn || '',
+        director_fio: supplier.director_fio || '',
+        accountant_fio: supplier.accountant_fio || '',
+        bank_name: supplier.bank_name || '',
+        bic: supplier.bic || '',
+        payment_account: supplier.payment_account || '',
+        delivery_days: supplier.delivery_days || ''
     };
     showModal.value = true;
 };
@@ -305,7 +323,14 @@ const closeModal = () => {
         phone: '',
         email: '',
         address: '',
-        notes: ''
+        notes: '',
+        inn: '',
+        director_fio: '',
+        accountant_fio: '',
+        bank_name: '',
+        bic: '',
+        payment_account: '',
+        delivery_days: ''
     };
 };
 
