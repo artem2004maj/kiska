@@ -27,7 +27,7 @@
                        class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md" />
             </div>
 
-            <!-- В таблице поставщиков добавьте колонки для реквизитов -->
+            <!-- Таблица поставщиков -->
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
@@ -36,9 +36,10 @@
                             <th class="text-left py-3 text-black dark:text-white font-medium">Контактное лицо</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Телефон</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">ИНН</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Материалы</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Ответственный</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="supplier in filteredSuppliers" :key="supplier.supplier_id" 
@@ -47,6 +48,17 @@
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.contact_person || '—' }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.phone || '—' }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.inn || '—' }}</td>
+                            <td class="py-3">
+                                <div class="flex flex-wrap gap-1">
+                                    <span v-for="material in supplier.materials" :key="material.material_id"
+                                          class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">
+                                        {{ material.name }}
+                                    </span>
+                                    <span v-if="!supplier.materials?.length" class="text-gray-400 text-xs">
+                                        Нет материалов
+                                    </span>
+                                </div>
+                            </td>
                             <td class="py-3">
                                 <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                                     {{ supplier.accountant_fio || 'Не назначен' }}
@@ -58,6 +70,10 @@
                                             class="text-[#3b82f6] hover:underline text-sm">
                                         Редактировать
                                     </button>
+                                    <button @click="openMaterialsModal(supplier)" 
+                                            class="text-[#10b981] hover:underline text-sm">
+                                        Материалы
+                                    </button>
                                     <button @click="deleteSupplier(supplier.supplier_id)" 
                                             class="text-red-500 hover:underline text-sm">
                                         Удалить
@@ -66,7 +82,7 @@
                             </td>
                         </tr>
                         <tr v-if="filteredSuppliers.length === 0">
-                            <td colspan="6" class="py-8 text-center text-gray-500">
+                            <td colspan="7" class="py-8 text-center text-gray-500">
                                 Поставщики не найдены
                             </td>
                         </tr>
@@ -140,7 +156,7 @@
                                 <h4 class="font-medium text-gray-700 dark:text-gray-300 mb-3">Реквизиты</h4>
                             </div>
                             
-                            <!-- Реквизиты (всегда видны) -->
+                            <!-- Реквизиты -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1">ИНН</label>
@@ -197,6 +213,78 @@
             </div>
         </Teleport>
 
+        <!-- Модальное окно управления материалами поставщика -->
+        <Teleport to="body">
+            <div v-if="showMaterialsModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeMaterialsModal"></div>
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">Материалы поставщика</h3>
+                            <button @click="closeMaterialsModal" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div v-if="selectedSupplier" class="p-6">
+                            <div class="mb-6">
+                                <h4 class="font-semibold text-lg">{{ selectedSupplier.supplier_name }}</h4>
+                                <p class="text-sm text-gray-500">Добавьте материалы, которые поставляет этот поставщик</p>
+                            </div>
+                            
+                            <!-- Форма добавления материала - УБРАНО поле delivery_days -->
+                            <div class="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg mb-6">
+                                <h5 class="font-medium mb-3">Добавить материал</h5>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <select v-model="newMaterial.material_id" class="px-3 py-2 border rounded-md">
+                                        <option value="">Выберите материал</option>
+                                        <option v-for="material in availableMaterials" :key="material.material_id" :value="material.material_id">
+                                            {{ material.name }} ({{ material.unit }})
+                                        </option>
+                                    </select>
+                                    <input type="number" v-model="newMaterial.price" placeholder="Цена за ед. (₽)" 
+                                        class="px-3 py-2 border rounded-md" />
+                                </div>
+                                <button @click="addMaterialToSupplier" 
+                                        :disabled="!newMaterial.material_id"
+                                        class="mt-3 px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 disabled:opacity-50">
+                                    Добавить
+                                </button>
+                            </div>
+                            
+                            <!-- Список материалов поставщика - УБРАНО отображение дней доставки -->
+                            <div>
+                                <h5 class="font-medium mb-3">Список материалов</h5>
+                                <div class="space-y-2">
+                                    <div v-for="material in selectedSupplier.materials" :key="material.material_id"
+                                        class="flex justify-between items-center p-3 border rounded-lg">
+                                        <div>
+                                            <p class="font-medium">{{ material.name }}</p>
+                                            <p class="text-sm text-gray-500">
+                                                Цена: {{ formatPrice(material.price) }}
+                                            </p>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="removeMaterialFromSupplier(material.material_id)" 
+                                                    class="text-red-500 hover:text-red-700 text-sm">
+                                                Удалить
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedSupplier.materials?.length === 0" class="text-center py-4 text-gray-500">
+                                        Нет добавленных материалов
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+
         <!-- Уведомления -->
         <Teleport to="body">
             <div v-if="notification.show" 
@@ -224,6 +312,7 @@ import AccountantLayout from '@/Layouts/AccountantLayout.vue';
 const props = defineProps({
     accountant: Object,
     suppliers: Array,
+    allMaterials: Array,
     unpaidCount: Number,
     criticalCount: Number,
     todayRevenue: Number,
@@ -232,8 +321,16 @@ const props = defineProps({
 
 const searchQuery = ref('');
 const showModal = ref(false);
+const showMaterialsModal = ref(false);
 const isEditing = ref(false);
 const loading = ref(false);
+const selectedSupplier = ref(null);
+const newMaterial = ref({
+    material_id: '',
+    price: '',
+    delivery_days: ''
+});
+
 const form = ref({
     supplier_id: null,
     supplier_name: '',
@@ -257,15 +354,26 @@ const notification = ref({
     message: ''
 });
 
+const availableMaterials = computed(() => {
+    if (!selectedSupplier.value) return props.allMaterials || [];
+    const existingIds = selectedSupplier.value.materials?.map(m => m.material_id) || [];
+    return (props.allMaterials || []).filter(m => !existingIds.includes(m.material_id));
+});
+
 const filteredSuppliers = computed(() => {
-    if (!searchQuery.value) return props.suppliers;
+    if (!searchQuery.value) return props.suppliers || [];
     const query = searchQuery.value.toLowerCase();
-    return props.suppliers.filter(s => 
+    return (props.suppliers || []).filter(s => 
         s.supplier_name.toLowerCase().includes(query) ||
         (s.contact_person && s.contact_person.toLowerCase().includes(query)) ||
         (s.phone && s.phone.includes(query))
     );
 });
+
+const formatPrice = (price) => {
+    if (!price && price !== 0) return '0 ₽';
+    return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+};
 
 const showNotification = (type, message) => {
     notification.value = { show: true, type, message };
@@ -274,6 +382,7 @@ const showNotification = (type, message) => {
     }, 3000);
 };
 
+// Методы для поставщиков
 const openAddModal = () => {
     isEditing.value = false;
     form.value = {
@@ -370,6 +479,56 @@ const deleteSupplier = async (id) => {
         setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
         showNotification('error', error.response?.data?.error || 'Ошибка при удалении');
+    }
+};
+
+// Методы для управления материалами поставщика
+const openMaterialsModal = (supplier) => {
+    selectedSupplier.value = supplier;
+    newMaterial.value = { material_id: '', price: '' };
+    showMaterialsModal.value = true;
+};
+
+const closeMaterialsModal = () => {
+    showMaterialsModal.value = false;
+    selectedSupplier.value = null;
+};
+
+const addMaterialToSupplier = async () => {
+    if (!newMaterial.value.material_id) return;
+    
+    try {
+        // Исправленный URL
+        await axios.post(`/api/accountant/suppliers/${selectedSupplier.value.supplier_id}/materials`, {
+            material_id: newMaterial.value.material_id,
+            price: newMaterial.value.price
+        });
+        
+        showNotification('success', 'Материал добавлен');
+        
+        // Обновляем список материалов поставщика
+        const response = await axios.get(`/api/accountant/suppliers/${selectedSupplier.value.supplier_id}/materials`);
+        selectedSupplier.value.materials = response.data.materials;
+        
+        newMaterial.value = { material_id: '', price: '' };
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('error', error.response?.data?.error || 'Ошибка при добавлении материала');
+    }
+};
+
+const removeMaterialFromSupplier = async (materialId) => {
+    if (!confirm('Удалить этот материал из списка поставщика?')) return;
+    
+    try {
+        await axios.delete(`/api/accountant/suppliers/${selectedSupplier.value.supplier_id}/materials/${materialId}`);
+        
+        showNotification('success', 'Материал удален');
+        
+        // Обновляем список материалов поставщика
+        selectedSupplier.value.materials = selectedSupplier.value.materials.filter(m => m.material_id !== materialId);
+    } catch (error) {
+        showNotification('error', 'Ошибка при удалении материала');
     }
 };
 </script>

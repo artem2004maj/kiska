@@ -12,11 +12,11 @@ class Supplier extends Model
 
     protected $fillable = [
         'supplier_name',
-        'contact_person',   // ДОБАВЛЯЕМ
-        'phone',            // ДОБАВЛЯЕМ
-        'email',            // ДОБАВЛЯЕМ
-        'address',          // ДОБАВЛЯЕМ
-        'notes',            // ДОБАВЛЯЕМ
+        'contact_person',
+        'phone',
+        'email',
+        'address',
+        'notes',
         'inn',
         'director_fio',
         'accountant_fio',
@@ -33,5 +33,17 @@ class Supplier extends Model
     public function supplierContracts()
     {
         return $this->hasMany(SupplierContract::class, 'supplier_id', 'supplier_id');
+    }
+    
+    // Связь с материалами, которые поставляет поставщик
+    public function materials()
+    {
+        return $this->belongsToMany(
+            Material::class,
+            'supplier_materials',
+            'supplier_id',
+            'material_id'
+        )->withPivot('price', 'is_active')
+         ->withTimestamps();
     }
 }

@@ -732,7 +732,7 @@ class DashboardController extends Controller
         return response()->json($revenues);
     }
     
-    /**
+        /**
      * Страница управления поставщиками
      */
     public function suppliers()
@@ -740,9 +740,8 @@ class DashboardController extends Controller
         $user = Auth::guard('employee')->user();
         $stats = $this->getSidebarStats();
         
-        $suppliers = Supplier::orderBy('supplier_name')->get();
+        $suppliers = Supplier::with('materials')->orderBy('supplier_name')->get();
         
-        // Добавляем все поля для отображения
         $suppliers = $suppliers->map(function($supplier) {
             return [
                 'supplier_id' => $supplier->supplier_id,
@@ -759,9 +758,20 @@ class DashboardController extends Controller
                 'bic' => $supplier->bic,
                 'payment_account' => $supplier->payment_account,
                 'delivery_days' => $supplier->delivery_days,
+                'materials' => $supplier->materials->map(function($material) {
+                    return [
+                        'material_id' => $material->material_id,
+                        'name' => $material->name,
+                        'unit' => $material->unit,
+                        'price' => $material->pivot->price,
+                    ];
+                }),
                 'created_at' => $supplier->created_at,
             ];
         });
+        
+        // Получаем все материалы для выбора
+        $allMaterials = Material::orderBy('name')->get();
         
         return Inertia::render('Accountant/Suppliers', [
             'accountant' => [
@@ -771,6 +781,7 @@ class DashboardController extends Controller
                 'role' => $user->role,
             ],
             'suppliers' => $suppliers,
+            'allMaterials' => $allMaterials,
             'unpaidCount' => $stats['unpaidCount'],
             'criticalCount' => $stats['criticalCount'],
             'todayRevenue' => $stats['todayRevenue'],
@@ -896,6 +907,119 @@ class DashboardController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Поставщик удален',
+        ]);
+    }
+        /**
+     * Получить материалы поставщика
+     */
+    public function getSupplierMaterials($supplierId)
+    {
+        try {
+            $materials = DB::table('supplier_materials')
+                ->join('materials', 'supplier_materials.material_id', '=', 'materials.material_id')
+                ->where('supplier_materials.supplier_id', $supplierId)
+                ->select('materials.material_id', 'materials.name', 'materials.unit', 'supplier_materials.price', 'supplier_materials.is_active')
+                ->get();
+            
+            $supplier = Supplier::findOrFail($supplierId);
+            
+            return response()->json([
+                'supplier' => $supplier,
+                'materials' => $materials,
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error getting supplier materials: ' . $e->getMessage());
+            return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
+    }
+
+        /**
+     * Добавить материал поставщику
+     */
+    public function addSupplierMaterial(Request $request, $supplierId)
+    {
+        try {
+            $request->validate([
+                'material_id' => 'required|exists:materials,material_id',
+                'price' => 'nullable|numeric|min:0',
+            ]);
+            
+            $supplier = Supplier::findOrFail($supplierId);
+            
+            // Проверяем, не добавлен ли уже этот материал (указываем таблицу явно)
+            $exists = DB::table('supplier_materials')
+                ->where('supplier_id', $supplierId)
+                ->where('material_id', $request->material_id)
+                ->exists();
+            
+            if ($exists) {
+                return response()->json(['error' => 'Этот материал уже добавлен поставщику'], 422);
+            }
+            
+            // Добавляем материал
+            DB::table('supplier_materials')->insert([
+                'supplier_id' => $supplierId,
+                'material_id' => $request->material_id,
+                'price' => $request->price,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // Получаем обновленный список материалов
+            $materials = DB::table('supplier_materials')
+                ->join('materials', 'supplier_materials.material_id', '=', 'materials.material_id')
+                ->where('supplier_materials.supplier_id', $supplierId)
+                ->select('materials.material_id', 'materials.name', 'materials.unit', 'supplier_materials.price')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Материал добавлен поставщику',
+                'materials' => $materials,
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error adding supplier material: ' . $e->getMessage());
+            return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Обновить материал поставщика
+     */
+    public function updateSupplierMaterial(Request $request, $supplierId, $materialId)
+    {
+        $request->validate([
+            'price' => 'nullable|numeric|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+        
+        $supplier = Supplier::findOrFail($supplierId);
+        
+        $supplier->materials()->updateExistingPivot($materialId, [
+            'price' => $request->price,
+            'is_active' => $request->is_active ?? true,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Данные материала обновлены',
+        ]);
+    }
+
+    /**
+     * Удалить материал поставщика
+     */
+    public function removeSupplierMaterial($supplierId, $materialId)
+    {
+        $supplier = Supplier::findOrFail($supplierId);
+        $supplier->materials()->detach($materialId);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Материал удален из списка поставщика',
         ]);
     }
     

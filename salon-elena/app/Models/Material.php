@@ -43,6 +43,16 @@ class Material extends Model
         )->withPivot('quantity', 'is_required')
          ->withTimestamps();
     }
+    public function suppliers()
+    {
+        return $this->belongsToMany(
+            Supplier::class,
+            'supplier_materials',
+            'material_id',
+            'supplier_id'
+        )->withPivot('price', 'is_active')
+         ->withTimestamps();
+    }
 
     public function receipts()
     {
