@@ -27,7 +27,7 @@
                        class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md" />
             </div>
 
-            <!-- Таблица поставщиков - ОБНОВЛЕНО с колонкой "Ответственный" -->
+            <!-- В таблице поставщиков добавьте колонки для реквизитов -->
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
@@ -35,7 +35,7 @@
                             <th class="text-left py-3 text-black dark:text-white font-medium">Название</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Контактное лицо</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Телефон</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Email</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">ИНН</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Ответственный</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
                         </tr>
@@ -46,7 +46,7 @@
                             <td class="py-3 text-black dark:text-white/70 font-medium">{{ supplier.supplier_name }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.contact_person || '—' }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ supplier.phone || '—' }}</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ supplier.email || '—' }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ supplier.inn || '—' }}</td>
                             <td class="py-3">
                                 <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                                     {{ supplier.accountant_fio || 'Не назначен' }}
@@ -91,6 +91,7 @@
                         </div>
                         
                         <div class="p-6 space-y-4">
+                            <!-- Основные поля -->
                             <div>
                                 <label class="block text-sm font-medium mb-1">Название поставщика <span class="text-red-500">*</span></label>
                                 <input type="text" v-model="form.supplier_name" 
@@ -134,49 +135,50 @@
                                         placeholder="Дополнительная информация..."></textarea>
                             </div>
                             
-                            <!-- Дополнительные реквизиты -->
-                            <details class="mt-4">
-                                <summary class="text-sm text-gray-500 cursor-pointer">Дополнительные реквизиты</summary>
-                                <div class="mt-3 space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1">ИНН</label>
-                                            <input type="text" v-model="form.inn" 
-                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1">Директор</label>
-                                            <input type="text" v-model="form.director_fio" 
-                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1">Банк</label>
-                                        <input type="text" v-model="form.bank_name" 
-                                            class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                    </div>
-                                    
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1">БИК</label>
-                                            <input type="text" v-model="form.bic" 
-                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1">Расчетный счет</label>
-                                            <input type="text" v-model="form.payment_account" 
-                                                class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1">Дни поставки</label>
-                                        <input type="number" v-model="form.delivery_days" min="1" max="30"
-                                            class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                    </div>
+                            <!-- Разделитель -->
+                            <div class="border-t border-gray-200 dark:border-zinc-700 pt-4">
+                                <h4 class="font-medium text-gray-700 dark:text-gray-300 mb-3">Реквизиты</h4>
+                            </div>
+                            
+                            <!-- Реквизиты (всегда видны) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">ИНН</label>
+                                    <input type="text" v-model="form.inn" 
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
                                 </div>
-                            </details>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Директор</label>
+                                    <input type="text" v-model="form.director_fio" 
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Банк</label>
+                                <input type="text" v-model="form.bank_name" 
+                                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">БИК</label>
+                                    <input type="text" v-model="form.bic" 
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Расчетный счет</label>
+                                    <input type="text" v-model="form.payment_account" 
+                                        class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Дни поставки</label>
+                                <input type="number" v-model="form.delivery_days" min="1" max="30"
+                                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                <p class="text-xs text-gray-500 mt-1">Среднее количество дней для доставки заказа</p>
+                            </div>
                         </div>
                         
                         <div class="sticky bottom-0 bg-white dark:bg-zinc-900 px-6 py-4 border-t flex justify-end gap-3">

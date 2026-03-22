@@ -732,7 +732,7 @@ class DashboardController extends Controller
         return response()->json($revenues);
     }
     
-        /**
+    /**
      * Страница управления поставщиками
      */
     public function suppliers()
@@ -742,7 +742,7 @@ class DashboardController extends Controller
         
         $suppliers = Supplier::orderBy('supplier_name')->get();
         
-        // Добавляем имя бухгалтера для отображения
+        // Добавляем все поля для отображения
         $suppliers = $suppliers->map(function($supplier) {
             return [
                 'supplier_id' => $supplier->supplier_id,
@@ -752,7 +752,13 @@ class DashboardController extends Controller
                 'email' => $supplier->email,
                 'address' => $supplier->address,
                 'notes' => $supplier->notes,
+                'inn' => $supplier->inn,
+                'director_fio' => $supplier->director_fio,
                 'accountant_fio' => $supplier->accountant_fio,
+                'bank_name' => $supplier->bank_name,
+                'bic' => $supplier->bic,
+                'payment_account' => $supplier->payment_account,
+                'delivery_days' => $supplier->delivery_days,
                 'created_at' => $supplier->created_at,
             ];
         });
