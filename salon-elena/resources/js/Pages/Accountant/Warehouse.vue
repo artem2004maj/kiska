@@ -21,11 +21,21 @@
                     </button>
                 </div>
                 
-                <!-- Поиск и фильтры -->
+                <!-- Фильтры: Поставщик + Статус -->
                 <div class="flex flex-wrap gap-4 mb-6">
+                    <select v-model="selectedSupplierFilter" 
+                            class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md min-w-[200px]"
+                            @change="onSupplierFilterChange">
+                        <option value="">Все поставщики</option>
+                        <option v-for="supplier in suppliers" :key="supplier.supplier_id" :value="supplier.supplier_id">
+                            {{ supplier.supplier_name }}
+                        </option>
+                    </select>
+                    
                     <input type="text" placeholder="Поиск материалов..." 
                            v-model="searchQuery"
                            class="flex-1 px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md" />
+                    
                     <select v-model="statusFilter" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
                         <option value="all">Все материалы</option>
                         <option value="critical">Критичные</option>
@@ -78,7 +88,9 @@
                                                 class="text-red-500 hover:underline text-sm">
                                             Удалить
                                         </button>
-                                        <button @click="addToOrder(material)" 
+                                        <!-- Кнопка "В заказ" показываем только если выбран поставщик -->
+                                        <button v-if="selectedSupplierFilter" 
+                                                @click="addToOrder(material)" 
                                                 class="text-[#10b981] hover:underline text-sm"
                                                 :disabled="material.inOrder">
                                             {{ material.inOrder ? 'В заказе' : 'В заказ' }}
@@ -86,26 +98,22 @@
                                     </div>
                                 </td>
                             </tr>
+                            <tr v-if="filteredMaterials.length === 0">
+                                <td colspan="7" class="py-8 text-center text-gray-500">
+                                    Материалы не найдены
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Блок закупки -->
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
-                <h3 class="text-xl font-semibold text-black dark:text-white mb-4">ОФОРМЛЕНИЕ ЗАКУПКИ</h3>
+            <!-- Блок закупки - показываем только если выбран поставщик -->
+            <div v-if="selectedSupplierFilter" class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+                <h3 class="text-xl font-semibold text-black dark:text-white mb-4">
+                    ОФОРМЛЕНИЕ ЗАКУПКИ ДЛЯ {{ getSelectedSupplierName() }}
+                </h3>
                 
-                <!-- Выбор поставщика -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">Поставщик</label>
-                    <select v-model="selectedSupplier" class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
-                        <option value="">-- Выберите поставщика --</option>
-                        <option v-for="supplier in suppliers" :key="supplier.supplier_id" :value="supplier.supplier_id">
-                            {{ supplier.supplier_name }}
-                        </option>
-                    </select>
-                </div>
-
                 <!-- Корзина заказа -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">Корзина заказа</label>
@@ -119,7 +127,8 @@
                                 <div>
                                     <span class="text-black dark:text-white">{{ item.name }}</span>
                                     <span class="text-sm text-gray-500 ml-2">{{ item.quantity }} {{ item.unit }}</span>
-                                    <div class="text-sm text-gray-500">Цена: {{ formatPrice(item.price_per_unit) }}/ед.</div>
+                                    <div class="text-sm text-gray-500">Цена закупки: {{ formatPrice(item.price_per_unit) }}/ед.</div>
+                                    <div class="text-xs text-gray-400">Цена продажи: {{ formatPrice(item.sale_price) }}/ед.</div>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <input type="number" v-model="item.price_per_unit" step="1" min="0"
@@ -132,7 +141,7 @@
                                 </div>
                             </div>
                             <div class="p-3 bg-gray-50 dark:bg-zinc-800 flex justify-between font-medium">
-                                <span>Итого:</span>
+                                <span>Итого закупка:</span>
                                 <span class="text-[#3b82f6]">{{ formatPrice(orderTotal) }}</span>
                             </div>
                         </div>
@@ -141,7 +150,7 @@
 
                 <!-- Кнопка оформления -->
                 <button @click="submitOrder" 
-                        :disabled="orderItems.length === 0 || !selectedSupplier"
+                        :disabled="orderItems.length === 0"
                         class="w-full px-4 py-3 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Оформить заявку на закупку
                 </button>
@@ -152,9 +161,9 @@
                 </div>
             </div>
 
-            <!-- Активные заказы -->
+            <!-- Активные заказы (подтвержденные, в пути) -->
             <div v-if="activeOrders.length > 0" class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
-                <h3 class="text-xl font-semibold text-black dark:text-white mb-4">АКТИВНЫЕ ЗАКАЗЫ</h3>
+                <h3 class="text-xl font-semibold text-black dark:text-white mb-4">ЗАКАЗЫ В ПУТИ</h3>
                 <div class="space-y-3">
                     <div v-for="order in activeOrders" :key="order.id" 
                          class="flex justify-between items-center p-3 border rounded-lg">
@@ -162,6 +171,12 @@
                             <p class="font-medium">Заказ №{{ order.number }}</p>
                             <p class="text-sm text-gray-500">Поставщик: {{ order.supplier_name }}</p>
                             <p class="text-sm text-gray-500">Дата: {{ formatDate(order.date) }}</p>
+                            <div class="text-xs text-gray-400 mt-1">
+                                Состав: 
+                                <span v-for="(item, idx) in order.items" :key="idx">
+                                    {{ item.material_name }} ({{ item.quantity }} {{ item.unit }}){{ idx < order.items.length - 1 ? ', ' : '' }}
+                                </span>
+                            </div>
                         </div>
                         <button @click="receiveOrder(order.id)" 
                                 class="px-3 py-1 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 text-sm">
@@ -242,9 +257,12 @@
                             <label class="block text-sm font-medium mb-1 mt-3">Количество ({{ selectedMaterial?.unit }})</label>
                             <input type="number" v-model="quantityToOrder" min="1" 
                                    class="w-full px-3 py-2 border rounded-md" />
-                            <label class="block text-sm font-medium mb-1 mt-3">Цена за единицу (₽)</label>
+                            <label class="block text-sm font-medium mb-1 mt-3">Цена закупки (₽)</label>
                             <input type="number" v-model="pricePerUnit" min="0" step="1"
                                    class="w-full px-3 py-2 border rounded-md" />
+                            <div class="text-xs text-gray-500 mt-2">
+                                Цена продажи: {{ formatPrice(selectedMaterial?.price_per_unit) }}
+                            </div>
                         </div>
                         <div class="flex gap-3">
                             <button @click="confirmAddToOrder" 
@@ -281,7 +299,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
@@ -290,6 +308,7 @@ const props = defineProps({
     accountant: Object,
     materials: Array,
     suppliers: Array,
+    supplierMaterials: Object,
     activeOrders: Array,
     unpaidCount: Number,
     criticalCount: Number,
@@ -297,12 +316,15 @@ const props = defineProps({
     pendingPayments: Number
 });
 
-// Состояние для поиска и фильтрации
+// Состояние для фильтрации
 const searchQuery = ref('');
 const statusFilter = ref('all');
+const selectedSupplierFilter = ref('');
+
+// Состояние для материалов (будет обновляться при смене поставщика)
+const currentMaterials = ref([...props.materials]);
 
 // Состояние для закупки
-const selectedSupplier = ref('');
 const orderItems = ref([]);
 const orderStatus = ref('');
 
@@ -338,8 +360,25 @@ const showNotification = (type, message) => {
     }, 3000);
 };
 
+// Получить материалы при смене поставщика
+const onSupplierFilterChange = async () => {
+    try {
+        const response = await axios.get('/api/accountant/warehouse-materials', {
+            params: { supplier_id: selectedSupplierFilter.value }
+        });
+        currentMaterials.value = response.data;
+        
+        // Если поставщик изменился, очищаем корзину
+        orderItems.value = [];
+        orderStatus.value = '';
+    } catch (error) {
+        console.error('Error loading materials:', error);
+    }
+};
+
+// Фильтрация материалов
 const filteredMaterials = computed(() => {
-    let filtered = [...props.materials];
+    let filtered = [...currentMaterials.value];
     
     if (searchQuery.value) {
         filtered = filtered.filter(m => 
@@ -354,10 +393,18 @@ const filteredMaterials = computed(() => {
     return filtered;
 });
 
+// Получить имя выбранного поставщика
+const getSelectedSupplierName = () => {
+    const supplier = props.suppliers.find(s => s.supplier_id === selectedSupplierFilter.value);
+    return supplier ? supplier.supplier_name : '';
+};
+
+// Сумма заказа
 const orderTotal = computed(() => {
     return orderItems.value.reduce((sum, item) => sum + (item.quantity * item.price_per_unit), 0);
 });
 
+// Форматирование цены
 const formatPrice = (price) => {
     if (!price && price !== 0) return '0 ₽';
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
@@ -444,10 +491,13 @@ const deleteMaterial = async (material) => {
 // Методы для закупки
 const addToOrder = (material) => {
     selectedMaterial.value = material;
-    quantityToOrder.value = material.min_stock - material.current_balance > 0 
-        ? material.min_stock - material.current_balance 
-        : 10;
-    pricePerUnit.value = material.price_per_unit || 100;
+    // Предлагаем заказать до минимального остатка + 10%
+    const suggestedQuantity = material.min_stock - material.current_balance > 0 
+        ? material.min_stock - material.current_balance + Math.ceil(material.min_stock * 0.1)
+        : material.min_stock;
+    quantityToOrder.value = suggestedQuantity > 0 ? suggestedQuantity : 10;
+    // Используем цену поставщика, если есть, иначе цену продажи
+    pricePerUnit.value = material.supplier_price || material.price_per_unit || 100;
     showQuantityModal.value = true;
 };
 
@@ -463,7 +513,8 @@ const confirmAddToOrder = () => {
             name: selectedMaterial.value.name,
             quantity: quantityToOrder.value,
             unit: selectedMaterial.value.unit,
-            price_per_unit: pricePerUnit.value
+            price_per_unit: pricePerUnit.value,
+            sale_price: selectedMaterial.value.price_per_unit
         });
     }
     selectedMaterial.value.inOrder = true;
@@ -475,11 +526,11 @@ const removeFromOrder = (index) => {
 };
 
 const submitOrder = async () => {
-    if (orderItems.value.length === 0 || !selectedSupplier.value) return;
+    if (orderItems.value.length === 0) return;
     
     try {
         const response = await axios.post('/api/accountant/orders/create', {
-            supplier_id: selectedSupplier.value,
+            supplier_id: selectedSupplierFilter.value,
             items: orderItems.value.map(item => ({
                 material_id: item.id,
                 quantity: item.quantity,
@@ -488,25 +539,34 @@ const submitOrder = async () => {
         });
         
         orderStatus.value = response.data.message;
+        showNotification('success', response.data.message);
         orderItems.value = [];
-        selectedSupplier.value = '';
         
+        // Перезагружаем страницу через 2 секунды
         setTimeout(() => router.reload(), 2000);
     } catch (error) {
         orderStatus.value = 'Ошибка при создании заказа';
+        showNotification('error', error.response?.data?.error || 'Ошибка при создании заказа');
     }
 };
 
 const receiveOrder = async (orderId) => {
-    if (!confirm('Подтвердить получение заказа?')) return;
+    if (!confirm('Подтвердить получение заказа? Материалы будут добавлены на склад.')) return;
     
     try {
-        await axios.post(`/api/accountant/orders/${orderId}/receive`);
-        router.reload();
+        // Обновляем статус заказа на "получен"
+        await axios.put(`/api/accountant/orders/${orderId}/status`, { status: 2 });
+        showNotification('success', 'Заказ принят на склад');
+        setTimeout(() => router.reload(), 1000);
     } catch (error) {
-        alert('Ошибка при приемке заказа');
+        showNotification('error', error.response?.data?.error || 'Ошибка при приемке заказа');
     }
 };
+
+// При загрузке страницы, если выбран поставщик, загружаем его материалы
+if (selectedSupplierFilter.value) {
+    onSupplierFilterChange();
+}
 </script>
 
 <style scoped>

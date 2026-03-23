@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class MaterialReceipt extends Model
 {
+    protected $table = 'material_receipts';
+    protected $primaryKey = 'receipt_id';
+
     protected $fillable = [
         'quantity',
         'price',
@@ -18,9 +21,18 @@ class MaterialReceipt extends Model
         'contract_id',
     ];
 
+    // Статусы поступлений
+    const STATUS_PENDING = 0;   // Ожидает поступления
+    const STATUS_RECEIVED = 1;  // Получен
+
+    protected $casts = [
+        'receipt_date' => 'date',
+        'expiry_date' => 'datetime',
+    ];
+
     public function material()
     {
-        return $this->belongsTo(Material::class);
+        return $this->belongsTo(Material::class, 'material_id', 'material_id');
     }
 
     public function supplierContract()
@@ -31,5 +43,15 @@ class MaterialReceipt extends Model
     public function payments()
     {
         return $this->hasMany(PaymentToSupplier::class, 'receipt_id');
+    }
+
+    public function isPending()
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isReceived()
+    {
+        return $this->status === self::STATUS_RECEIVED;
     }
 }

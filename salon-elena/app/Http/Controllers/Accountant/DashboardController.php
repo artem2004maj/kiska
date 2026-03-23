@@ -220,7 +220,7 @@ class DashboardController extends Controller
         }
     }
     
-    /**
+        /**
      * Страница склада
      */
     public function warehouse()
@@ -228,6 +228,7 @@ class DashboardController extends Controller
         $user = Auth::guard('employee')->user();
         $stats = $this->getSidebarStats();
         
+        // Получаем все материалы (без фильтрации по поставщику)
         $materials = Material::orderBy('name')->get()
             ->map(function($material) {
                 $status = 'normal';
@@ -244,15 +245,33 @@ class DashboardController extends Controller
                     'unit' => $material->unit,
                     'min_stock' => $material->min_stock,
                     'price_per_unit' => $material->price_per_unit,
+                    'supplier_price' => null,
                     'status' => $status,
                 ];
             });
         
-        $suppliers = Supplier::all();
+        $suppliers = Supplier::all()->map(function($supplier) {
+            return [
+                'supplier_id' => $supplier->supplier_id,
+                'supplier_name' => $supplier->supplier_name,
+            ];
+        });
         
-        // Активные заказы
-        $activeOrders = SupplierContract::where('status', 1)
-            ->with(['supplier'])
+        // Получаем материалы для каждого поставщика (для быстрого доступа)
+        $supplierMaterials = [];
+        foreach ($suppliers as $supplier) {
+            $materialsForSupplier = DB::table('supplier_materials')
+                ->join('materials', 'supplier_materials.material_id', '=', 'materials.material_id')
+                ->where('supplier_materials.supplier_id', $supplier['supplier_id'])
+                ->select('materials.material_id', 'materials.name', 'supplier_materials.price')
+                ->get();
+            
+            $supplierMaterials[$supplier['supplier_id']] = $materialsForSupplier;
+        }
+        
+        // Активные заказы (статус 1 - подтвержден, в пути)
+        $activeOrders = SupplierContract::where('status', SupplierContract::STATUS_CONFIRMED)
+            ->with(['supplier', 'materialReceipts.material'])
             ->get()
             ->map(function($contract) {
                 return [
@@ -261,8 +280,17 @@ class DashboardController extends Controller
                     'date' => $contract->date,
                     'supplier_name' => $contract->supplier?->supplier_name,
                     'status' => $contract->status,
-                    'valid_from' => $contract->valid_from,
-                    'valid_to' => $contract->valid_to,
+                    'status_text' => $contract->status_text,
+                    'total_amount' => $contract->materialReceipts->sum(function($receipt) {
+                        return $receipt->quantity * $receipt->price;
+                    }),
+                    'items' => $contract->materialReceipts->map(function($receipt) {
+                        return [
+                            'material_name' => $receipt->material->name,
+                            'quantity' => $receipt->quantity,
+                            'price' => $receipt->price,
+                        ];
+                    }),
                 ];
             });
         
@@ -275,6 +303,7 @@ class DashboardController extends Controller
             ],
             'materials' => $materials,
             'suppliers' => $suppliers,
+            'supplierMaterials' => $supplierMaterials,
             'activeOrders' => $activeOrders,
             'unpaidCount' => $stats['unpaidCount'],
             'criticalCount' => $stats['criticalCount'],
@@ -285,7 +314,7 @@ class DashboardController extends Controller
         ]);
     }
     
-    /**
+        /**
      * Создать заказ на закупку материалов
      */
     public function createOrder(Request $request)
@@ -301,13 +330,14 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
-            // Создаем договор с поставщиком
-            $contractNumber = 'SC-' . date('Ymd') . '-' . rand(100, 999);
+            // Генерируем номер заказа
+            $contractNumber = 'PO-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
             
+            // Создаем договор с поставщиком (статус 0 - не подтвержден)
             $contract = SupplierContract::create([
                 'number' => $contractNumber,
                 'date' => now(),
-                'status' => 0,
+                'status' => SupplierContract::STATUS_PENDING,
                 'valid_from' => now(),
                 'valid_to' => Carbon::now()->addMonths(1),
                 'supplier_id' => $request->supplier_id,
@@ -328,7 +358,7 @@ class DashboardController extends Controller
                     'expiry_date' => Carbon::now()->addYears(1)->timestamp,
                     'receipt_date' => now(),
                     'invoice_number' => 'INV-' . time(),
-                    'status' => 0,
+                    'status' => MaterialReceipt::STATUS_PENDING,
                     'material_id' => $item['material_id'],
                     'contract_id' => $contract->contract_id,
                 ]);
@@ -350,7 +380,7 @@ class DashboardController extends Controller
         }
     }
     
-    /**
+        /**
      * Подтвердить получение заказа (разгрузка материалов на склад)
      */
     public function receiveOrder($receiptId)
@@ -358,7 +388,7 @@ class DashboardController extends Controller
         $receipt = MaterialReceipt::with(['material', 'contract'])
             ->findOrFail($receiptId);
         
-        if ($receipt->status == 1) {
+        if ($receipt->status == MaterialReceipt::STATUS_RECEIVED) {
             return response()->json(['error' => 'Товар уже принят'], 422);
         }
         
@@ -371,8 +401,20 @@ class DashboardController extends Controller
             $material->save();
             
             // Обновляем статус поступления
-            $receipt->status = 1;
+            $receipt->status = MaterialReceipt::STATUS_RECEIVED;
             $receipt->save();
+            
+            // Проверяем, все ли материалы в этом заказе получены
+            $order = $receipt->contract;
+            $allReceived = $order->materialReceipts->every(function($r) {
+                return $r->status == MaterialReceipt::STATUS_RECEIVED;
+            });
+            
+            // Если все материалы получены, обновляем статус заказа
+            if ($allReceived && $order->status != SupplierContract::STATUS_RECEIVED) {
+                $order->status = SupplierContract::STATUS_RECEIVED;
+                $order->save();
+            }
             
             DB::commit();
             
@@ -388,6 +430,165 @@ class DashboardController extends Controller
             DB::rollBack();
             return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
         }
+    }
+        /**
+     * Получить материалы для склада с фильтрацией по поставщику
+     */
+    public function getWarehouseMaterials(Request $request)
+    {
+        $supplierId = $request->get('supplier_id');
+        
+        if ($supplierId) {
+            // Получаем материалы, закрепленные за поставщиком
+            $supplier = Supplier::findOrFail($supplierId);
+            $materials = $supplier->materials()
+                ->orderBy('materials.name')
+                ->get()
+                ->map(function($material) use ($supplierId) {
+                    $status = 'normal';
+                    if ($material->current_balance <= $material->min_stock) {
+                        $status = 'critical';
+                    } elseif ($material->current_balance <= $material->min_stock * 2) {
+                        $status = 'low';
+                    }
+                    
+                    return [
+                        'id' => $material->material_id,
+                        'name' => $material->name,
+                        'current_balance' => $material->current_balance,
+                        'unit' => $material->unit,
+                        'min_stock' => $material->min_stock,
+                        'price_per_unit' => $material->price_per_unit, // Цена для клиентов
+                        'supplier_price' => $material->pivot->price,   // Цена от поставщика
+                        'status' => $status,
+                    ];
+                });
+        } else {
+            // Получаем все материалы (без привязки к поставщику) - здесь нет кнопки "В заказ"
+            $materials = Material::orderBy('name')->get()
+                ->map(function($material) {
+                    $status = 'normal';
+                    if ($material->current_balance <= $material->min_stock) {
+                        $status = 'critical';
+                    } elseif ($material->current_balance <= $material->min_stock * 2) {
+                        $status = 'low';
+                    }
+                    
+                    return [
+                        'id' => $material->material_id,
+                        'name' => $material->name,
+                        'current_balance' => $material->current_balance,
+                        'unit' => $material->unit,
+                        'min_stock' => $material->min_stock,
+                        'price_per_unit' => $material->price_per_unit,
+                        'supplier_price' => null,
+                        'status' => $status,
+                    ];
+                });
+        }
+        
+        return response()->json($materials);
+    }
+
+    /**
+     * Обновить статус заказа
+     */
+    public function updateOrderStatus(Request $request, $orderId)
+    {
+        $request->validate([
+            'status' => 'required|in:0,1,2,3',
+        ]);
+        
+        $order = SupplierContract::findOrFail($orderId);
+        
+        // Нельзя менять статус полученного заказа
+        if ($order->status == SupplierContract::STATUS_RECEIVED) {
+            return response()->json(['error' => 'Нельзя изменить статус полученного заказа'], 422);
+        }
+        
+        $oldStatus = $order->status;
+        $order->status = $request->status;
+        $order->save();
+        
+        // Если заказ получен на склад
+        if ($request->status == SupplierContract::STATUS_RECEIVED) {
+            // Автоматически принимаем все материалы на склад
+            foreach ($order->materialReceipts as $receipt) {
+                if ($receipt->status == MaterialReceipt::STATUS_PENDING) {
+                    $this->processReceiveOrder($receipt->receipt_id);
+                }
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Статус заказа обновлен',
+            'status' => $order->status,
+            'status_text' => $order->status_text,
+        ]);
+    }
+
+    /**
+     * Внутренний метод для приема заказа
+     */
+    private function processReceiveOrder($receiptId)
+    {
+        $receipt = MaterialReceipt::with(['material', 'contract'])
+            ->findOrFail($receiptId);
+        
+        if ($receipt->status == MaterialReceipt::STATUS_RECEIVED) {
+            return;
+        }
+        
+        // Увеличиваем остаток материала
+        $material = $receipt->material;
+        $material->current_balance += $receipt->quantity;
+        $material->save();
+        
+        // Обновляем статус поступления
+        $receipt->status = MaterialReceipt::STATUS_RECEIVED;
+        $receipt->save();
+    }
+
+    /**
+     * Получить заказы по статусам
+     */
+    public function getOrders(Request $request)
+    {
+        $status = $request->get('status');
+        
+        $query = SupplierContract::with(['supplier', 'materialReceipts.material']);
+        
+        if ($status !== null && $status !== '') {
+            $query->where('status', $status);
+        }
+        
+        $orders = $query->orderBy('created_at', 'desc')->get()
+            ->map(function($order) {
+                return [
+                    'id' => $order->contract_id,
+                    'number' => $order->number,
+                    'date' => $order->date,
+                    'supplier_name' => $order->supplier?->supplier_name,
+                    'status' => $order->status,
+                    'status_text' => $order->status_text,
+                    'status_color' => $order->status_color,
+                    'total_amount' => $order->materialReceipts->sum(function($receipt) {
+                        return $receipt->quantity * $receipt->price;
+                    }),
+                    'items' => $order->materialReceipts->map(function($receipt) {
+                        return [
+                            'material_name' => $receipt->material->name,
+                            'quantity' => $receipt->quantity,
+                            'price' => $receipt->price,
+                            'total' => $receipt->quantity * $receipt->price,
+                        ];
+                    }),
+                    'created_at' => $order->created_at,
+                ];
+            });
+        
+        return response()->json($orders);
     }
     
     /**

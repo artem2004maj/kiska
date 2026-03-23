@@ -190,6 +190,10 @@ Route::middleware('auth:employee')->group(function () {
             Route::post('/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'createMaterial']);
             Route::put('/materials/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateMaterial']);
             Route::delete('/materials/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'deleteMaterial']);
+            //маршруты для управления заказами
+            Route::get('/warehouse-materials', [App\Http\Controllers\Accountant\DashboardController::class, 'getWarehouseMaterials']);
+            Route::get('/orders', [App\Http\Controllers\Accountant\DashboardController::class, 'getOrders']);
+            Route::put('/orders/{orderId}/status', [App\Http\Controllers\Accountant\DashboardController::class, 'updateOrderStatus']);
             // В секцию API бухгалтера добавьте:
             Route::get('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'getSupplierMaterials']);
             Route::post('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'addSupplierMaterial']);
