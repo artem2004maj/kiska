@@ -152,6 +152,9 @@ Route::middleware('auth:employee')->group(function () {
         // Остальные страницы бухгалтера
         Route::get('/accountant/payments', [App\Http\Controllers\Accountant\DashboardController::class, 'payments'])
             ->name('accountant.payments');
+
+        Route::get('/accountant/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'incomes'])
+            ->name('accountant.incomes'); // Новый маршрут для страницы доходов
         
         Route::get('/accountant/warehouse', [App\Http\Controllers\Accountant\DashboardController::class, 'warehouse'])
             ->name('accountant.warehouse');
@@ -203,6 +206,9 @@ Route::middleware('auth:employee')->group(function () {
             Route::put('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterial']);
             Route::put('/suppliers/{id}/materials/{materialId}/price', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterialPrice']);
             Route::delete('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'removeSupplierMaterial']);
+
+            Route::get('/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'getIncomesList']); // Список доходов
+            Route::get('/receipts/{contractId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getReceiptDetails']); // Детали чека
         
             
         });

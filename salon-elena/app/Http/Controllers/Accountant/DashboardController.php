@@ -1501,4 +1501,152 @@ class DashboardController extends Controller
             'message' => 'Фото удалено',
         ]);
     }
+
+   /**
+     * Страница доходов (вместо payments)
+     */
+    public function incomes()
+    {
+        $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
+
+        return Inertia::render('Accountant/Incomes', [
+            'accountant' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+
+    /**
+     * Получить список доходов с фильтрацией
+     */
+    public function getIncomesList(Request $request)
+    {
+        $query = ClientContract::with([
+            'client',
+            'employee',
+            'appointment.providedServices.service',
+            'appointment.materials'
+        ])->where('status', 1); // Только оплаченные контракты
+
+        // Фильтр по дате
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Фильтр по клиенту
+        if ($request->client_search) {
+            $query->whereHas('client', function($q) use ($request) {
+                $q->where('client_name', 'like', '%' . $request->client_search . '%');
+            });
+        }
+
+        // Фильтр по услуге
+        if ($request->service_search) {
+            $query->whereHas('appointment.providedServices.service', function($q) use ($request) {
+                $q->where('service_name', 'like', '%' . $request->service_search . '%');
+            });
+        }
+
+        $contracts = $query->orderBy('created_at', 'desc')->get();
+
+        $incomes = $contracts->map(function($contract) {
+            $appointment = $contract->appointment;
+            
+            // Получаем список услуг
+            $servicesList = $appointment->providedServices->map(function($ps) {
+                return $ps->service ? $ps->service->service_name : null;
+            })->filter()->join(', ');
+            
+            return [
+                'id' => $contract->contract_id,
+                'contract_number' => $contract->contract_number,
+                'date' => $contract->created_at,
+                'formatted_date' => Carbon::parse($contract->created_at)->format('d.m.Y H:i'),
+                'client_name' => $contract->client->client_name,
+                'services_list' => $servicesList ?: 'Услуга не указана',
+                'total_price' => $appointment->calculateTotalPrice(),
+                'employee_name' => $contract->employee->employee_name,
+            ];
+        });
+
+        return response()->json([
+            'incomes' => $incomes,
+            'total_sum' => $incomes->sum('total_price')
+        ]);
+    }
+
+    /**
+     * Получить детали чека для просмотра
+     */
+    public function getReceiptDetails($contractId)
+    {
+        $contract = ClientContract::with([
+            'client',
+            'employee',
+            'appointment' => function($query) {
+                $query->with(['providedServices.service', 'materials', 'employee']);
+            }
+        ])->findOrFail($contractId);
+
+        $appointment = $contract->appointment;
+
+        // Данные об услугах
+        $services = $appointment->providedServices->map(function($ps) {
+            return [
+                'name' => $ps->service->service_name,
+                'quantity' => $ps->quantity,
+                'price' => $ps->service->default_price,
+                'total' => $ps->service->default_price * $ps->quantity,
+            ];
+        });
+
+        // Данные о материалах
+        $materials = $appointment->materials->map(function($material) {
+            return [
+                'name' => $material->name,
+                'quantity' => $material->pivot->quantity_used,
+                'price' => $material->pivot->cost_price,
+                'unit' => $material->unit,
+                'total' => $material->pivot->cost_price * $material->pivot->quantity_used,
+            ];
+        });
+
+        $totalServices = $services->sum('total');
+        $totalMaterials = $materials->sum('total');
+        $totalAmount = $totalServices + $totalMaterials;
+
+        return response()->json([
+            'contract_number' => $contract->contract_number,
+            'date' => Carbon::parse($contract->created_at)->format('d.m.Y H:i'),
+            'client' => [
+                'name' => $contract->client->client_name,
+                'phone' => $contract->client->phone,
+                'email' => $contract->client->email,
+            ],
+            'doctor' => [
+                'name' => $appointment->employee->employee_name,
+            ],
+            'accountant' => [
+                'name' => $contract->employee->employee_name,
+            ],
+            'services' => $services,
+            'materials' => $materials,
+            'total_services' => $totalServices,
+            'total_materials' => $totalMaterials,
+            'total_amount' => $totalAmount,
+        ]);
+    }
 }

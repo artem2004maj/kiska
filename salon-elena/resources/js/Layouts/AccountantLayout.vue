@@ -58,9 +58,10 @@
                                     <span v-if="unpaidCount > 0" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ unpaidCount }}</span>
                                 </Link>
                                 
-                                <Link href="/accountant/payments" 
+                                <!-- ИЗМЕНЕНО: payments -> incomes -->
+                                <Link href="/accountant/incomes" 
                                       class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
-                                      :class="isActive('/accountant/payments')">
+                                      :class="isActive('/accountant/incomes')">
                                     <span class="text-lg lg:text-xl">💰</span>
                                     <span>Доходы</span>
                                 </Link>
@@ -80,7 +81,6 @@
                                     <span>Поставка</span>
                                 </Link>
 
-                                <!-- В сайдбаре добавьте пункт меню -->
                                 <Link href="/accountant/suppliers" 
                                     class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
                                     :class="isActive('/accountant/suppliers')">
@@ -127,10 +127,11 @@
                                           :class="isActive('/dashboard/accountant')">
                                         <span class="text-lg">📊</span> Главная
                                     </Link>
-                                    <Link href="/accountant/payments" @click="mobileMenuOpen = false"
+                                    <!-- ИЗМЕНЕНО: payments -> incomes -->
+                                    <Link href="/accountant/incomes" @click="mobileMenuOpen = false"
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
-                                          :class="isActive('/accountant/payments')">
-                                        <span class="text-lg">💰</span> Оплаты
+                                          :class="isActive('/accountant/incomes')">
+                                        <span class="text-lg">💰</span> Доходы
                                     </Link>
                                     <Link href="/accountant/warehouse" @click="mobileMenuOpen = false"
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
