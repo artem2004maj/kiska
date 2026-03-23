@@ -99,6 +99,15 @@
                                 Детали заказа
                             </button>
                             
+                            <!-- Кнопка "Документ" для завершенных заказов -->
+                            <button 
+                                v-if="order.status === 2"
+                                @click="showSupplyDocument(order)"
+                                class="px-3 py-1.5 text-sm bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition"
+                            >
+                                Документ
+                            </button>
+                            
                             <!-- Кнопки для разных статусов -->
                             <button 
                                 v-if="order.status === 0"
@@ -234,6 +243,11 @@
             </div>
         </Teleport>
     </AccountantLayout>
+    <SupplyReceiptModal 
+    :show="showSupplyModal" 
+    :receiptData="selectedSupplyOrder"
+    @close="showSupplyModal = false"
+/>
 </template>
 
 <script setup>
@@ -241,6 +255,7 @@ import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
+import SupplyReceiptModal from '@/Components/SupplyReceiptModal.vue';
 
 const props = defineProps({
     accountant: Object,
@@ -255,6 +270,9 @@ const orders = ref([]);
 const selectedStatus = ref(0);
 const showDetailsModal = ref(false);
 const selectedOrder = ref(null);
+const showSupplyModal = ref(false);
+const selectedSupplyOrder = ref(null);
+const loadingDocument = ref(false);
 
 const notification = ref({
     show: false,
@@ -325,6 +343,28 @@ const showOrderDetails = (order) => {
 const closeDetailsModal = () => {
     showDetailsModal.value = false;
     selectedOrder.value = null;
+};
+const showSupplyDocument = async (order) => {
+    loadingDocument.value = true;
+    try {
+        const response = await axios.get(`/api/accountant/orders/${order.id}/document`);
+        selectedSupplyOrder.value = response.data;
+        showSupplyModal.value = true;
+    } catch (error) {
+        console.error('Error loading document data:', error);
+        alert('Ошибка при загрузке данных документа');
+    } finally {
+        loadingDocument.value = false;
+    }
+};
+const getOrderForDocument = async (orderId) => {
+    try {
+        const response = await axios.get(`/api/accountant/orders/${orderId}/document`);
+        return response.data;
+    } catch (error) {
+        console.error('Error loading order document data:', error);
+        return null;
+    }
 };
 
 const confirmOrder = async (order) => {

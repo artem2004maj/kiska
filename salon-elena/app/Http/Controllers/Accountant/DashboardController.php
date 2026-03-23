@@ -621,6 +621,43 @@ class DashboardController extends Controller
             'phpVersion' => PHP_VERSION,
         ]);
     }
+        /**
+     * Получить данные заказа для документа
+     */
+    public function getOrderDocument($orderId)
+    {
+        $order = SupplierContract::with(['supplier', 'materialReceipts.material'])
+            ->findOrFail($orderId);
+        
+        // Добавляем город (можно вынести в настройки)
+        $city = 'Москва';
+        
+        return response()->json([
+            'id' => $order->contract_id,
+            'number' => $order->number,
+            'created_at' => $order->created_at,
+            'confirmed_at' => $order->confirmed_at,
+            'received_at' => $order->received_at,
+            'total_amount' => $order->materialReceipts->sum(function($receipt) {
+                return $receipt->quantity * $receipt->price;
+            }),
+            'supplier_name' => $order->supplier?->supplier_name,
+            'supplier_inn' => $order->supplier?->inn,
+            'supplier_address' => $order->supplier?->address,
+            'supplier_phone' => $order->supplier?->phone,
+            'supplier_email' => $order->supplier?->email,
+            'city' => $city,
+            'items' => $order->materialReceipts->map(function($receipt) {
+                return [
+                    'material_name' => $receipt->material->name,
+                    'quantity' => $receipt->quantity,
+                    'price' => $receipt->price,
+                    'unit' => $receipt->material->unit,
+                    'total' => $receipt->quantity * $receipt->price,
+                ];
+            }),
+        ]);
+    }
     
     /**
      * Страница зарплаты
