@@ -757,7 +757,6 @@ class DashboardController extends Controller
                 'bank_name' => $supplier->bank_name,
                 'bic' => $supplier->bic,
                 'payment_account' => $supplier->payment_account,
-                'delivery_days' => $supplier->delivery_days,
                 'materials' => $supplier->materials->map(function($material) {
                     return [
                         'material_id' => $material->material_id,
@@ -811,7 +810,6 @@ class DashboardController extends Controller
             'bank_name' => 'nullable|string|max:255',
             'bic' => 'nullable|string|max:20',
             'payment_account' => 'nullable|string|max:50',
-            'delivery_days' => 'nullable|integer|min:1|max:30',
         ]);
         
         $supplier = Supplier::create([
@@ -827,7 +825,6 @@ class DashboardController extends Controller
             'bank_name' => $request->bank_name,
             'bic' => $request->bic,
             'payment_account' => $request->payment_account,
-            'delivery_days' => $request->delivery_days,
         ]);
         
         return response()->json([
@@ -857,7 +854,6 @@ class DashboardController extends Controller
             'bank_name' => 'nullable|string|max:255',
             'bic' => 'nullable|string|max:20',
             'payment_account' => 'nullable|string|max:50',
-            'delivery_days' => 'nullable|integer|min:1|max:30',
         ]);
         
         $supplier->update([
@@ -873,7 +869,6 @@ class DashboardController extends Controller
             'bank_name' => $request->bank_name,
             'bic' => $request->bic,
             'payment_account' => $request->payment_account,
-            'delivery_days' => $request->delivery_days,
         ]);
         
         return response()->json([

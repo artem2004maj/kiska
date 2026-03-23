@@ -188,13 +188,6 @@
                                         class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
                                 </div>
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Дни поставки</label>
-                                <input type="number" v-model="form.delivery_days" min="1" max="30"
-                                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
-                                <p class="text-xs text-gray-500 mt-1">Среднее количество дней для доставки заказа</p>
-                            </div>
                         </div>
                         
                         <div class="sticky bottom-0 bg-white dark:bg-zinc-900 px-6 py-4 border-t flex justify-end gap-3">
@@ -356,7 +349,6 @@ const selectedSupplier = ref(null);
 const newMaterial = ref({
     material_id: '',
     price: '',
-    delivery_days: ''
 });
 const editingPrice = ref({
     materialId: null,
@@ -377,8 +369,7 @@ const form = ref({
     accountant_fio: '',
     bank_name: '',
     bic: '',
-    payment_account: '',
-    delivery_days: ''
+    payment_account: ''
 });
 
 const notification = ref({
@@ -431,8 +422,7 @@ const openAddModal = () => {
         accountant_fio: '',
         bank_name: '',
         bic: '',
-        payment_account: '',
-        delivery_days: ''
+        payment_account: ''
     };
     showModal.value = true;
 };
@@ -452,8 +442,7 @@ const editSupplier = (supplier) => {
         accountant_fio: supplier.accountant_fio || '',
         bank_name: supplier.bank_name || '',
         bic: supplier.bic || '',
-        payment_account: supplier.payment_account || '',
-        delivery_days: supplier.delivery_days || ''
+        payment_account: supplier.payment_account || ''
     };
     showModal.value = true;
 };

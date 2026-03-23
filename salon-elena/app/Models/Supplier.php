@@ -23,11 +23,9 @@ class Supplier extends Model
         'bank_name',
         'bic',
         'payment_account',
-        'delivery_days',
     ];
 
     protected $casts = [
-        'delivery_days' => 'integer',
     ];
 
     public function supplierContracts()
