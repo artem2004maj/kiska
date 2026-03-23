@@ -1022,6 +1022,41 @@ class DashboardController extends Controller
             'message' => 'Материал удален из списка поставщика',
         ]);
     }
+        /**
+     * Обновить цену материала у поставщика
+    */
+    public function updateSupplierMaterialPrice(Request $request, $supplierId, $materialId)
+    {
+        try {
+            $request->validate([
+                'price' => 'required|numeric|min:0',
+            ]);
+            
+            $supplier = Supplier::findOrFail($supplierId);
+            
+            // Используем Query Builder напрямую, чтобы избежать конфликта имен колонок
+            $updated = DB::table('supplier_materials')
+                ->where('supplier_id', $supplierId)
+                ->where('material_id', $materialId)
+                ->update([
+                    'price' => $request->price,
+                    'updated_at' => now()
+                ]);
+            
+            if (!$updated) {
+                return response()->json(['error' => 'Материал не найден у этого поставщика'], 422);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Цена материала обновлена',
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error updating supplier material price: ' . $e->getMessage());
+            return response()->json(['error' => 'Ошибка при обновлении цены: ' . $e->getMessage()], 500);
+        }
+    }
     
 
     /**

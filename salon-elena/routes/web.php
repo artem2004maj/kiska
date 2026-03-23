@@ -190,6 +190,7 @@ Route::middleware('auth:employee')->group(function () {
             Route::get('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'getSupplierMaterials']);
             Route::post('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'addSupplierMaterial']);
             Route::put('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterial']);
+            Route::put('/suppliers/{id}/materials/{materialId}/price', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterialPrice']);
             Route::delete('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'removeSupplierMaterial']);
         
             

@@ -254,19 +254,47 @@
                                 </button>
                             </div>
                             
-                            <!-- Список материалов поставщика - УБРАНО отображение дней доставки -->
+                            <!-- Список материалов поставщика - с возможностью редактирования цены -->
                             <div>
                                 <h5 class="font-medium mb-3">Список материалов</h5>
                                 <div class="space-y-2">
                                     <div v-for="material in selectedSupplier.materials" :key="material.material_id"
                                         class="flex justify-between items-center p-3 border rounded-lg">
-                                        <div>
+                                        <div class="flex-1">
                                             <p class="font-medium">{{ material.name }}</p>
-                                            <p class="text-sm text-gray-500">
-                                                Цена: {{ formatPrice(material.price) }}
-                                            </p>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="text-sm text-gray-500">
+                                                    Цена: 
+                                                    <span v-if="editingPrice.materialId !== material.material_id" class="font-mono">
+                                                        {{ formatPrice(material.price) }}
+                                                    </span>
+                                                    <div v-else class="inline-flex items-center gap-2">
+                                                        <input 
+                                                            type="number" 
+                                                            v-model.number="editingPrice.price" 
+                                                            class="w-32 px-2 py-1 text-sm border rounded-md"
+                                                            step="0.01"
+                                                            min="0"
+                                                            @keyup.enter="savePrice(material.material_id)"
+                                                        />
+                                                        <button @click="savePrice(material.material_id)" 
+                                                                class="text-green-600 hover:text-green-800 text-sm">
+                                                            Сохранить
+                                                        </button>
+                                                        <button @click="cancelEditPrice" 
+                                                                class="text-gray-500 hover:text-gray-700 text-sm">
+                                                            Отмена
+                                                        </button>
+                                                    </div>
+                                                </span>
+                                            </div>
                                         </div>
                                         <div class="flex gap-2">
+                                            <button v-if="editingPrice.materialId !== material.material_id" 
+                                                    @click="startEditPrice(material)" 
+                                                    class="text-[#3b82f6] hover:text-[#3b82f6]/80 text-sm">
+                                                Редактировать цену
+                                            </button>
                                             <button @click="removeMaterialFromSupplier(material.material_id)" 
                                                     class="text-red-500 hover:text-red-700 text-sm">
                                                 Удалить
@@ -329,6 +357,11 @@ const newMaterial = ref({
     material_id: '',
     price: '',
     delivery_days: ''
+});
+const editingPrice = ref({
+    materialId: null,
+    price: null,
+    originalPrice: null
 });
 
 const form = ref({
@@ -514,6 +547,51 @@ const addMaterialToSupplier = async () => {
     } catch (error) {
         console.error('Error:', error);
         showNotification('error', error.response?.data?.error || 'Ошибка при добавлении материала');
+    }
+};
+// Добавьте методы для редактирования цены
+const startEditPrice = (material) => {
+    editingPrice.value = {
+        materialId: material.material_id,
+        price: material.price,
+        originalPrice: material.price
+    };
+};
+
+const cancelEditPrice = () => {
+    editingPrice.value = {
+        materialId: null,
+        price: null,
+        originalPrice: null
+    };
+};
+
+const savePrice = async (materialId) => {
+    if (!editingPrice.value.price || editingPrice.value.price < 0) {
+        showNotification('error', 'Введите корректную цену');
+        return;
+    }
+    
+    try {
+        await axios.put(
+            `/api/accountant/suppliers/${selectedSupplier.value.supplier_id}/materials/${materialId}/price`,
+            { price: editingPrice.value.price }
+        );
+        
+        // Обновляем цену в локальном массиве
+        const material = selectedSupplier.value.materials.find(m => m.material_id === materialId);
+        if (material) {
+            material.price = editingPrice.value.price;
+        }
+        
+        showNotification('success', 'Цена материала обновлена');
+        cancelEditPrice();
+        
+    } catch (error) {
+        console.error('Error updating price:', error);
+        showNotification('error', error.response?.data?.error || 'Ошибка при обновлении цены');
+        // Возвращаем старую цену
+        editingPrice.value.price = editingPrice.value.originalPrice;
     }
 };
 
