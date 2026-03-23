@@ -62,7 +62,7 @@
                                       class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
                                       :class="isActive('/accountant/payments')">
                                     <span class="text-lg lg:text-xl">💰</span>
-                                    <span>Оплаты</span>
+                                    <span>Доходы</span>
                                 </Link>
                                 
                                 <Link href="/accountant/warehouse" 
