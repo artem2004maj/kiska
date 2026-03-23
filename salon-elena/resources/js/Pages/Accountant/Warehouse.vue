@@ -1,4 +1,3 @@
-<!-- resources/js/Pages/Accountant/Warehouse.vue -->
 <template>
     <AccountantLayout 
         :accountant="accountant"
@@ -11,7 +10,16 @@
         <div class="space-y-6">
             <!-- Основная таблица склада -->
             <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
-                <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">СКЛАДСКОЙ УЧЕТ</h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-black dark:text-white">СКЛАДСКОЙ УЧЕТ</h2>
+                    <button @click="openAddMaterialModal" 
+                            class="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Добавить материал
+                    </button>
+                </div>
                 
                 <!-- Поиск и фильтры -->
                 <div class="flex flex-wrap gap-4 mb-6">
@@ -61,11 +69,21 @@
                                     </span>
                                 </td>
                                 <td class="py-3">
-                                    <button @click="addToOrder(material)" 
-                                            class="text-[#3b82f6] hover:underline text-sm"
-                                            :disabled="material.inOrder">
-                                        {{ material.inOrder ? 'В заказе' : 'В заказ' }}
-                                    </button>
+                                    <div class="flex gap-2">
+                                        <button @click="editMaterial(material)" 
+                                                class="text-[#3b82f6] hover:underline text-sm">
+                                            Редактировать
+                                        </button>
+                                        <button @click="deleteMaterial(material)" 
+                                                class="text-red-500 hover:underline text-sm">
+                                            Удалить
+                                        </button>
+                                        <button @click="addToOrder(material)" 
+                                                class="text-[#10b981] hover:underline text-sm"
+                                                :disabled="material.inOrder">
+                                            {{ material.inOrder ? 'В заказе' : 'В заказ' }}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -82,7 +100,7 @@
                     <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">Поставщик</label>
                     <select v-model="selectedSupplier" class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
                         <option value="">-- Выберите поставщика --</option>
-                        <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
+                        <option v-for="supplier in suppliers" :key="supplier.supplier_id" :value="supplier.supplier_id">
                             {{ supplier.supplier_name }}
                         </option>
                     </select>
@@ -154,6 +172,64 @@
             </div>
         </div>
 
+        <!-- Модальное окно добавления/редактирования материала -->
+        <Teleport to="body">
+            <div v-if="showMaterialModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeMaterialModal"></div>
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-md w-full p-6">
+                        <h3 class="text-lg font-semibold mb-4">{{ isEditingMaterial ? 'Редактировать материал' : 'Добавить материал' }}</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Наименование *</label>
+                                <input type="text" v-model="materialForm.name" 
+                                       class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Единица измерения *</label>
+                                <input type="text" v-model="materialForm.unit" 
+                                       placeholder="шт, мл, упак, пара и т.д."
+                                       class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Текущий остаток *</label>
+                                    <input type="number" v-model="materialForm.current_balance" min="0"
+                                           class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Мин. остаток *</label>
+                                    <input type="number" v-model="materialForm.min_stock" min="0"
+                                           class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Цена за единицу (₽)</label>
+                                <input type="number" v-model="materialForm.price_per_unit" min="0" step="0.01"
+                                       class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button @click="saveMaterial" 
+                                    :disabled="!materialForm.name || !materialForm.unit"
+                                    class="flex-1 px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 disabled:opacity-50">
+                                {{ isEditingMaterial ? 'Сохранить' : 'Добавить' }}
+                            </button>
+                            <button @click="closeMaterialModal" 
+                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
         <!-- Модальное окно выбора количества -->
         <Teleport to="body">
             <div v-if="showQuantityModal" class="fixed inset-0 z-50 overflow-y-auto">
@@ -184,6 +260,23 @@
                 </div>
             </div>
         </Teleport>
+
+        <!-- Уведомления -->
+        <Teleport to="body">
+            <div v-if="notification.show" 
+                 class="fixed bottom-4 right-4 z-50 animate-slide-up"
+                 :class="notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'">
+                <div class="px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-3">
+                    <svg v-if="notification.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ notification.message }}</span>
+                </div>
+            </div>
+        </Teleport>
     </AccountantLayout>
 </template>
 
@@ -204,15 +297,46 @@ const props = defineProps({
     pendingPayments: Number
 });
 
+// Состояние для поиска и фильтрации
 const searchQuery = ref('');
 const statusFilter = ref('all');
+
+// Состояние для закупки
 const selectedSupplier = ref('');
 const orderItems = ref([]);
 const orderStatus = ref('');
+
+// Состояние для модального окна материала
+const showMaterialModal = ref(false);
+const isEditingMaterial = ref(false);
+const materialForm = ref({
+    material_id: null,
+    name: '',
+    unit: '',
+    current_balance: 0,
+    min_stock: 0,
+    price_per_unit: null
+});
+
+// Состояние для модального окна количества
 const showQuantityModal = ref(false);
 const selectedMaterial = ref(null);
 const quantityToOrder = ref(1);
 const pricePerUnit = ref(0);
+
+// Состояние для уведомлений
+const notification = ref({
+    show: false,
+    type: 'success',
+    message: ''
+});
+
+const showNotification = (type, message) => {
+    notification.value = { show: true, type, message };
+    setTimeout(() => {
+        notification.value.show = false;
+    }, 3000);
+};
 
 const filteredMaterials = computed(() => {
     let filtered = [...props.materials];
@@ -244,6 +368,80 @@ const formatDate = (date) => {
     return new Date(date).toLocaleDateString('ru-RU');
 };
 
+// Методы для работы с материалами
+const openAddMaterialModal = () => {
+    isEditingMaterial.value = false;
+    materialForm.value = {
+        material_id: null,
+        name: '',
+        unit: '',
+        current_balance: 0,
+        min_stock: 0,
+        price_per_unit: null
+    };
+    showMaterialModal.value = true;
+};
+
+const editMaterial = (material) => {
+    isEditingMaterial.value = true;
+    materialForm.value = {
+        material_id: material.id,
+        name: material.name,
+        unit: material.unit,
+        current_balance: material.current_balance,
+        min_stock: material.min_stock,
+        price_per_unit: material.price_per_unit
+    };
+    showMaterialModal.value = true;
+};
+
+const closeMaterialModal = () => {
+    showMaterialModal.value = false;
+    materialForm.value = {
+        material_id: null,
+        name: '',
+        unit: '',
+        current_balance: 0,
+        min_stock: 0,
+        price_per_unit: null
+    };
+};
+
+const saveMaterial = async () => {
+    if (!materialForm.value.name || !materialForm.value.unit) {
+        showNotification('error', 'Заполните обязательные поля');
+        return;
+    }
+    
+    try {
+        if (isEditingMaterial.value) {
+            await axios.put(`/api/accountant/materials/${materialForm.value.material_id}`, materialForm.value);
+            showNotification('success', 'Материал обновлен');
+        } else {
+            await axios.post('/api/accountant/materials', materialForm.value);
+            showNotification('success', 'Материал добавлен');
+        }
+        
+        closeMaterialModal();
+        setTimeout(() => router.reload(), 1000);
+    } catch (error) {
+        showNotification('error', error.response?.data?.error || 'Ошибка при сохранении');
+    }
+};
+
+const deleteMaterial = async (material) => {
+    if (!confirm(`Вы уверены, что хотите удалить материал "${material.name}"?`)) return;
+    
+    try {
+        await axios.delete(`/api/accountant/materials/${material.id}`);
+        showNotification('success', 'Материал удален');
+        setTimeout(() => router.reload(), 1000);
+    } catch (error) {
+        showNotification('error', error.response?.data?.error || 'Ошибка при удалении');
+    }
+};
+
+// Методы для закупки
 const addToOrder = (material) => {
     selectedMaterial.value = material;
     quantityToOrder.value = material.min_stock - material.current_balance > 0 
@@ -310,3 +508,20 @@ const receiveOrder = async (orderId) => {
     }
 };
 </script>
+
+<style scoped>
+@keyframes slide-up {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+}
+</style>

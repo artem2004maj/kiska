@@ -731,6 +731,7 @@ class DashboardController extends Controller
         
         return response()->json($revenues);
     }
+
     
         /**
      * Страница управления поставщиками
@@ -788,6 +789,113 @@ class DashboardController extends Controller
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
+    }
+        /**
+     * Создать новый материал
+     */
+    public function createMaterial(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'unit' => 'required|string|max:100',
+            'min_stock' => 'required|integer|min:0',
+            'current_balance' => 'required|integer|min:0',
+            'price_per_unit' => 'nullable|numeric|min:0',
+        ]);
+        
+        try {
+            $material = Material::create([
+                'name' => $request->name,
+                'unit' => $request->unit,
+                'min_stock' => $request->min_stock,
+                'current_balance' => $request->current_balance,
+                'price_per_unit' => $request->price_per_unit,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Материал успешно добавлен',
+                'material' => $material
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при добавлении материала: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Обновить материал
+     */
+    public function updateMaterial(Request $request, $id)
+    {
+        $material = Material::findOrFail($id);
+        
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'unit' => 'required|string|max:100',
+            'min_stock' => 'required|integer|min:0',
+            'current_balance' => 'required|integer|min:0',
+            'price_per_unit' => 'nullable|numeric|min:0',
+        ]);
+        
+        try {
+            $material->update([
+                'name' => $request->name,
+                'unit' => $request->unit,
+                'min_stock' => $request->min_stock,
+                'current_balance' => $request->current_balance,
+                'price_per_unit' => $request->price_per_unit,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Материал успешно обновлен',
+                'material' => $material
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при обновлении материала: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Удалить материал
+     */
+    public function deleteMaterial($id)
+    {
+        $material = Material::findOrFail($id);
+        
+        // Проверяем, используется ли материал в расходах
+        $hasConsumptions = $material->consumptions()->exists();
+        // Проверяем, используется ли материал в записях
+        $hasAppointments = $material->appointments()->exists();
+        // Проверяем, есть ли у поставщиков этот материал
+        $hasSuppliers = $material->suppliers()->exists();
+        
+        if ($hasConsumptions || $hasAppointments || $hasSuppliers) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Материал нельзя удалить, так как он используется в записях, расходах или у поставщиков'
+            ], 422);
+        }
+        
+        try {
+            $material->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Материал успешно удален'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при удалении материала: ' . $e->getMessage()
+            ], 500);
+        }
     }
     
     /**
