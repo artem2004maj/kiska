@@ -28,6 +28,7 @@ class MaterialReceipt extends Model
     protected $casts = [
         'receipt_date' => 'date',
         'expiry_date' => 'datetime',
+        'price' => 'decimal:2',
     ];
 
     public function material()
@@ -35,9 +36,16 @@ class MaterialReceipt extends Model
         return $this->belongsTo(Material::class, 'material_id', 'material_id');
     }
 
+    // Основное отношение к договору
     public function supplierContract()
     {
         return $this->belongsTo(SupplierContract::class, 'contract_id');
+    }
+
+    // Алиас для обратной совместимости
+    public function contract()
+    {
+        return $this->supplierContract();
     }
 
     public function payments()

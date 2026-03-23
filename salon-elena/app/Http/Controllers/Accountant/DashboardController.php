@@ -385,7 +385,7 @@ class DashboardController extends Controller
      */
     public function receiveOrder($receiptId)
     {
-        $receipt = MaterialReceipt::with(['material', 'contract'])
+        $receipt = MaterialReceipt::with(['material', 'supplierContract'])
             ->findOrFail($receiptId);
         
         if ($receipt->status == MaterialReceipt::STATUS_RECEIVED) {
@@ -405,7 +405,7 @@ class DashboardController extends Controller
             $receipt->save();
             
             // Проверяем, все ли материалы в этом заказе получены
-            $order = $receipt->contract;
+            $order = $receipt->supplierContract;
             $allReceived = $order->materialReceipts->every(function($r) {
                 return $r->status == MaterialReceipt::STATUS_RECEIVED;
             });
@@ -413,6 +413,7 @@ class DashboardController extends Controller
             // Если все материалы получены, обновляем статус заказа
             if ($allReceived && $order->status != SupplierContract::STATUS_RECEIVED) {
                 $order->status = SupplierContract::STATUS_RECEIVED;
+                $order->received_at = now();
                 $order->save();
             }
             
@@ -490,7 +491,7 @@ class DashboardController extends Controller
         return response()->json($materials);
     }
 
-    /**
+        /**
      * Обновить статус заказа
      */
     public function updateOrderStatus(Request $request, $orderId)
@@ -499,7 +500,8 @@ class DashboardController extends Controller
             'status' => 'required|in:0,1,2,3',
         ]);
         
-        $order = SupplierContract::findOrFail($orderId);
+        $order = SupplierContract::with(['materialReceipts.material'])
+            ->findOrFail($orderId);
         
         // Нельзя менять статус полученного заказа
         if ($order->status == SupplierContract::STATUS_RECEIVED) {
@@ -508,10 +510,14 @@ class DashboardController extends Controller
         
         $oldStatus = $order->status;
         $order->status = $request->status;
-        $order->save();
         
-        // Если заказ получен на склад
+        // Устанавливаем даты
+        if ($request->status == SupplierContract::STATUS_CONFIRMED && $oldStatus == SupplierContract::STATUS_PENDING) {
+            $order->confirmed_at = now();
+        }
+        
         if ($request->status == SupplierContract::STATUS_RECEIVED) {
+            $order->received_at = now();
             // Автоматически принимаем все материалы на склад
             foreach ($order->materialReceipts as $receipt) {
                 if ($receipt->status == MaterialReceipt::STATUS_PENDING) {
@@ -520,20 +526,23 @@ class DashboardController extends Controller
             }
         }
         
+        $order->save();
+        
         return response()->json([
             'success' => true,
             'message' => 'Статус заказа обновлен',
             'status' => $order->status,
             'status_text' => $order->status_text,
+            'confirmed_at' => $order->confirmed_at,
+            'received_at' => $order->received_at,
         ]);
     }
-
-    /**
+        /**
      * Внутренний метод для приема заказа
      */
     private function processReceiveOrder($receiptId)
     {
-        $receipt = MaterialReceipt::with(['material', 'contract'])
+        $receipt = MaterialReceipt::with(['material', 'supplierContract'])
             ->findOrFail($receiptId);
         
         if ($receipt->status == MaterialReceipt::STATUS_RECEIVED) {
@@ -550,9 +559,6 @@ class DashboardController extends Controller
         $receipt->save();
     }
 
-    /**
-     * Получить заказы по статусам
-     */
     public function getOrders(Request $request)
     {
         $status = $request->get('status');
@@ -572,23 +578,48 @@ class DashboardController extends Controller
                     'supplier_name' => $order->supplier?->supplier_name,
                     'status' => $order->status,
                     'status_text' => $order->status_text,
-                    'status_color' => $order->status_color,
                     'total_amount' => $order->materialReceipts->sum(function($receipt) {
                         return $receipt->quantity * $receipt->price;
                     }),
+                    'created_at' => $order->created_at,
+                    'confirmed_at' => $order->confirmed_at,
+                    'received_at' => $order->received_at,
                     'items' => $order->materialReceipts->map(function($receipt) {
                         return [
                             'material_name' => $receipt->material->name,
                             'quantity' => $receipt->quantity,
                             'price' => $receipt->price,
+                            'unit' => $receipt->material->unit,
                             'total' => $receipt->quantity * $receipt->price,
                         ];
                     }),
-                    'created_at' => $order->created_at,
                 ];
             });
         
         return response()->json($orders);
+    }
+        /**
+     * Страница управления заказами
+     */
+    public function orders()
+    {
+        $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
+        
+        return Inertia::render('Accountant/Orders', [
+            'accountant' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
     }
     
     /**

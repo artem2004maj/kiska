@@ -16,6 +16,8 @@ class SupplierContract extends Model
         'valid_from',
         'valid_to',
         'supplier_id',
+        'confirmed_at',  // Добавить
+        'received_at',
     ];
 
     // Статусы заказов

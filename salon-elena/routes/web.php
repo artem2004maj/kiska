@@ -168,6 +168,9 @@ Route::middleware('auth:employee')->group(function () {
         // В секцию бухгалтера добавьте:
         Route::get('/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'profile'])
             ->name('accountant.profile');
+            
+        Route::get('/accountant/orders', [App\Http\Controllers\Accountant\DashboardController::class, 'orders'])
+            ->name('accountant.orders');
 
         Route::put('/api/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'updateProfile']);
         Route::post('/api/accountant/upload-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'uploadPhoto']);

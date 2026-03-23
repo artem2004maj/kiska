@@ -73,6 +73,13 @@
                                     <span v-if="criticalCount > 0" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ criticalCount }}</span>
                                 </Link>
 
+                                <Link href="/accountant/orders" 
+                                    class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
+                                    :class="isActive('/accountant/orders')">
+                                    <span class="text-lg lg:text-xl">🚚</span>
+                                    <span>Поставка</span>
+                                </Link>
+
                                 <!-- В сайдбаре добавьте пункт меню -->
                                 <Link href="/accountant/suppliers" 
                                     class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
@@ -129,6 +136,11 @@
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
                                           :class="isActive('/accountant/warehouse')">
                                         <span class="text-lg">📦</span> Склад
+                                    </Link>
+                                    <Link href="/accountant/orders" @click="mobileMenuOpen = false"
+                                        class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
+                                        :class="isActive('/accountant/orders')">
+                                        <span class="text-lg">🚚</span> Поставка
                                     </Link>
                                     <Link href="/accountant/suppliers" @click="mobileMenuOpen = false"
                                         class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
