@@ -210,6 +210,9 @@ Route::middleware('auth:employee')->group(function () {
             Route::get('/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'getIncomesList']); // Список доходов
             Route::get('/receipts/{contractId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getReceiptDetails']); // Детали чека
             Route::get('/orders/{orderId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getOrderDocument']);
+
+            Route::get('/salary/history', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryHistory']);
+            Route::get('/salary/receipt/{salaryId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryReceiptDetails']);
         
             
         });

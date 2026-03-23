@@ -1686,4 +1686,137 @@ class DashboardController extends Controller
             'total_amount' => $totalAmount,
         ]);
     }
+    /**
+     * Получить историю начислений зарплаты
+     */
+    public function getSalaryHistory(Request $request)
+    {
+        $query = Salary::with(['employee'])
+            ->orderBy('created_at', 'desc');
+
+        // Фильтр по сотруднику
+        if ($request->employee_name) {
+            $query->whereHas('employee', function($q) use ($request) {
+                $q->where('employee_name', 'like', '%' . $request->employee_name . '%');
+            });
+        }
+
+        // Фильтр по месяцу и году
+        if ($request->month) {
+            $query->where('month', $request->month);
+        }
+        if ($request->year) {
+            $query->where('year', $request->year);
+        }
+
+        $salaries = $query->get()->map(function($salary) {
+            $calculationData = $salary->calculation_details;
+            
+            return [
+                'id' => $salary->salary_id,
+                'employee_name' => $salary->employee->employee_name,
+                'employee_role' => $salary->employee->role,
+                'month' => $salary->month,
+                'year' => $salary->year,
+                'hours_worked' => $salary->hours_worked,
+                'hourly_rate' => $salary->hourly_rate,
+                'total_amount' => $salary->total_amount,
+                'is_paid' => $salary->is_paid,
+                'payment_date' => $salary->payment_date ? Carbon::parse($salary->payment_date)->format('d.m.Y') : null,
+                'calculation_data' => $calculationData,
+                'created_at' => $salary->created_at,
+                'formatted_date' => Carbon::parse($salary->created_at)->format('d.m.Y H:i'),
+            ];
+        });
+
+        return response()->json([
+            'salaries' => $salaries,
+            'total_sum' => $salaries->sum('total_amount')
+        ]);
+    }
+
+    /**
+     * Получить детали чека зарплаты
+     */
+    public function getSalaryReceiptDetails($salaryId)
+    {
+        $salary = Salary::with(['employee'])
+            ->findOrFail($salaryId);
+        
+        // Проверяем, что calculation_data правильно декодируется
+        $calculationData = $salary->calculation_data;
+        
+        // Если calculation_data - строка, пробуем декодировать
+        if (is_string($calculationData)) {
+            $calculationData = json_decode($calculationData, true);
+            // Если все еще строка, пробуем еще раз (для случая двойного экранирования)
+            if (is_string($calculationData)) {
+                $calculationData = json_decode($calculationData, true);
+            }
+        }
+        
+        // Если данные не найдены, создаем из имеющихся полей
+        if (!$calculationData || empty($calculationData)) {
+            $calculationData = [
+                'base_salary' => $salary->hourly_rate * $salary->hours_worked,
+                'bonus' => 0,
+                'total_accrued' => $salary->hourly_rate * $salary->hours_worked,
+                'ndfl' => round(($salary->hourly_rate * $salary->hours_worked) * 0.13, 2),
+                'net_salary' => $salary->total_amount,
+                'payment_type' => 'hourly',
+                'hours_or_days' => $salary->hours_worked,
+            ];
+        }
+        
+        return response()->json([
+            'salary_id' => $salary->salary_id,
+            'employee_name' => $salary->employee->employee_name,
+            'employee_role' => $salary->employee->role,
+            'month' => $salary->month,
+            'year' => $salary->year,
+            'month_name' => $this->getMonthName($salary->month),
+            'hourly_rate' => $salary->hourly_rate,
+            'hours_worked' => $salary->hours_worked,
+            'total_amount' => $salary->total_amount,
+            'is_paid' => (bool)$salary->is_paid,
+            'payment_date' => $salary->payment_date ? Carbon::parse($salary->payment_date)->format('d.m.Y') : null,
+            'created_at' => Carbon::parse($salary->created_at)->format('d.m.Y H:i'),
+            'calculation_details' => [
+                'base_salary' => $calculationData['base_salary'] ?? 0,
+                'bonus' => $calculationData['bonus'] ?? 0,
+                'total_accrued' => $calculationData['total_accrued'] ?? ($salary->hourly_rate * $salary->hours_worked),
+                'ndfl' => $calculationData['ndfl'] ?? 0,
+                'net_salary' => $calculationData['net_salary'] ?? $salary->total_amount,
+                'payment_type' => $calculationData['payment_type'] ?? 'hourly',
+                'hours_or_days' => $calculationData['hours_or_days'] ?? $salary->hours_worked,
+            ]
+        ]);
+    }
+
+    /**
+     * Вспомогательный метод для получения названия роли
+     */
+    private function getRoleName($role)
+    {
+        $roles = [
+            'doctor' => 'Врач',
+            'admin' => 'Администратор',
+            'director' => 'Директор',
+            'accountant' => 'Бухгалтер'
+        ];
+        return $roles[$role] ?? $role;
+    }
+
+    /**
+     * Вспомогательный метод для получения названия месяца
+     */
+    private function getMonthName($month)
+    {
+        $months = [
+            1 => 'Январь', 2 => 'Февраль', 3 => 'Март', 4 => 'Апрель',
+            5 => 'Май', 6 => 'Июнь', 7 => 'Июль', 8 => 'Август',
+            9 => 'Сентябрь', 10 => 'Октябрь', 11 => 'Ноябрь', 12 => 'Декабрь'
+        ];
+        return $months[$month] ?? '';
+    }
 }

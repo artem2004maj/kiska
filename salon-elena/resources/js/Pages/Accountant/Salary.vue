@@ -8,8 +8,9 @@
         :todayRevenue="todayRevenue"
         :pendingPayments="pendingPayments"
     >
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
-            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">РАСЧЕТ ЗАРАБОТНОЙ ПЛАТЫ</h2>
+        <!-- Основная таблица сотрудников -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow mb-6">
+            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ТЕКУЩИЕ НАЧИСЛЕНИЯ ЗА {{ currentMonth }}</h2>
             
             <!-- Таблица сотрудников -->
             <div class="overflow-x-auto">
@@ -79,6 +80,90 @@
             </div>
         </div>
 
+        <!-- История начислений -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ИСТОРИЯ НАЧИСЛЕНИЙ</h2>
+            
+            <!-- Фильтры -->
+            <div class="flex flex-wrap gap-4 mb-6">
+                <input type="text" v-model="historyFilters.employee_name" 
+                       placeholder="Поиск по сотруднику..."
+                       class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md w-64" />
+                <select v-model="historyFilters.month" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                    <option value="">Все месяцы</option>
+                    <option v-for="m in months" :key="m.value" :value="m.value">{{ m.name }}</option>
+                </select>
+                <select v-model="historyFilters.year" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                    <option value="">Все годы</option>
+                    <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+                </select>
+                <button @click="resetHistoryFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    Сбросить
+                </button>
+            </div>
+
+            <!-- Общая сумма -->
+            <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Всего выплачено за выбранный период</p>
+                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ formatPrice(historyTotalSum) }}</p>
+            </div>
+
+            <!-- Таблица истории -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-zinc-700">
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Дата начисления</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Сотрудник</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Должность</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Период</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Отработано часов</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Ставка</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Сумма</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="salary in paginatedHistory" :key="salary.id" 
+                            class="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.formatted_date }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.employee_name }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ getRoleName(salary.employee_role) }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ getMonthName(salary.month) }} {{ salary.year }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.hours_worked }} ч.</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ formatPrice(salary.hourly_rate) }} ₽/ч</td>
+                            <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">{{ formatPrice(salary.total_amount) }}</td>
+                            <td class="py-3">
+                                <button @click="viewSalaryReceipt(salary.id)"
+                                        class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm">
+                                    Просмотр чека
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Пагинация -->
+            <div class="mt-6 flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Показано {{ paginatedHistory.length }} из {{ salaryHistory.length }} записей
+                </div>
+                <div class="flex gap-2">
+                    <button v-if="historyPage > 1" @click="historyPage--" 
+                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
+                        Назад
+                    </button>
+                    <span class="px-3 py-1">Страница {{ historyPage }} из {{ historyTotalPages }}</span>
+                    <button v-if="historyPage < historyTotalPages" @click="historyPage++" 
+                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
+                        Вперед
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Остальные модальные окна (ставка, расчет, детали) остаются без изменений -->
         <!-- Модальное окно редактирования ставки -->
         <Teleport to="body">
             <div v-if="showRateModal" class="fixed inset-0 z-50 overflow-y-auto">
@@ -308,13 +393,122 @@
                 </div>
             </div>
         </Teleport>
+
+        <!-- НОВОЕ: Модальное окно чека зарплаты -->
+        <Teleport to="body">
+            <div v-if="showSalaryReceiptModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="showSalaryReceiptModal = false"></div>
+                    
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <!-- Заголовок -->
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-between items-center">
+                            <h3 class="text-xl font-semibold text-black dark:text-white">Расчетный листок</h3>
+                            <button @click="showSalaryReceiptModal = false" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Содержимое чека -->
+                        <div class="p-6" id="salary-receipt-content" v-if="selectedSalaryReceipt">
+                            <!-- Шапка -->
+                            <div class="text-center mb-8">
+                                <h2 class="text-2xl font-bold text-black dark:text-white">ELENA Beauty Clinic</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Расчетный листок № {{ selectedSalaryReceipt.salary_id }}</p>
+                                <p class="text-gray-600 dark:text-gray-400">Дата формирования: {{ selectedSalaryReceipt.created_at }}</p>
+                            </div>
+
+                            <!-- Информация о сотруднике -->
+                            <div class="grid grid-cols-2 gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-zinc-700">
+                                <div>
+                                    <p class="text-sm text-gray-500">Сотрудник:</p>
+                                    <p class="font-medium text-black dark:text-white">{{ selectedSalaryReceipt.employee_name }}</p>
+                                    <p class="text-sm text-gray-500">Должность: {{ selectedSalaryReceipt.employee_role }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Период начисления:</p>
+                                    <p class="font-medium text-black dark:text-white">{{ selectedSalaryReceipt.month_name }} {{ selectedSalaryReceipt.year }}</p>
+                                    <p class="text-sm text-gray-500">Ставка: {{ formatPrice(selectedSalaryReceipt.hourly_rate) }} ₽/час</p>
+                                </div>
+                            </div>
+
+                            <!-- Детали расчета -->
+                            <div class="mb-6">
+                                <h4 class="font-semibold text-black dark:text-white mb-3">Детали расчета</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
+                                    <div class="flex justify-between py-2">
+                                        <span class="text-gray-600">Отработано часов:</span>
+                                        <span class="font-medium">{{ selectedSalaryReceipt.hours_worked }} ч.</span>
+                                    </div>
+                                    <div class="flex justify-between py-2 border-t border-gray-200 dark:border-zinc-700">
+                                        <span class="text-gray-600">Оклад:</span>
+                                        <span class="font-medium">{{ formatPrice(selectedSalaryReceipt.calculation_details.base_salary) }}</span>
+                                    </div>
+                                    <div v-if="selectedSalaryReceipt.calculation_details.bonus > 0" class="flex justify-between py-2">
+                                        <span class="text-gray-600">Премия:</span>
+                                        <span class="font-medium text-green-600">{{ formatPrice(selectedSalaryReceipt.calculation_details.bonus) }}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2 border-t border-gray-200 dark:border-zinc-700">
+                                        <span class="text-gray-600">Начислено всего:</span>
+                                        <span class="font-bold">{{ formatPrice(selectedSalaryReceipt.calculation_details.total_accrued) }}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2">
+                                        <span class="text-gray-600">НДФЛ (13%):</span>
+                                        <span class="font-medium text-red-600">{{ formatPrice(selectedSalaryReceipt.calculation_details.ndfl) }}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2 border-t border-gray-200 dark:border-zinc-700">
+                                        <span class="text-lg font-bold text-black dark:text-white">К выплате:</span>
+                                        <span class="text-xl font-bold text-green-600">{{ formatPrice(selectedSalaryReceipt.calculation_details.net_salary) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Информация о выплате -->
+                            <div class="border-t border-gray-200 dark:border-zinc-700 pt-4">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Статус выплаты:</span>
+                                    <span class="font-medium" :class="selectedSalaryReceipt.is_paid ? 'text-green-600' : 'text-yellow-600'">
+                                        {{ selectedSalaryReceipt.is_paid ? 'Выплачено' : 'Начислено' }}
+                                    </span>
+                                </div>
+                                <div v-if="selectedSalaryReceipt.payment_date" class="flex justify-between mt-2">
+                                    <span class="text-gray-600">Дата выплаты:</span>
+                                    <span class="font-medium">{{ selectedSalaryReceipt.payment_date }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Подпись -->
+                            <div class="mt-8 pt-4 text-center text-sm text-gray-500">
+                                <p>Бухгалтер: {{ accountant.employee_name }}</p>
+                                <p class="mt-2">Расчет произведен автоматически</p>
+                            </div>
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-end gap-3">
+                            <button @click="printSalaryReceipt" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
+                                🖨️ Печать
+                            </button>
+                            <button @click="exportSalaryToExcel" 
+                                    class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition">
+                                📊 Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </AccountantLayout>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
+import * as XLSX from 'xlsx';
 
 const props = defineProps({
     accountant: Object,
@@ -329,20 +523,32 @@ const props = defineProps({
     pendingPayments: Number
 });
 
-// Состояние для модального окна ставки
+// Существующие состояния (оставляем как есть)
 const showRateModal = ref(false);
 const selectedEmployeeForRate = ref(null);
 const hourlyRateValue = ref(0);
 const loading = ref(false);
-
-// Состояние для расчета зарплаты
 const showSalaryModal = ref(false);
 const showDetailsModal = ref(false);
 const selectedEmployee = ref(null);
 const selectedSalary = ref(null);
 const previewResult = ref(null);
 
-// Параметры расчета
+// Новые состояния для истории
+const salaryHistory = ref([]);
+const historyTotalSum = ref(0);
+const historyFilters = ref({
+    employee_name: '',
+    month: '',
+    year: ''
+});
+const historyPage = ref(1);
+const itemsPerPage = 10;
+
+// Новые состояния для чека зарплаты
+const showSalaryReceiptModal = ref(false);
+const selectedSalaryReceipt = ref(null);
+
 const calculation = ref({
     employee_id: null,
     month: new Date().getMonth() + 1,
@@ -367,8 +573,20 @@ const months = [
     { value: 12, name: 'Декабрь' }
 ];
 
-const years = [2024, 2025, 2026, 2027, 2028];
+const years = [2023, 2024, 2025, 2026, 2027, 2028];
 
+// Computed для пагинации истории
+const paginatedHistory = computed(() => {
+    const start = (historyPage.value - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return salaryHistory.value.slice(start, end);
+});
+
+const historyTotalPages = computed(() => {
+    return Math.ceil(salaryHistory.value.length / itemsPerPage);
+});
+
+// Вспомогательные методы
 const getRoleName = (role) => {
     const roles = {
         'doctor': 'Врач',
@@ -379,14 +597,14 @@ const getRoleName = (role) => {
     return roles[role] || role;
 };
 
-const getInitials = (name) => {
-    if (!name) return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-};
-
 const getMonthName = (month) => {
     const m = months.find(m => m.value === month);
     return m ? m.name : '';
+};
+
+const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 };
 
 const formatPrice = (price) => {
@@ -394,7 +612,193 @@ const formatPrice = (price) => {
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
 };
 
-// Методы для редактирования ставки
+// Загрузка истории начислений
+const loadSalaryHistory = async () => {
+    try {
+        const response = await axios.get('/api/accountant/salary/history', {
+            params: historyFilters.value
+        });
+        salaryHistory.value = response.data.salaries;
+        historyTotalSum.value = response.data.total_sum;
+        historyPage.value = 1;
+    } catch (error) {
+        console.error('Ошибка загрузки истории:', error);
+        alert('Ошибка при загрузке истории начислений');
+    }
+};
+
+// Просмотр чека зарплаты
+const viewSalaryReceipt = async (salaryId) => {
+    try {
+        const response = await axios.get(`/api/accountant/salary/receipt/${salaryId}`);
+        selectedSalaryReceipt.value = response.data;
+        showSalaryReceiptModal.value = true;
+    } catch (error) {
+        console.error('Ошибка загрузки чека:', error);
+        alert('Ошибка при загрузке данных чека');
+    }
+};
+
+// Печать чека зарплаты
+const printSalaryReceipt = () => {
+    const printContent = document.getElementById('salary-receipt-content');
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Расчетный листок ${selectedSalaryReceipt.value.employee_name} ${selectedSalaryReceipt.value.month_name} ${selectedSalaryReceipt.value.year}</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        margin: 20px;
+                        color: #000;
+                    }
+                    .receipt {
+                        max-width: 800px;
+                        margin: 0 auto;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+                    th, td {
+                        padding: 8px;
+                        text-align: left;
+                        border-bottom: 1px solid #ddd;
+                    }
+                    th {
+                        background-color: #f5f5f5;
+                    }
+                    .text-right {
+                        text-align: right;
+                    }
+                    .text-center {
+                        text-align: center;
+                    }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 20px;
+                        }
+                        button {
+                            display: none;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="receipt">
+                    ${printContent.innerHTML}
+                </div>
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => window.close(), 500);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+// Экспорт в Excel
+const exportSalaryToExcel = () => {
+    try {
+        const data = selectedSalaryReceipt.value;
+        
+        if (!data) {
+            alert('Нет данных для экспорта');
+            return;
+        }
+        
+        // Создаем короткое имя листа (не более 31 символа)
+        let sheetName = `Расчет_${data.employee_name}_${data.month_name}_${data.year}`;
+        // Обрезаем до 31 символа
+        if (sheetName.length > 31) {
+            sheetName = sheetName.substring(0, 31);
+        }
+        // Заменяем недопустимые символы
+        sheetName = sheetName.replace(/[\\/*?:[\]]/g, '_');
+        
+        // Создаем данные для Excel в формате массива массивов
+        const excelData = [];
+        
+        // Заголовок
+        excelData.push(['ELENA Beauty Clinic']);
+        excelData.push(['Расчетный листок']);
+        excelData.push([]);
+        
+        // Информация о сотруднике
+        excelData.push(['Сотрудник:', data.employee_name]);
+        excelData.push(['Должность:', data.employee_role]);
+        excelData.push(['Период:', `${data.month_name} ${data.year}`]);
+        excelData.push(['Дата формирования:', data.created_at]);
+        excelData.push([]);
+        
+        // Детали расчета
+        excelData.push(['ДЕТАЛИ РАСЧЕТА']);
+        excelData.push(['Показатель', 'Значение (₽)']);
+        excelData.push(['Отработано часов', data.hours_worked]);
+        excelData.push(['Ставка (₽/час)', data.hourly_rate]);
+        excelData.push(['Оклад', data.calculation_details.base_salary]);
+        
+        if (data.calculation_details.bonus > 0) {
+            excelData.push(['Премия', data.calculation_details.bonus]);
+        }
+        
+        excelData.push(['Начислено всего', data.calculation_details.total_accrued]);
+        excelData.push(['НДФЛ (13%)', data.calculation_details.ndfl]);
+        excelData.push(['К выплате', data.calculation_details.net_salary]);
+        excelData.push([]);
+        
+        // Статус выплаты
+        excelData.push(['СТАТУС ВЫПЛАТЫ']);
+        excelData.push(['Статус:', data.is_paid ? 'Выплачено' : 'Начислено']);
+        if (data.payment_date) {
+            excelData.push(['Дата выплаты:', data.payment_date]);
+        }
+        excelData.push([]);
+        
+        // Подпись
+        excelData.push(['Бухгалтер:', props.accountant.employee_name]);
+        
+        // Создаем рабочую книгу
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
+        
+        // Настройка ширины колонок
+        ws['!cols'] = [
+            { wch: 25 }, // Первая колонка
+            { wch: 30 }  // Вторая колонка
+        ];
+        
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        
+        // Формируем имя файла (без ограничений по длине)
+        const fileName = `Расчетный_листок_${data.employee_name}_${data.month_name}_${data.year}.xlsx`;
+        // Заменяем недопустимые символы в имени файла
+        const safeFileName = fileName.replace(/[\\/*?:|<>"]/g, '_');
+        
+        // Сохраняем файл
+        XLSX.writeFile(wb, safeFileName);
+        
+    } catch (error) {
+        console.error('Ошибка при экспорте в Excel:', error);
+        alert('Ошибка при экспорте в Excel: ' + error.message);
+    }
+};
+
+// Сброс фильтров истории
+const resetHistoryFilters = () => {
+    historyFilters.value = {
+        employee_name: '',
+        month: '',
+        year: ''
+    };
+};
+
+// Существующие методы (оставляем без изменений)
 const openRateModal = (employee) => {
     selectedEmployeeForRate.value = employee;
     hourlyRateValue.value = employee.hourly_rate || 0;
@@ -429,7 +833,6 @@ const updateHourlyRate = async () => {
     }
 };
 
-// Методы для расчета зарплаты
 const openSalaryModal = (employeeId) => {
     const employee = props.employees.find(e => e.id === employeeId);
     if (employee) {
@@ -478,4 +881,12 @@ const viewSalaryDetails = (employee) => {
         alert('Детали расчета не найдены');
     }
 };
+
+// Отслеживаем изменение фильтров
+watch(historyFilters, () => {
+    loadSalaryHistory();
+}, { deep: true });
+
+// Загружаем историю при монтировании
+loadSalaryHistory();
 </script>

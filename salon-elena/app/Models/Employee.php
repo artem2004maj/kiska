@@ -338,7 +338,7 @@ class Employee extends Authenticatable
                 'total_amount' => $calculation['net_salary'],
                 'is_paid' => false,
                 'payment_date' => null,
-                'calculation_data' => json_encode($calculation), // Сохраняем полные данные расчета
+                'calculation_data' => $calculation, // Просто передаем массив, Laravel сам закодирует в JSON
             ]
         );
     }
