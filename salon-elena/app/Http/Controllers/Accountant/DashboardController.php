@@ -688,7 +688,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
+        /**
      * Получить данные для расчета зарплаты (GET запрос)
      */
     public function calculateSalaryData(Request $request)
@@ -714,16 +714,18 @@ class DashboardController extends Controller
                     ->first();
                 
                 if ($existingSalary) {
-                    $calculationData = $existingSalary->calculation_details;
                     $hoursWorked = $existingSalary->hours_worked;
                     $totalAmount = $existingSalary->total_amount;
                     $isPaid = $existingSalary->is_paid;
                     $salaryId = $existingSalary->salary_id;
+                    $calculationDetails = $existingSalary->calculation_details;
                 } else {
+                    // Если нет расчета, показываем 0 часов и 0 сумму
                     $hoursWorked = 0;
                     $totalAmount = 0;
                     $isPaid = false;
                     $salaryId = null;
+                    $calculationDetails = null;
                 }
                 
                 return [
@@ -735,7 +737,7 @@ class DashboardController extends Controller
                     'total_amount' => $totalAmount,
                     'is_paid' => $isPaid,
                     'salary_id' => $salaryId,
-                    'calculation_details' => $existingSalary ? $existingSalary->calculation_details : null,
+                    'calculation_details' => $calculationDetails,
                 ];
             });
         
@@ -819,7 +821,7 @@ class DashboardController extends Controller
     }
 
         /**
-     * Выплатить зарплату сотруднику
+     * Выплатить зарплату одному сотруднику
      */
     public function paySalary(Request $request)
     {
@@ -830,31 +832,34 @@ class DashboardController extends Controller
         ]);
         
         $employee = Employee::findOrFail($request->employee_id);
+        $month = (int) $request->month;
+        $year = (int) $request->year;
         
         DB::beginTransaction();
         
         try {
             // Находим существующую запись о зарплате
             $salary = $employee->salaries()
-                ->where('month', $request->month)
-                ->where('year', $request->year)
+                ->where('month', $month)
+                ->where('year', $year)
                 ->first();
             
             if (!$salary) {
-                // Если нет расчета, создаем его
-                $startDate = Carbon::create($request->year, $request->month, 1);
-                $endDate = Carbon::create($request->year, $request->month, $startDate->daysInMonth);
-                $hoursWorked = $employee->calculateWorkedHours($startDate, $endDate);
-                $totalAmount = $hoursWorked * ($employee->hourly_rate ?? 0);
-                
-                $salary = $employee->salaries()->create([
-                    'month' => $request->month,
-                    'year' => $request->year,
-                    'hours_worked' => $hoursWorked,
-                    'hourly_rate' => $employee->hourly_rate ?? 0,
-                    'total_amount' => $totalAmount,
-                    'is_paid' => false,
-                ]);
+                return response()->json([
+                    'error' => 'Расчет зарплаты не найден. Сначала выполните расчет.'
+                ], 422);
+            }
+            
+            if ($salary->total_amount <= 0) {
+                return response()->json([
+                    'error' => 'Сумма зарплаты равна 0. Выплата не требуется.'
+                ], 422);
+            }
+            
+            if ($salary->is_paid) {
+                return response()->json([
+                    'error' => 'Зарплата уже выплачена'
+                ], 422);
             }
             
             // Отмечаем как выплаченную
@@ -862,15 +867,12 @@ class DashboardController extends Controller
             $salary->payment_date = now();
             $salary->save();
             
-            // Запись о расходе создастся автоматически через booted метод в модели Salary
-            
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => "Зарплата {$employee->employee_name} за " . Carbon::create($request->year, $request->month, 1)->translatedFormat('F Y') . " выплачена",
+                'message' => "Зарплата {$employee->employee_name} за " . Carbon::create($year, $month, 1)->translatedFormat('F Y') . " выплачена",
                 'amount' => $salary->total_amount,
-                'expense_created' => $salary->expense ? true : false,
             ]);
             
         } catch (\Exception $e) {
@@ -878,9 +880,8 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
         }
     }
-    
         /**
-     * Выплатить зарплату всем сотрудникам за месяц
+     * Выплатить зарплату всем сотрудникам за месяц (только тем, у кого есть расчет)
      */
     public function payAllSalaries(Request $request)
     {
@@ -889,59 +890,49 @@ class DashboardController extends Controller
             'year' => 'required|integer|min:2020|max:2030',
         ]);
         
-        $employees = Employee::whereIn('role', ['doctor', 'admin', 'director'])->get();
+        $month = (int) $request->month;
+        $year = (int) $request->year;
+        
+        // Получаем всех сотрудников, у которых есть расчет за указанный месяц
+        $salaries = Salary::where('month', $month)
+            ->where('year', $year)
+            ->where('total_amount', '>', 0) // Только те, у кого сумма больше 0
+            ->with('employee')
+            ->get();
+        
         $paidCount = 0;
         $totalPaid = 0;
-        $expensesCreated = 0;
+        $skippedCount = 0;
         
         DB::beginTransaction();
         
         try {
-            foreach ($employees as $employee) {
-                $salary = $employee->salaries()
-                    ->where('month', $request->month)
-                    ->where('year', $request->year)
-                    ->first();
-                
-                if (!$salary) {
-                    // Если нет расчета, создаем его
-                    $startDate = Carbon::create($request->year, $request->month, 1);
-                    $endDate = Carbon::create($request->year, $request->month, $startDate->daysInMonth);
-                    $hoursWorked = $employee->calculateWorkedHours($startDate, $endDate);
-                    $totalAmount = $hoursWorked * ($employee->hourly_rate ?? 0);
-                    
-                    $salary = $employee->salaries()->create([
-                        'month' => $request->month,
-                        'year' => $request->year,
-                        'hours_worked' => $hoursWorked,
-                        'hourly_rate' => $employee->hourly_rate ?? 0,
-                        'total_amount' => $totalAmount,
-                        'is_paid' => false,
-                    ]);
-                }
-                
+            foreach ($salaries as $salary) {
+                // Проверяем, что зарплата еще не выплачена
                 if (!$salary->is_paid) {
                     $salary->is_paid = true;
                     $salary->payment_date = now();
                     $salary->save();
                     $paidCount++;
                     $totalPaid += $salary->total_amount;
-                    
-                    // Проверяем, создалась ли запись о расходе
-                    if ($salary->expense) {
-                        $expensesCreated++;
-                    }
+                } else {
+                    $skippedCount++;
                 }
             }
             
             DB::commit();
             
+            $message = "Выплачено зарплат: {$paidCount}, на сумму {$totalPaid} ₽";
+            if ($skippedCount > 0) {
+                $message .= " (пропущено уже выплаченных: {$skippedCount})";
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => "Выплачено зарплат: {$paidCount}, на сумму {$totalPaid} ₽",
+                'message' => $message,
                 'paid_count' => $paidCount,
                 'total_paid' => $totalPaid,
-                'expenses_created' => $expensesCreated,
+                'skipped_count' => $skippedCount,
             ]);
             
         } catch (\Exception $e) {

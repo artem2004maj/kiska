@@ -37,7 +37,7 @@
                 
                 <button @click="loadSalaryData" 
                         class="px-6 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition">
-                    Рассчитать
+                    Загрузить
                 </button>
             </div>
         </div>
@@ -45,10 +45,9 @@
         <!-- Таблица сотрудников -->
         <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
             <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">
-                КАЛЬКУЛЯТОР РАСЧЕТА ЗА {{ getMonthName(selectedMonth) }} {{ selectedYear }}
+                РАСЧЕТ ЗА {{ getMonthName(selectedMonth) }} {{ selectedYear }}
             </h2>
             
-            <!-- Таблица сотрудников -->
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
@@ -57,9 +56,9 @@
                             <th class="text-left py-3 text-black dark:text-white font-medium">Должность</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Ставка (₽/час)</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Отработано часов</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Начислено</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">К начислению</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="employee in employeesList" :key="employee.id" 
@@ -79,31 +78,27 @@
                                 </div>
                             </td>
                             <td class="py-3 text-black dark:text-white/70">
-                                <div class="flex items-center gap-2">
-                                    <input type="number" 
-                                           v-model="employee.hours_worked" 
-                                           step="0.5"
-                                           min="0"
-                                           :disabled="employee.is_paid"
-                                           class="w-24 px-2 py-1 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                                           :class="{'bg-gray-100 dark:bg-zinc-700': employee.is_paid}" />
-                                    <span class="text-sm text-gray-500">ч.</span>
-                                </div>
+                                {{ employee.hours_worked }} ч.
                             </td>
                             <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">
-                                {{ formatPrice(calculateEmployeeSalary(employee)) }}
+                                {{ formatPrice(employee.total_amount) }}
                             </td>
                             <td class="py-3">
                                 <div class="flex gap-2">
                                     <button v-if="!employee.is_paid" 
-                                            @click="calculateAndSave(employee)"
+                                            @click="openCalculateModal(employee)"
                                             class="px-3 py-1 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition text-sm">
-                                        Сохранить расчет
+                                        Рассчитать
                                     </button>
                                     <button v-else 
                                             @click="viewSalaryDetails(employee)"
                                             class="px-3 py-1 border border-[#3b82f6] text-[#3b82f6] rounded-md hover:bg-[#3b82f6]/10 transition text-sm">
                                         Просмотр чека
+                                    </button>
+                                    <button v-if="!employee.is_paid && employee.total_amount > 0" 
+                                            @click="paySingleSalary(employee)"
+                                            class="px-3 py-1 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition text-sm">
+                                        Выплатить
                                     </button>
                                     <button @click="openRateModal(employee)" 
                                             class="px-3 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition text-sm">
@@ -123,99 +118,121 @@
                 </table>
             </div>
             
-            <!-- Кнопка массовой выплаты -->
+            <!-- Кнопка массовой выплаты (только для тех, у кого есть расчет и не выплачено) -->
             <div v-if="hasUnpaidEmployees" class="mt-6 pt-4 border-t border-gray-200 dark:border-zinc-700">
                 <button @click="payAllSalaries" 
                         class="px-6 py-2 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition">
-                    Выплатить зарплату всем сотрудникам за {{ getMonthName(selectedMonth) }} {{ selectedYear }}
+                    Выплатить зарплату всем рассчитанным сотрудникам за {{ getMonthName(selectedMonth) }} {{ selectedYear }}
                 </button>
             </div>
         </div>
 
-        <!-- История начислений (оставляем как есть, только небольшие правки) -->
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow mt-6">
-            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ИСТОРИЯ НАЧИСЛЕНИЙ</h2>
-            
-            <!-- Фильтры -->
-            <div class="flex flex-wrap gap-4 mb-6">
-                <input type="text" v-model="historyFilters.employee_name" 
-                       placeholder="Поиск по сотруднику..."
-                       class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md w-64" />
-                <select v-model="historyFilters.month" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
-                    <option value="">Все месяцы</option>
-                    <option v-for="m in months" :key="m.value" :value="m.value">{{ m.name }}</option>
-                </select>
-                <select v-model="historyFilters.year" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
-                    <option value="">Все годы</option>
-                    <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-                </select>
-                <button @click="resetHistoryFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
-                    Сбросить
-                </button>
-            </div>
+        <!-- Модальное окно расчета зарплаты -->
+        <Teleport to="body">
+            <div v-if="showCalculateModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="showCalculateModal = false"></div>
+                    
+                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-between items-center">
+                            <h3 class="text-xl font-semibold text-black dark:text-white">Расчет заработной платы</h3>
+                            <button @click="showCalculateModal = false" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-            <!-- Общая сумма -->
-            <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Всего выплачено за выбранный период</p>
-                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ formatPrice(historyTotalSum) }}</p>
-            </div>
-
-            <!-- Таблица истории -->
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="border-b border-gray-200 dark:border-zinc-700">
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Дата начисления</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Сотрудник</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Должность</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Период</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Отработано часов</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Ставка</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Сумма</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="salary in paginatedHistory" :key="salary.id" 
-                            class="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
-                            <td class="py-3 text-black dark:text-white/70">{{ salary.formatted_date }}</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ salary.employee_name }}</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ getRoleName(salary.employee_role) }}</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ getMonthName(salary.month) }} {{ salary.year }}</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ salary.hours_worked }} ч.</td>
-                            <td class="py-3 text-black dark:text-white/70">{{ formatPrice(salary.hourly_rate) }} ₽/ч</td>
-                            <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">{{ formatPrice(salary.total_amount) }}</td>
-                            <td class="py-3">
-                                <button @click="viewSalaryReceipt(salary.id)"
-                                        class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm">
-                                    Просмотр чека
+                        <div v-if="selectedEmployeeForCalc" class="p-6 space-y-6">
+                            <!-- Информация о сотруднике -->
+                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-[#3b82f6]/20 flex items-center justify-center">
+                                        <span class="text-xl font-medium text-[#3b82f6]">{{ getInitials(selectedEmployeeForCalc.name) }}</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-lg">{{ selectedEmployeeForCalc.name }}</h4>
+                                        <p class="text-sm text-gray-500">{{ getRoleName(selectedEmployeeForCalc.role) }}</p>
+                                        <p class="text-sm text-gray-500">Ставка: {{ formatPrice(selectedEmployeeForCalc.hourly_rate) }} ₽/час</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Параметры расчета -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Период</label>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <select v-model="calculationMonth" class="px-3 py-2 border rounded-md">
+                                            <option v-for="m in months" :key="m.value" :value="m.value">{{ m.name }}</option>
+                                        </select>
+                                        <select v-model="calculationYear" class="px-3 py-2 border rounded-md">
+                                            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Отработано часов</label>
+                                    <input type="number" v-model="calculationForm.hours" step="0.5" min="0"
+                                           @input="previewCalculation"
+                                           class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Премия (₽)</label>
+                                    <input type="number" v-model="calculationForm.bonus" step="100" min="0"
+                                           @input="previewCalculation"
+                                           class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
+                                </div>
+                            </div>
+                            
+                            <!-- Результат расчета -->
+                            <div v-if="calculationPreview" class="border-t pt-4 space-y-3">
+                                <h4 class="font-semibold text-lg">Результат расчета</h4>
+                                
+                                <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4 space-y-2">
+                                    <div class="flex justify-between">
+                                        <span>Оклад:</span>
+                                        <span class="font-medium">{{ formatPrice(calculationPreview.base_salary) }}</span>
+                                    </div>
+                                    <div v-if="calculationPreview.bonus > 0" class="flex justify-between">
+                                        <span>Премия:</span>
+                                        <span class="font-medium text-green-600">{{ formatPrice(calculationPreview.bonus) }}</span>
+                                    </div>
+                                    <div class="flex justify-between pt-2 border-t">
+                                        <span>Начислено:</span>
+                                        <span class="font-bold">{{ formatPrice(calculationPreview.total_accrued) }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>НДФЛ (13%):</span>
+                                        <span class="text-red-600">{{ formatPrice(calculationPreview.ndfl) }}</span>
+                                    </div>
+                                    <div class="flex justify-between pt-2 border-t">
+                                        <span>К выплате:</span>
+                                        <span class="font-bold text-[#22c55e] text-lg">{{ formatPrice(calculationPreview.net_salary) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3 pt-4">
+                                <button @click="saveCalculation" 
+                                        :disabled="!calculationForm.hours || calculationForm.hours <= 0"
+                                        class="flex-1 px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 disabled:opacity-50">
+                                    Сохранить расчет
                                 </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Пагинация -->
-            <div class="mt-6 flex justify-between items-center">
-                <div class="text-sm text-gray-500">
-                    Показано {{ paginatedHistory.length }} из {{ salaryHistory.length }} записей
-                </div>
-                <div class="flex gap-2">
-                    <button v-if="historyPage > 1" @click="historyPage--" 
-                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
-                        Назад
-                    </button>
-                    <span class="px-3 py-1">Страница {{ historyPage }} из {{ historyTotalPages }}</span>
-                    <button v-if="historyPage < historyTotalPages" @click="historyPage++" 
-                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
-                        Вперед
-                    </button>
+                                <button @click="showCalculateModal = false" 
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                                    Отмена
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </Teleport>
 
-        <!-- Модальное окно редактирования ставки (оставляем как есть) -->
+        <!-- Модальное окно редактирования ставки -->
         <Teleport to="body">
             <div v-if="showRateModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4">
@@ -328,14 +345,13 @@
             </div>
         </Teleport>
 
-        <!-- Модальное окно чека зарплаты (оставляем как есть) -->
+        <!-- Модальное окно чека зарплаты -->
         <Teleport to="body">
             <div v-if="showSalaryReceiptModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4 py-8">
                     <div class="fixed inset-0 bg-black bg-opacity-50" @click="showSalaryReceiptModal = false"></div>
                     
                     <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-                        <!-- ... содержимое чека ... -->
                         <div class="sticky top-0 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-between items-center">
                             <h3 class="text-xl font-semibold text-black dark:text-white">Расчетный листок</h3>
                             <button @click="showSalaryReceiptModal = false" class="text-gray-500 hover:text-gray-700">
@@ -346,7 +362,6 @@
                         </div>
 
                         <div class="p-6" id="salary-receipt-content" v-if="selectedSalaryReceipt">
-                            <!-- ... остальной код чека ... -->
                             <div class="text-center mb-8">
                                 <h2 class="text-2xl font-bold text-black dark:text-white">ELENA Beauty Clinic</h2>
                                 <p class="text-gray-600 dark:text-gray-400">Расчетный листок № {{ selectedSalaryReceipt.salary_id }}</p>
@@ -429,6 +444,89 @@
                 </div>
             </div>
         </Teleport>
+
+        <!-- История начислений -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow mt-6">
+            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ИСТОРИЯ НАЧИСЛЕНИЙ</h2>
+            
+            <!-- Фильтры -->
+            <div class="flex flex-wrap gap-4 mb-6">
+                <input type="text" v-model="historyFilters.employee_name" 
+                       placeholder="Поиск по сотруднику..."
+                       class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md w-64" />
+                <select v-model="historyFilters.month" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                    <option value="">Все месяцы</option>
+                    <option v-for="m in months" :key="m.value" :value="m.value">{{ m.name }}</option>
+                </select>
+                <select v-model="historyFilters.year" class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                    <option value="">Все годы</option>
+                    <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+                </select>
+                <button @click="resetHistoryFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    Сбросить
+                </button>
+            </div>
+
+            <!-- Общая сумма -->
+            <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Всего выплачено за выбранный период</p>
+                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ formatPrice(historyTotalSum) }}</p>
+            </div>
+
+            <!-- Таблица истории -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-zinc-700">
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Дата начисления</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Сотрудник</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Должность</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Период</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Отработано часов</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Ставка</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Сумма</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="salary in paginatedHistory" :key="salary.id" 
+                            class="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.formatted_date }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.employee_name }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ getRoleName(salary.employee_role) }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ getMonthName(salary.month) }} {{ salary.year }}</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ salary.hours_worked }} ч.</td>
+                            <td class="py-3 text-black dark:text-white/70">{{ formatPrice(salary.hourly_rate) }} ₽/ч</td>
+                            <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">{{ formatPrice(salary.total_amount) }}</td>
+                            <td class="py-3">
+                                <button @click="viewSalaryReceipt(salary.id)"
+                                        class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm">
+                                    Просмотр чека
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Пагинация -->
+            <div class="mt-6 flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Показано {{ paginatedHistory.length }} из {{ salaryHistory.length }} записей
+                </div>
+                <div class="flex gap-2">
+                    <button v-if="historyPage > 1" @click="historyPage--" 
+                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
+                        Назад
+                    </button>
+                    <span class="px-3 py-1">Страница {{ historyPage }} из {{ historyTotalPages }}</span>
+                    <button v-if="historyPage < historyTotalPages" @click="historyPage++" 
+                            class="px-3 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800">
+                        Вперед
+                    </button>
+                </div>
+            </div>
+        </div>
     </AccountantLayout>
 </template>
 
@@ -440,11 +538,6 @@ import * as XLSX from 'xlsx';
 
 const props = defineProps({
     accountant: Object,
-    employees: Array,
-    totalSalary: Number,
-    currentMonth: String,
-    currentMonthNumber: Number,
-    currentYear: Number,
     unpaidCount: Number,
     criticalCount: Number,
     todayRevenue: Number,
@@ -456,6 +549,17 @@ const selectedMonth = ref(new Date().getMonth() + 1);
 const selectedYear = ref(new Date().getFullYear());
 const employeesList = ref([]);
 const loading = ref(false);
+
+// Состояния для модального окна расчета
+const showCalculateModal = ref(false);
+const selectedEmployeeForCalc = ref(null);
+const calculationMonth = ref(new Date().getMonth() + 1);
+const calculationYear = ref(new Date().getFullYear());
+const calculationForm = ref({
+    hours: 0,
+    bonus: 0
+});
+const calculationPreview = ref(null);
 
 // Состояния для модальных окон
 const showRateModal = ref(false);
@@ -497,13 +601,11 @@ const years = [2023, 2024, 2025, 2026, 2027, 2028];
 
 // Computed свойства
 const hasUnpaidEmployees = computed(() => {
-    return employeesList.value.some(e => !e.is_paid && e.hours_worked > 0);
+    return employeesList.value.some(e => !e.is_paid && e.total_amount > 0);
 });
 
 const totalSalary = computed(() => {
-    return employeesList.value.reduce((sum, emp) => {
-        return sum + calculateEmployeeSalary(emp);
-    }, 0);
+    return employeesList.value.reduce((sum, emp) => sum + emp.total_amount, 0);
 });
 
 const paginatedHistory = computed(() => {
@@ -532,17 +634,14 @@ const getMonthName = (month) => {
     return m ? m.name : '';
 };
 
+const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
+
 const formatPrice = (price) => {
     if (!price && price !== 0) return '0 ₽';
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
-};
-
-const calculateEmployeeSalary = (employee) => {
-    if (!employee.hours_worked || employee.hours_worked <= 0) return 0;
-    const rate = employee.hourly_rate || 0;
-    const totalAccrued = rate * employee.hours_worked;
-    const ndfl = totalAccrued * 0.13;
-    return totalAccrued - ndfl;
 };
 
 // Загрузка данных о зарплате
@@ -556,16 +655,16 @@ const loadSalaryData = async () => {
             }
         });
         
-        // Преобразуем данные для отображения
         employeesList.value = response.data.employees.map(emp => ({
             id: emp.id,
             name: emp.name,
             role: emp.role,
             hourly_rate: emp.hourly_rate,
             hours_worked: emp.hours_worked || 0,
-            total_amount: emp.total_amount,
+            total_amount: emp.total_amount || 0,
             is_paid: emp.is_paid || false,
-            salary_id: emp.salary_id
+            salary_id: emp.salary_id,
+            calculation_details: emp.calculation_details
         }));
     } catch (error) {
         console.error('Error loading salary data:', error);
@@ -575,45 +674,131 @@ const loadSalaryData = async () => {
     }
 };
 
-// Сохранение расчета
-const calculateAndSave = async (employee) => {
-    if (!employee.hours_worked || employee.hours_worked <= 0) {
+// Открыть модальное окно расчета
+const openCalculateModal = (employee) => {
+    selectedEmployeeForCalc.value = employee;
+    calculationMonth.value = selectedMonth.value;
+    calculationYear.value = selectedYear.value;
+    calculationForm.value = {
+        hours: 0,
+        bonus: 0
+    };
+    calculationPreview.value = null;
+    showCalculateModal.value = true;
+};
+
+// Предпросмотр расчета
+const previewCalculation = async () => {
+    if (!selectedEmployeeForCalc.value || !calculationForm.value.hours || calculationForm.value.hours <= 0) {
+        calculationPreview.value = null;
+        return;
+    }
+    
+    try {
+        const response = await axios.post('/api/accountant/salary/preview', {
+            employee_id: selectedEmployeeForCalc.value.id,
+            month: calculationMonth.value,
+            year: calculationYear.value,
+            payment_type: 'hourly',
+            hours_or_days: calculationForm.value.hours,
+            bonus: calculationForm.value.bonus
+        });
+        calculationPreview.value = response.data;
+    } catch (error) {
+        console.error('Error previewing calculation:', error);
+    }
+};
+
+// Сохранить расчет
+const saveCalculation = async () => {
+    if (!selectedEmployeeForCalc.value || !calculationForm.value.hours || calculationForm.value.hours <= 0) {
         alert('Укажите количество отработанных часов');
         return;
     }
     
     try {
         await axios.post('/api/accountant/salary/calculate', {
-            employee_id: employee.id,
-            month: selectedMonth.value,
-            year: selectedYear.value,
+            employee_id: selectedEmployeeForCalc.value.id,
+            month: calculationMonth.value,
+            year: calculationYear.value,
             payment_type: 'hourly',
-            hours_or_days: employee.hours_worked,
-            bonus: 0
+            hours_or_days: calculationForm.value.hours,
+            bonus: calculationForm.value.bonus
         });
         
-        alert(`Расчет для ${employee.name} сохранен`);
-        await loadSalaryData(); // Перезагружаем данные
+        alert(`Расчет для ${selectedEmployeeForCalc.value.name} сохранен`);
+        showCalculateModal.value = false;
+        
+        // Если период совпадает с текущим, перезагружаем данные
+        if (calculationMonth.value === selectedMonth.value && calculationYear.value === selectedYear.value) {
+            await loadSalaryData();
+        } else {
+            // Иначе показываем сообщение, что нужно сменить период
+            alert(`Расчет сохранен за ${getMonthName(calculationMonth.value)} ${calculationYear.value}. Для просмотра выберите этот период.`);
+        }
     } catch (error) {
-        console.error('Error saving salary:', error);
+        console.error('Error saving calculation:', error);
         alert('Ошибка при сохранении расчета');
     }
 };
 
 // Просмотр деталей
 const viewSalaryDetails = (employee) => {
-    // Ищем сохраненную зарплату
-    const salary = employeesList.value.find(e => e.id === employee.id);
-    if (salary && salary.calculation_details) {
+    if (employee.calculation_details) {
         selectedSalary.value = {
             employee_name: employee.name,
             month: selectedMonth.value,
             year: selectedYear.value,
-            ...salary.calculation_details
+            ...employee.calculation_details
         };
         showDetailsModal.value = true;
     } else {
         alert('Детали расчета не найдены');
+    }
+};
+
+// Выплатить зарплату одному сотруднику
+const paySingleSalary = async (employee) => {
+    if (!confirm(`Выплатить зарплату ${employee.name} за ${getMonthName(selectedMonth.value)} ${selectedYear.value} в размере ${formatPrice(employee.total_amount)}?`)) return;
+    
+    try {
+        await axios.post('/api/accountant/salary/pay', {
+            employee_id: employee.id,
+            month: selectedMonth.value,
+            year: selectedYear.value
+        });
+        
+        alert('Зарплата выплачена');
+        await loadSalaryData();
+        await loadSalaryHistory();
+    } catch (error) {
+        console.error('Error paying salary:', error);
+        alert(error.response?.data?.error || 'Ошибка при выплате зарплаты');
+    }
+};
+
+// Выплатить всем
+const payAllSalaries = async () => {
+    const unpaidEmployees = employeesList.value.filter(e => !e.is_paid && e.total_amount > 0);
+    if (unpaidEmployees.length === 0) {
+        alert('Нет невыплаченных зарплат');
+        return;
+    }
+    
+    if (!confirm(`Выплатить зарплату ${unpaidEmployees.length} сотрудникам за ${getMonthName(selectedMonth.value)} ${selectedYear.value}?`)) return;
+    
+    try {
+        const response = await axios.post('/api/accountant/salary/pay-all', {
+            month: selectedMonth.value,
+            year: selectedYear.value
+        });
+        
+        alert(response.data.message);
+        await loadSalaryData();
+        await loadSalaryHistory();
+    } catch (error) {
+        console.error('Error paying all salaries:', error);
+        alert('Ошибка при выплате зарплаты');
     }
 };
 
@@ -642,37 +827,12 @@ const updateHourlyRate = async () => {
         
         alert('Ставка успешно обновлена');
         closeRateModal();
-        await loadSalaryData(); // Перезагружаем данные
+        await loadSalaryData();
     } catch (error) {
         console.error('Error updating rate:', error);
         alert('Ошибка при обновлении ставки');
     } finally {
         loading.value = false;
-    }
-};
-
-// Выплата зарплаты
-const payAllSalaries = async () => {
-    const unpaidEmployees = employeesList.value.filter(e => !e.is_paid && e.hours_worked > 0);
-    if (unpaidEmployees.length === 0) {
-        alert('Нет невыплаченных зарплат');
-        return;
-    }
-    
-    if (!confirm(`Выплатить зарплату ${unpaidEmployees.length} сотрудникам за ${getMonthName(selectedMonth.value)} ${selectedYear.value}?`)) return;
-    
-    try {
-        await axios.post('/api/accountant/salary/pay-all', {
-            month: selectedMonth.value,
-            year: selectedYear.value
-        });
-        
-        alert('Зарплата успешно выплачена');
-        await loadSalaryData(); // Перезагружаем данные
-        await loadSalaryHistory(); // Обновляем историю
-    } catch (error) {
-        console.error('Error paying salaries:', error);
-        alert('Ошибка при выплате зарплаты');
     }
 };
 
