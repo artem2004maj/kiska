@@ -1700,7 +1700,7 @@ class DashboardController extends Controller
         return response()->json($expense);
     }
 
-    /**
+        /**
      * Обновить профиль бухгалтера
      */
     public function updateProfile(Request $request)
@@ -1710,7 +1710,15 @@ class DashboardController extends Controller
         $request->validate([
             'employee_name' => 'required|string|max:255',
             'email' => 'required|email|unique:employees,email,' . $user->employee_id . ',employee_id',
-            'employee_phone' => 'nullable|string|max:20',
+            'employee_phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(\+7|8)[0-9]{10}$/',
+            ],
+        ], [
+            'employee_phone.regex' => 'Номер телефона должен быть в формате +7XXXXXXXXXX или 8XXXXXXXXXX (10 цифр после кода)',
+            'employee_phone.max' => 'Номер телефона не может быть длиннее 20 символов',
         ]);
         
         $user->employee_name = $request->employee_name;

@@ -10,6 +10,7 @@ const form = useForm({
     name: '',
     login: '',
     email: '',
+    phone: '',
     password: '',
     password_confirmation: '',
 });
@@ -23,11 +24,11 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Register" />
+        <Head title="Регистрация" />
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="name" value="Name" />
+                <InputLabel for="name" value="Имя" />
 
                 <TextInput
                     id="name"
@@ -70,8 +71,23 @@ const submit = () => {
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
+            <!-- НОВОЕ ПОЛЕ - ТЕЛЕФОН -->
             <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                <InputLabel for="phone" value="Телефон (опционально)" />
+                <TextInput
+                    id="phone"
+                    type="tel"
+                    class="mt-1 block w-full"
+                    v-model="form.phone"
+                    placeholder="+7 999 123-45-67"
+                    autocomplete="tel"
+                />
+                <p class="mt-1 text-xs text-gray-500">Формат: +7XXXXXXXXXX или 8XXXXXXXXXX</p>
+                <InputError class="mt-2" :message="form.errors.phone" />
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="password" value="Пароль" />
 
                 <TextInput
                     id="password"
@@ -88,7 +104,7 @@ const submit = () => {
             <div class="mt-4">
                 <InputLabel
                     for="password_confirmation"
-                    value="Confirm Password"
+                    value="Подтверждение пароля"
                 />
 
                 <TextInput
@@ -111,7 +127,7 @@ const submit = () => {
                     :href="route('login')"
                     class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
-                    Already registered?
+                    Уже зарегистрированы?
                 </Link>
 
                 <PrimaryButton
@@ -119,7 +135,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Register
+                    Зарегистрироваться
                 </PrimaryButton>
             </div>
         </form>

@@ -536,4 +536,55 @@ class Employee extends Authenticatable
         
         return $totalHours;
     }
+    /**
+     * Мутатор для телефона - форматируем при сохранении
+     */
+    public function setEmployeePhoneAttribute($value)
+    {
+        if (empty($value)) {
+            $this->attributes['employee_phone'] = null;
+            return;
+        }
+        
+        // Очищаем от всех нецифровых символов
+        $cleanPhone = preg_replace('/[^0-9]/', '', $value);
+        
+        // Если номер начинается с 8, заменяем на 7
+        if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '8') {
+            $cleanPhone = '7' . substr($cleanPhone, 1);
+        }
+        
+        // Если номер начинается с 7, добавляем +
+        if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '7') {
+            $this->attributes['employee_phone'] = '+' . $cleanPhone;
+        } else {
+            $this->attributes['employee_phone'] = $value;
+        }
+    }
+
+    /**
+     * Аксессор для форматированного телефона
+     */
+    public function getFormattedEmployeePhoneAttribute()
+    {
+        if (!$this->employee_phone) return '';
+        
+        $phone = preg_replace('/[^0-9]/', '', $this->employee_phone);
+        
+        if (strlen($phone) === 11) {
+            return '+' . substr($phone, 0, 1) . ' ' . substr($phone, 1, 3) . ' ' . substr($phone, 4, 3) . '-' . substr($phone, 7, 2) . '-' . substr($phone, 9, 2);
+        }
+        
+        return $this->employee_phone;
+    }
+
+    /**
+     * Валидация телефона
+     */
+    public static function validatePhone($phone)
+    {
+        if (empty($phone)) return true;
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        return preg_match('/^[7][0-9]{10}$/', $cleanPhone);
+    }
 }

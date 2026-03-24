@@ -1,4 +1,5 @@
 <?php
+// app/Models/Client.php
 
 namespace App\Models;
 
@@ -35,6 +36,46 @@ class Client extends Authenticatable implements MustVerifyEmail
         'birth_date' => 'date',
     ];
 
+    // Мутатор для телефона - форматируем при сохранении
+    public function setPhoneAttribute($value)
+    {
+        // Очищаем от всех нецифровых символов
+        $cleanPhone = preg_replace('/[^0-9]/', '', $value);
+        
+        // Если номер начинается с 8, заменяем на +7
+        if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '8') {
+            $cleanPhone = '7' . substr($cleanPhone, 1);
+        }
+        
+        // Если номер начинается с 7, добавляем +
+        if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '7') {
+            $this->attributes['phone'] = '+' . $cleanPhone;
+        } else {
+            $this->attributes['phone'] = $value;
+        }
+    }
+
+    // Аксессор для форматированного телефона
+    public function getFormattedPhoneAttribute()
+    {
+        if (!$this->phone) return '';
+        
+        $phone = preg_replace('/[^0-9]/', '', $this->phone);
+        
+        if (strlen($phone) === 11) {
+            return '+' . substr($phone, 0, 1) . ' ' . substr($phone, 1, 3) . ' ' . substr($phone, 4, 3) . '-' . substr($phone, 7, 2) . '-' . substr($phone, 9, 2);
+        }
+        
+        return $this->phone;
+    }
+
+    // Валидация телефона
+    public static function validatePhone($phone)
+    {
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        return preg_match('/^[7][0-9]{10}$/', $cleanPhone);
+    }
+
     public function setEmailAttribute($value)
     {
         $this->attributes['email'] = strtolower($value);
@@ -62,25 +103,16 @@ class Client extends Authenticatable implements MustVerifyEmail
 
     // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ФОТО ==========
     
-    /**
-     * Аксессор для получения полного URL фото
-     */
     public function getPhotoUrlAttribute()
     {
         return $this->photo ? Storage::url($this->photo) : null;
     }
 
-    /**
-     * Проверка наличия фото
-     */
     public function hasPhoto()
     {
         return !is_null($this->photo);
     }
 
-    /**
-     * Удаление фото
-     */
     public function deletePhoto()
     {
         if ($this->photo) {
@@ -92,59 +124,38 @@ class Client extends Authenticatable implements MustVerifyEmail
 
     // ========== СВЯЗИ ==========
     
-    /**
-     * Все записи (приемы) клиента
-     */
     public function appointments()
     {
         return $this->hasMany(Appointment::class, 'client_id', 'client_id');
     }
 
-    /**
-     * Все отзывы клиента
-     */
     public function feedback()
     {
         return $this->hasMany(Feedback::class, 'client_id', 'client_id');
     }
 
-    /**
-     * Все записи в медицинской карте клиента
-     */
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class, 'client_id', 'client_id');
     }
 
-    /**
-     * Все уведомления клиента
-     */
     public function notifications()
     {
         return $this->hasMany(Notification::class, 'client_id', 'client_id');
     }
 
-    /**
-     * Активные записи (не завершенные и не отмененные)
-     */
     public function activeAppointments()
     {
         return $this->hasMany(Appointment::class, 'client_id', 'client_id')
                     ->whereIn('status', [0, 1]);
     }
 
-    /**
-     * Завершенные записи
-     */
     public function completedAppointments()
     {
         return $this->hasMany(Appointment::class, 'client_id', 'client_id')
                     ->where('status', 2);
     }
 
-    /**
-     * Отмененные записи
-     */
     public function cancelledAppointments()
     {
         return $this->hasMany(Appointment::class, 'client_id', 'client_id')
@@ -153,9 +164,6 @@ class Client extends Authenticatable implements MustVerifyEmail
 
     // ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ==========
     
-    /**
-     * Получить инициалы клиента
-     */
     public function getInitialsAttribute()
     {
         $parts = explode(' ', $this->client_name);
@@ -168,25 +176,16 @@ class Client extends Authenticatable implements MustVerifyEmail
         return $initials;
     }
 
-    /**
-     * Получить возраст клиента
-     */
     public function getAgeAttribute()
     {
         return $this->birth_date ? Carbon::parse($this->birth_date)->age : null;
     }
 
-    /**
-     * Получить количество непрочитанных уведомлений
-     */
     public function getUnreadNotificationsCountAttribute()
     {
         return $this->notifications()->where('is_read', false)->count();
     }
 
-    /**
-     * Отметить все уведомления как прочитанные
-     */
     public function markAllNotificationsAsRead()
     {
         return $this->notifications()->update(['is_read' => true]);

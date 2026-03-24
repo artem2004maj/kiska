@@ -9,7 +9,6 @@
                 <div class="md:col-span-1">
                     <div class="flex flex-col items-center">
                         <div class="relative group">
-                            <!-- Затемнение при наведении -->
                             <div class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center cursor-pointer"
                                  @click="triggerFileInput">
                                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,32 +17,26 @@
                                 </svg>
                             </div>
                             
-                            <!-- Фото или заглушка -->
                             <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-[#14b8a6]/10 flex items-center justify-center overflow-hidden border-4 border-[#14b8a6]/20 transition-transform group-hover:scale-105">
-                                <!-- Превью нового фото -->
                                 <img v-if="photoPreview" 
                                      :src="photoPreview" 
                                      alt="Preview"
                                      class="w-full h-full object-cover">
-                                <!-- Текущее фото -->
                                 <img v-else-if="client?.photo_url" 
                                      :src="client.photo_url" 
                                      :alt="client.client_name"
                                      class="w-full h-full object-cover">
-                                <!-- Заглушка с инициалами -->
                                 <span v-else class="text-3xl sm:text-4xl font-medium text-[#14b8a6]">
                                     {{ getInitials(client?.client_name) }}
                                 </span>
                             </div>
                             
-                            <!-- Скрытый input для файла -->
                             <input type="file" ref="fileInput" @change="handleFileSelect" accept="image/*" class="hidden">
                         </div>
                         
                         <h3 class="mt-3 font-semibold text-lg">{{ client?.client_name }}</h3>
                         <p class="text-sm text-gray-500">ID: {{ client?.client_id }}</p>
                         
-                        <!-- Кнопки управления фото -->
                         <div v-if="photoPreview" class="mt-3 flex gap-2">
                             <button @click="uploadPhoto" 
                                     class="px-4 py-1.5 bg-[#14b8a6] text-white text-sm rounded-md hover:bg-[#14b8a6]/90">
@@ -62,7 +55,6 @@
                             </button>
                         </div>
                         
-                        <!-- Прогресс загрузки -->
                         <div v-if="uploadProgress > 0" class="mt-3 w-full max-w-[200px]">
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-[#14b8a6] h-2 rounded-full transition-all duration-300"
@@ -70,7 +62,6 @@
                             </div>
                         </div>
                         
-                        <!-- Статистика -->
                         <div class="mt-6 w-full">
                             <div class="bg-gray-50 rounded-lg p-4">
                                 <h4 class="font-medium mb-2">Статистика</h4>
@@ -127,10 +118,16 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Телефон
                                 </label>
-                                <input type="tel" v-model="form.phone" 
-                                       placeholder="+7 (999) 123-45-67"
+                                <input type="tel" 
+                                       v-model="phoneDisplay"
+                                       @blur="formatPhoneOnBlur"
+                                       @focus="showRawPhone"
+                                       placeholder="+7 999 999-99-99"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#14b8a6] focus:border-transparent">
-                                <p class="mt-1 text-xs text-gray-400">Формат: +7XXXXXXXXXX</p>
+                                <p class="mt-1 text-xs text-gray-400">Формат: +7 999 999-99-99</p>
+                                <p v-if="phoneError" class="mt-1 text-xs text-red-500">
+                                    {{ phoneError }}
+                                </p>
                             </div>
                             
                             <div>
@@ -186,7 +183,6 @@
                             </button>
                         </div>
                         
-                        <!-- Уведомления -->
                         <Transition name="fade">
                             <div v-if="successMessage" class="mt-4 p-3 bg-green-100 text-green-700 rounded-md">
                                 {{ successMessage }}
@@ -206,7 +202,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import ClientLayout from '@/Layouts/ClientLayout.vue';
 import axios from 'axios';
 
@@ -229,6 +225,10 @@ const form = ref({
     phone: props.client?.phone || '',
     birth_date: props.client?.birth_date || ''
 });
+
+// Для отображения телефона в форматированном виде
+const phoneDisplay = ref('');
+const phoneError = ref('');
 
 // Форма пароля
 const passwordForm = ref({
@@ -254,6 +254,92 @@ const activeAppointments = computed(() =>
     props.appointments?.filter(a => a.status === 0 || a.status === 1).length || 0
 );
 const totalFeedback = computed(() => props.feedback?.length || 0);
+
+// Форматирование телефона для отображения
+const formatPhoneForDisplay = (phone) => {
+    if (!phone) return '';
+    
+    // Очищаем от всех нецифровых символов
+    let cleaned = phone.toString().replace(/\D/g, '');
+    
+    // Если номер начинается с 8, заменяем на 7
+    if (cleaned.length > 0 && cleaned[0] === '8') {
+        cleaned = '7' + cleaned.substring(1);
+    }
+    
+    // Форматируем как +7 999 999-99-99
+    if (cleaned.length >= 1) {
+        let formatted = '+' + cleaned[0];
+        if (cleaned.length > 1) formatted += ' ' + cleaned.substring(1, 4);
+        if (cleaned.length > 4) formatted += ' ' + cleaned.substring(4, 7);
+        if (cleaned.length > 7) formatted += '-' + cleaned.substring(7, 9);
+        if (cleaned.length > 9) formatted += '-' + cleaned.substring(9, 11);
+        return formatted;
+    }
+    
+    return phone;
+};
+
+// Получить "сырой" номер (только цифры)
+const getRawPhone = (phone) => {
+    if (!phone) return '';
+    return phone.toString().replace(/\D/g, '');
+};
+
+// При фокусе на поле - показываем только цифры
+const showRawPhone = () => {
+    if (phoneDisplay.value) {
+        const raw = getRawPhone(phoneDisplay.value);
+        phoneDisplay.value = raw;
+    }
+};
+
+// При потере фокуса - форматируем
+const formatPhoneOnBlur = () => {
+    if (phoneDisplay.value) {
+        const formatted = formatPhoneForDisplay(phoneDisplay.value);
+        phoneDisplay.value = formatted;
+        
+        // Обновляем form.phone (сохраняем в формате +7XXXXXXXXXX)
+        const raw = getRawPhone(phoneDisplay.value);
+        if (raw.length === 11 && raw[0] === '7') {
+            form.value.phone = '+' + raw;
+        } else if (raw.length === 11 && raw[0] === '8') {
+            form.value.phone = '+7' + raw.substring(1);
+        } else if (raw.length === 10) {
+            form.value.phone = '+7' + raw;
+        } else {
+            form.value.phone = raw;
+        }
+        
+        // Валидация
+        const cleanForCheck = raw;
+        if (cleanForCheck && cleanForCheck.length !== 11) {
+            phoneError.value = 'Номер телефона должен содержать 11 цифр (например: 79991234567)';
+        } else if (cleanForCheck && !/^[78][0-9]{10}$/.test(cleanForCheck)) {
+            phoneError.value = 'Номер телефона должен начинаться с 7 или 8';
+        } else {
+            phoneError.value = '';
+        }
+    } else {
+        form.value.phone = null;
+        phoneError.value = '';
+    }
+};
+
+// Инициализация отображения телефона
+const initPhoneDisplay = () => {
+    if (form.value.phone) {
+        phoneDisplay.value = formatPhoneForDisplay(form.value.phone);
+    }
+};
+
+// Следим за изменением form.phone извне
+watch(() => form.value.phone, () => {
+    if (!document.activeElement || document.activeElement !== document.querySelector('input[type="tel"]')) {
+        initPhoneDisplay();
+    }
+});
 
 const getInitials = (name) => {
     if (!name) return '?';
@@ -352,11 +438,19 @@ const resetForm = () => {
         new_password_confirmation: ''
     };
     errors.value = {};
+    phoneError.value = '';
     successMessage.value = '';
     errorMessage.value = '';
+    initPhoneDisplay();
 };
 
 const updateProfile = async () => {
+    if (phoneError.value) {
+        errorMessage.value = phoneError.value;
+        setTimeout(() => errorMessage.value = '', 3000);
+        return;
+    }
+    
     loading.value = true;
     errors.value = {};
     successMessage.value = '';
@@ -392,6 +486,9 @@ const updateProfile = async () => {
         loading.value = false;
     }
 };
+
+// Инициализация
+initPhoneDisplay();
 </script>
 
 <style scoped>

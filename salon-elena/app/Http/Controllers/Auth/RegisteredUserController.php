@@ -26,7 +26,15 @@ class RegisteredUserController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|lowercase|email|max:255|unique:clients,email',
             'login'    => 'required|string|max:56|unique:clients,login',
+            'phone'    => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(\+7|8)[0-9]{10}$/',
+            ],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'phone.regex' => 'Номер телефона должен быть в формате +7XXXXXXXXXX или 8XXXXXXXXXX (10 цифр после кода)',
         ]);
 
         $client = Client::create([
@@ -34,7 +42,7 @@ class RegisteredUserController extends Controller
             'email'       => $request->email,
             'login'       => $request->login,
             'passwd'      => Hash::make($request->password),
-            'phone'       => 0,
+            'phone'       => $request->phone ?? null,
             'birth_date'  => now()->subYears(25),
         ]);
 
@@ -42,7 +50,6 @@ class RegisteredUserController extends Controller
 
         Auth::guard('client')->login($client);
 
-        // ИСПРАВЛЕНО: используем правильное имя маршрута
         return redirect()->route('dashboard.client');
     }
 }

@@ -858,6 +858,8 @@ class DashboardController extends Controller
         return response()->json($materials);
     }
     
+    // app/Http/Controllers/Doctor/DashboardController.php
+
     /**
      * Обновить профиль
      */
@@ -868,7 +870,15 @@ class DashboardController extends Controller
         $request->validate([
             'employee_name' => 'required|string|max:255',
             'email' => 'required|email|unique:employees,email,' . $doctor->employee_id . ',employee_id',
-            'employee_phone' => 'nullable|string|max:20',
+            'employee_phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(\+7|8)[0-9]{10}$/',
+            ],
+        ], [
+            'employee_phone.regex' => 'Номер телефона должен быть в формате +7XXXXXXXXXX или 8XXXXXXXXXX (10 цифр после кода)',
+            'employee_phone.max' => 'Номер телефона не может быть длиннее 20 символов',
         ]);
         
         DB::table('employees')

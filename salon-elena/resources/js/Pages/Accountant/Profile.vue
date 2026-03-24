@@ -16,7 +16,6 @@
                 <div class="md:col-span-1">
                     <div class="flex flex-col items-center">
                         <div class="relative group">
-                            <!-- Затемнение при наведении -->
                             <div class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center cursor-pointer"
                                  @click="triggerFileInput">
                                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,25 +24,20 @@
                                 </svg>
                             </div>
                             
-                            <!-- Фото или заглушка -->
                             <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-[#3b82f6]/10 flex items-center justify-center overflow-hidden border-4 border-[#3b82f6]/20 transition-transform group-hover:scale-105">
-                                <!-- Превью нового фото -->
                                 <img v-if="photoPreview" 
                                      :src="photoPreview" 
                                      alt="Preview"
                                      class="w-full h-full object-cover">
-                                <!-- Текущее фото -->
                                 <img v-else-if="accountant?.photo_url" 
                                      :src="accountant.photo_url" 
                                      :alt="accountant.employee_name"
                                      class="w-full h-full object-cover">
-                                <!-- Заглушка с инициалами -->
                                 <span v-else class="text-3xl sm:text-4xl font-medium text-[#3b82f6]">
                                     {{ getInitials(accountant?.employee_name) }}
                                 </span>
                             </div>
                             
-                            <!-- Скрытый input для файла -->
                             <input type="file" ref="fileInput" @change="handleFileSelect" accept="image/*" class="hidden">
                         </div>
                         
@@ -51,7 +45,6 @@
                         <p class="text-sm text-gray-500">ID: {{ accountant?.employee_id }}</p>
                         <p class="text-xs text-gray-400 mt-1">Роль: {{ getRoleName(accountant?.role) }}</p>
                         
-                        <!-- Кнопки управления фото -->
                         <div v-if="photoPreview" class="mt-3 flex gap-2">
                             <button @click="uploadPhoto" 
                                     class="px-4 py-1.5 bg-[#3b82f6] text-white text-sm rounded-md hover:bg-[#3b82f6]/90">
@@ -70,32 +63,10 @@
                             </button>
                         </div>
                         
-                        <!-- Прогресс загрузки -->
                         <div v-if="uploadProgress > 0" class="mt-3 w-full max-w-[200px]">
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-[#3b82f6] h-2 rounded-full transition-all duration-300"
                                      :style="{ width: uploadProgress + '%' }"></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Статистика -->
-                        <div class="mt-6 w-full">
-                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
-                                <h4 class="font-medium mb-2">Статистика</h4>
-                                <div class="space-y-2 text-sm">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">Обработано приемов:</span>
-                                        <span class="font-semibold">{{ stats.total_appointments }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">Завершено приемов:</span>
-                                        <span class="font-semibold text-green-600">{{ stats.completed_appointments }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">Ставка (₽/час):</span>
-                                        <span class="font-semibold">{{ formatPrice(accountant?.hourly_rate) }}</span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -132,9 +103,16 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Телефон
                             </label>
-                            <input type="tel" v-model="form.employee_phone" 
-                                   placeholder="+7 (999) 123-45-67"
+                            <input type="tel" 
+                                   v-model="phoneDisplay"
+                                   @blur="formatPhoneOnBlur"
+                                   @focus="showRawPhone"
+                                   placeholder="+7 999 999-99-99"
                                    class="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent dark:bg-zinc-800 dark:text-white">
+                            <p class="mt-1 text-xs text-gray-400">Формат: +7 999 999-99-99</p>
+                            <p v-if="phoneError" class="mt-1 text-xs text-red-500">
+                                {{ phoneError }}
+                            </p>
                         </div>
                         
                         <div class="pt-4 border-t border-gray-200 dark:border-zinc-700">
@@ -181,7 +159,6 @@
                             </button>
                         </div>
                         
-                        <!-- Уведомления -->
                         <Transition name="fade">
                             <div v-if="successMessage" class="mt-4 p-3 bg-green-100 text-green-700 rounded-md">
                                 {{ successMessage }}
@@ -201,7 +178,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
 
@@ -214,7 +191,7 @@ const props = defineProps({
     pendingPayments: Number
 });
 
-// Форма профиля
+// Форма профиля (хранит данные в формате +7XXXXXXXXXX)
 const form = ref({
     employee_name: props.accountant?.employee_name || '',
     email: props.accountant?.email || '',
@@ -227,6 +204,10 @@ const passwordForm = ref({
     new_password: '',
     new_password_confirmation: ''
 });
+
+// Для отображения телефона в форматированном виде
+const phoneDisplay = ref('');
+const phoneError = ref('');
 
 // Фото
 const fileInput = ref(null);
@@ -258,6 +239,92 @@ const formatPrice = (price) => {
     if (!price && price !== 0) return '0 ₽';
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
 };
+
+// Форматирование телефона для отображения
+const formatPhoneForDisplay = (phone) => {
+    if (!phone) return '';
+    
+    // Очищаем от всех нецифровых символов
+    let cleaned = phone.toString().replace(/\D/g, '');
+    
+    // Если номер начинается с 8, заменяем на 7
+    if (cleaned.length > 0 && cleaned[0] === '8') {
+        cleaned = '7' + cleaned.substring(1);
+    }
+    
+    // Форматируем как +7 999 999-99-99
+    if (cleaned.length >= 1) {
+        let formatted = '+' + cleaned[0];
+        if (cleaned.length > 1) formatted += ' ' + cleaned.substring(1, 4);
+        if (cleaned.length > 4) formatted += ' ' + cleaned.substring(4, 7);
+        if (cleaned.length > 7) formatted += '-' + cleaned.substring(7, 9);
+        if (cleaned.length > 9) formatted += '-' + cleaned.substring(9, 11);
+        return formatted;
+    }
+    
+    return phone;
+};
+
+// Получить "сырой" номер (только цифры)
+const getRawPhone = (phone) => {
+    if (!phone) return '';
+    return phone.toString().replace(/\D/g, '');
+};
+
+// При фокусе на поле - показываем только цифры
+const showRawPhone = () => {
+    if (phoneDisplay.value) {
+        const raw = getRawPhone(phoneDisplay.value);
+        phoneDisplay.value = raw;
+    }
+};
+
+// При потере фокуса - форматируем
+const formatPhoneOnBlur = () => {
+    if (phoneDisplay.value) {
+        const formatted = formatPhoneForDisplay(phoneDisplay.value);
+        phoneDisplay.value = formatted;
+        
+        // Обновляем form.employee_phone (сохраняем в формате +7XXXXXXXXXX)
+        const raw = getRawPhone(phoneDisplay.value);
+        if (raw.length === 11 && raw[0] === '7') {
+            form.value.employee_phone = '+' + raw;
+        } else if (raw.length === 11 && raw[0] === '8') {
+            form.value.employee_phone = '+7' + raw.substring(1);
+        } else if (raw.length === 10) {
+            form.value.employee_phone = '+7' + raw;
+        } else {
+            form.value.employee_phone = raw;
+        }
+        
+        // Валидация
+        const cleanForCheck = raw;
+        if (cleanForCheck && cleanForCheck.length !== 11) {
+            phoneError.value = 'Номер телефона должен содержать 11 цифр (например: 79991234567)';
+        } else if (cleanForCheck && !/^[78][0-9]{10}$/.test(cleanForCheck)) {
+            phoneError.value = 'Номер телефона должен начинаться с 7 или 8';
+        } else {
+            phoneError.value = '';
+        }
+    } else {
+        form.value.employee_phone = null;
+        phoneError.value = '';
+    }
+};
+
+// Инициализация отображения телефона
+const initPhoneDisplay = () => {
+    if (form.value.employee_phone) {
+        phoneDisplay.value = formatPhoneForDisplay(form.value.employee_phone);
+    }
+};
+
+// Следим за изменением form.employee_phone извне
+watch(() => form.value.employee_phone, () => {
+    if (!document.activeElement || document.activeElement !== document.querySelector('input[type="tel"]')) {
+        initPhoneDisplay();
+    }
+});
 
 // Методы для фото
 const triggerFileInput = () => {
@@ -350,11 +417,19 @@ const resetForm = () => {
         new_password_confirmation: ''
     };
     errors.value = {};
+    phoneError.value = '';
     successMessage.value = '';
     errorMessage.value = '';
+    initPhoneDisplay();
 };
 
 const updateProfile = async () => {
+    if (phoneError.value) {
+        errorMessage.value = phoneError.value;
+        setTimeout(() => errorMessage.value = '', 3000);
+        return;
+    }
+    
     loading.value = true;
     errors.value = {};
     successMessage.value = '';
@@ -367,7 +442,6 @@ const updateProfile = async () => {
             passwordForm.value.new_password || 
             passwordForm.value.new_password_confirmation) {
             
-            // Здесь можно добавить логику смены пароля
             await axios.post('/api/accountant/change-password', passwordForm.value);
         }
         
@@ -391,6 +465,9 @@ const updateProfile = async () => {
         loading.value = false;
     }
 };
+
+// Инициализация
+initPhoneDisplay();
 </script>
 
 <style scoped>

@@ -665,7 +665,7 @@ class DashboardController extends Controller
         return response()->json(['success' => true]);
     }
     
-    /**
+        /**
      * Обновить профиль
      */
     public function updateProfile(Request $request)
@@ -675,16 +675,25 @@ class DashboardController extends Controller
         $request->validate([
             'client_name' => 'required|string|max:255',
             'email' => 'required|email|unique:clients,email,' . $client->client_id . ',client_id',
-            'phone' => 'nullable|string|max:20',
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(\+7|8)[0-9]{10}$/',
+            ],
             'birth_date' => 'nullable|date',
+        ], [
+            'phone.regex' => 'Номер телефона должен быть в формате +7XXXXXXXXXX или 8XXXXXXXXXX (10 цифр после кода)',
+            'phone.max' => 'Номер телефона не может быть длиннее 20 символов',
         ]);
         
         $client->client_name = $request->client_name;
         $client->email = $request->email;
         
         if ($request->filled('phone')) {
-            $phone = preg_replace('/[^0-9]/', '', $request->phone);
-            $client->phone = (int)$phone;
+            $client->phone = $request->phone;
+        } else {
+            $client->phone = null;
         }
         
         if ($request->filled('birth_date')) {
