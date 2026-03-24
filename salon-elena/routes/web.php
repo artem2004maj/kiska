@@ -175,6 +175,9 @@ Route::middleware('auth:employee')->group(function () {
         Route::get('/accountant/orders', [App\Http\Controllers\Accountant\DashboardController::class, 'orders'])
             ->name('accountant.orders');
 
+        Route::get('/accountant/expenses', [App\Http\Controllers\Accountant\DashboardController::class, 'expenses'])
+            ->name('accountant.expenses');
+
         Route::put('/api/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'updateProfile']);
         Route::post('/api/accountant/upload-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'uploadPhoto']);
         Route::delete('/api/accountant/delete-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'deletePhoto']);
@@ -230,6 +233,10 @@ Route::middleware('auth:employee')->group(function () {
             // Маршруты для доходов
             Route::get('/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'getIncomesList']);
             Route::get('/receipts/{contractId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getReceiptDetails']);
+            // Маршруты для расходов
+            Route::get('/expenses', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenses']);
+            Route::get('/expenses/{expenseId}/details', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDetails']);
+            Route::get('/expenses/{expenseId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDocument']);
         });
     });
 });

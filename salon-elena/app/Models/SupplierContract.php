@@ -89,4 +89,55 @@ class SupplierContract extends Model
             default => 'gray',
         };
     }
+    public function createExpenseRecord()
+    {
+        // Создаем запись о расходе только когда заказ подтвержден (статус 1 - "В пути")
+        if ($this->status == self::STATUS_CONFIRMED && $this->confirmed_at) {
+            $totalAmount = $this->total_amount;
+            
+            // Проверяем, нет ли уже записи
+            if ($this->expense) {
+                return $this->expense;
+            }
+            
+            return Expense::create([
+                'type' => Expense::TYPE_SUPPLIER_ORDER,
+                'amount' => $totalAmount,
+                'date' => $this->confirmed_at,
+                'description' => "Заказ у поставщика: {$this->supplier->supplier_name} (№{$this->number})",
+                'reference_id' => $this->contract_id,
+                'reference_type' => SupplierContract::class,
+                'metadata' => [
+                    'supplier_id' => $this->supplier_id,
+                    'supplier_name' => $this->supplier->supplier_name,
+                    'order_number' => $this->number,
+                    'order_date' => $this->date,
+                    'items' => $this->materialReceipts->map(function($receipt) {
+                        return [
+                            'material_name' => $receipt->material->name,
+                            'quantity' => $receipt->quantity,
+                            'price' => $receipt->price,
+                            'total' => $receipt->quantity * $receipt->price,
+                        ];
+                    }),
+                ],
+                'is_confirmed' => true,
+                'confirmed_at' => $this->confirmed_at,
+            ]);
+        }
+    }
+
+    // Добавьте связь с расходами
+    public function expense()
+    {
+        return $this->morphOne(Expense::class, 'source', 'reference_type', 'reference_id');
+    }
+
+    // Добавьте атрибут для общей суммы
+    public function getTotalAmountAttribute()
+    {
+        return $this->materialReceipts->sum(function($receipt) {
+            return $receipt->quantity * $receipt->price;
+        });
+    }
 }

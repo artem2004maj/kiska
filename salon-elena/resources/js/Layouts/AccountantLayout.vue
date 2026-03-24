@@ -65,6 +65,13 @@
                                     <span class="text-lg lg:text-xl">💰</span>
                                     <span>Доходы</span>
                                 </Link>
+                                <!-- Расходы (Декстоп) -->
+                                <Link href="/accountant/expenses" 
+                                    class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
+                                    :class="isActive('/accountant/expenses')">
+                                    <span class="text-lg lg:text-xl">💰</span>
+                                    <span>Расходы</span>
+                                </Link>
                                 
                                 <Link href="/accountant/warehouse" 
                                       class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
@@ -132,6 +139,12 @@
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
                                           :class="isActive('/accountant/incomes')">
                                         <span class="text-lg">💰</span> Доходы
+                                    </Link>
+                                    <!-- Расходы (мобилки) -->
+                                    <Link href="/accountant/expenses" @click="mobileMenuOpen = false"
+                                        class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
+                                        :class="isActive('/accountant/expenses')">
+                                        <span class="text-lg">💰</span> Расходы
                                     </Link>
                                     <Link href="/accountant/warehouse" @click="mobileMenuOpen = false"
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"

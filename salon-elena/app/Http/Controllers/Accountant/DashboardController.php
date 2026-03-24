@@ -13,6 +13,7 @@ use App\Models\PaymentToSupplier;
 use App\Models\Employee;
 use App\Models\Salary;
 use App\Models\ClientContract;
+use App\Models\Expense;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -509,6 +510,7 @@ class DashboardController extends Controller
         // Устанавливаем даты
         if ($request->status == SupplierContract::STATUS_CONFIRMED && $oldStatus == SupplierContract::STATUS_PENDING) {
             $order->confirmed_at = now();
+            $order->createExpenseRecord();
         }
         
         if ($request->status == SupplierContract::STATUS_RECEIVED) {
@@ -816,7 +818,7 @@ class DashboardController extends Controller
         return response()->json($calculation);
     }
 
-    /**
+        /**
      * Выплатить зарплату сотруднику
      */
     public function paySalary(Request $request)
@@ -832,18 +834,35 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
+            // Находим существующую запись о зарплате
             $salary = $employee->salaries()
                 ->where('month', $request->month)
                 ->where('year', $request->year)
                 ->first();
             
             if (!$salary) {
-                return response()->json(['error' => 'Расчет не найден'], 404);
+                // Если нет расчета, создаем его
+                $startDate = Carbon::create($request->year, $request->month, 1);
+                $endDate = Carbon::create($request->year, $request->month, $startDate->daysInMonth);
+                $hoursWorked = $employee->calculateWorkedHours($startDate, $endDate);
+                $totalAmount = $hoursWorked * ($employee->hourly_rate ?? 0);
+                
+                $salary = $employee->salaries()->create([
+                    'month' => $request->month,
+                    'year' => $request->year,
+                    'hours_worked' => $hoursWorked,
+                    'hourly_rate' => $employee->hourly_rate ?? 0,
+                    'total_amount' => $totalAmount,
+                    'is_paid' => false,
+                ]);
             }
             
+            // Отмечаем как выплаченную
             $salary->is_paid = true;
             $salary->payment_date = now();
             $salary->save();
+            
+            // Запись о расходе создастся автоматически через booted метод в модели Salary
             
             DB::commit();
             
@@ -851,6 +870,7 @@ class DashboardController extends Controller
                 'success' => true,
                 'message' => "Зарплата {$employee->employee_name} за " . Carbon::create($request->year, $request->month, 1)->translatedFormat('F Y') . " выплачена",
                 'amount' => $salary->total_amount,
+                'expense_created' => $salary->expense ? true : false,
             ]);
             
         } catch (\Exception $e) {
@@ -859,7 +879,7 @@ class DashboardController extends Controller
         }
     }
     
-    /**
+        /**
      * Выплатить зарплату всем сотрудникам за месяц
      */
     public function payAllSalaries(Request $request)
@@ -872,6 +892,7 @@ class DashboardController extends Controller
         $employees = Employee::whereIn('role', ['doctor', 'admin', 'director'])->get();
         $paidCount = 0;
         $totalPaid = 0;
+        $expensesCreated = 0;
         
         DB::beginTransaction();
         
@@ -882,12 +903,34 @@ class DashboardController extends Controller
                     ->where('year', $request->year)
                     ->first();
                 
-                if ($salary && !$salary->is_paid) {
+                if (!$salary) {
+                    // Если нет расчета, создаем его
+                    $startDate = Carbon::create($request->year, $request->month, 1);
+                    $endDate = Carbon::create($request->year, $request->month, $startDate->daysInMonth);
+                    $hoursWorked = $employee->calculateWorkedHours($startDate, $endDate);
+                    $totalAmount = $hoursWorked * ($employee->hourly_rate ?? 0);
+                    
+                    $salary = $employee->salaries()->create([
+                        'month' => $request->month,
+                        'year' => $request->year,
+                        'hours_worked' => $hoursWorked,
+                        'hourly_rate' => $employee->hourly_rate ?? 0,
+                        'total_amount' => $totalAmount,
+                        'is_paid' => false,
+                    ]);
+                }
+                
+                if (!$salary->is_paid) {
                     $salary->is_paid = true;
                     $salary->payment_date = now();
                     $salary->save();
                     $paidCount++;
                     $totalPaid += $salary->total_amount;
+                    
+                    // Проверяем, создалась ли запись о расходе
+                    if ($salary->expense) {
+                        $expensesCreated++;
+                    }
                 }
             }
             
@@ -898,6 +941,7 @@ class DashboardController extends Controller
                 'message' => "Выплачено зарплат: {$paidCount}, на сумму {$totalPaid} ₽",
                 'paid_count' => $paidCount,
                 'total_paid' => $totalPaid,
+                'expenses_created' => $expensesCreated,
             ]);
             
         } catch (\Exception $e) {
@@ -1533,6 +1577,163 @@ class DashboardController extends Controller
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
+    }
+        /**
+     * Страница расходов
+     */
+    public function expenses()
+    {
+        $user = Auth::guard('employee')->user();
+        $stats = $this->getSidebarStats();
+        
+        return Inertia::render('Accountant/Expenses', [
+            'accountant' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'unpaidCount' => $stats['unpaidCount'],
+            'criticalCount' => $stats['criticalCount'],
+            'todayRevenue' => $stats['todayRevenue'],
+            'pendingPayments' => $stats['pendingPayments'],
+            'laravelVersion' => app()->version(),
+            'phpVersion' => PHP_VERSION,
+        ]);
+    }
+
+    /**
+     * Получить список расходов с фильтрацией
+     */
+    public function getExpenses(Request $request)
+    {
+        $query = Expense::query();
+        
+        // Фильтр по типу
+        if ($request->type && $request->type != 'all') {
+            $query->where('type', $request->type);
+        }
+        
+        // Фильтр по периоду
+        if ($request->date_from) {
+            $query->whereDate('date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
+        
+        $expenses = $query->orderBy('date', 'desc')->get();
+        
+        // Форматируем данные для отображения
+        $formattedExpenses = $expenses->map(function($expense) {
+            return [
+                'id' => $expense->expense_id,
+                'type' => $expense->type,
+                'type_text' => $expense->type_text,
+                'type_icon' => $expense->type_icon,
+                'amount' => $expense->amount,
+                'date' => $expense->date,
+                'formatted_date' => Carbon::parse($expense->date)->format('d.m.Y'),
+                'description' => $expense->description,
+                'reference_id' => $expense->reference_id,
+                'reference_type' => $expense->reference_type,
+                'metadata' => $expense->metadata,
+            ];
+        });
+        
+        $totalAmount = $formattedExpenses->sum('amount');
+        
+        return response()->json([
+            'expenses' => $formattedExpenses,
+            'total_amount' => $totalAmount,
+        ]);
+    }
+
+    /**
+     * Получить детали расхода
+     */
+    public function getExpenseDetails($expenseId)
+    {
+        $expense = Expense::findOrFail($expenseId);
+        
+        if ($expense->type == Expense::TYPE_SALARY && $expense->reference_id) {
+            $salary = Salary::with('employee')->find($expense->reference_id);
+            if ($salary) {
+                $calculationData = $salary->calculation_details;
+                
+                return response()->json([
+                    'type' => 'salary',
+                    'data' => [
+                        'employee_name' => $salary->employee->employee_name,
+                        'month' => $salary->month,
+                        'year' => $salary->year,
+                        'month_name' => $this->getMonthName($salary->month),
+                        'hours_worked' => $salary->hours_worked,
+                        'hourly_rate' => $salary->hourly_rate,
+                        'total_amount' => $salary->total_amount,
+                        'payment_date' => $salary->payment_date ? Carbon::parse($salary->payment_date)->format('d.m.Y') : null,
+                        'calculation_details' => $calculationData ?: [
+                            'base_salary' => $salary->hourly_rate * $salary->hours_worked,
+                            'ndfl' => round(($salary->hourly_rate * $salary->hours_worked) * 0.13, 2),
+                            'net_salary' => $salary->total_amount,
+                        ],
+                    ]
+                ]);
+            }
+        }
+        
+        if ($expense->type == Expense::TYPE_SUPPLIER_ORDER && $expense->reference_id) {
+            $order = SupplierContract::with(['supplier', 'materialReceipts.material'])
+                ->find($expense->reference_id);
+            if ($order) {
+                return response()->json([
+                    'type' => 'supplier_order',
+                    'data' => [
+                        'order_number' => $order->number,
+                        'supplier_name' => $order->supplier->supplier_name,
+                        'confirmed_at' => $order->confirmed_at ? Carbon::parse($order->confirmed_at)->format('d.m.Y H:i') : null,
+                        'total_amount' => $expense->amount,
+                        'items' => $order->materialReceipts->map(function($receipt) {
+                            return [
+                                'material_name' => $receipt->material->name,
+                                'quantity' => $receipt->quantity,
+                                'price' => $receipt->price,
+                                'unit' => $receipt->material->unit,
+                                'total' => $receipt->quantity * $receipt->price,
+                            ];
+                        }),
+                    ]
+                ]);
+            }
+        }
+        
+        return response()->json([
+            'type' => $expense->type,
+            'data' => [
+                'description' => $expense->description,
+                'amount' => $expense->amount,
+                'date' => Carbon::parse($expense->date)->format('d.m.Y'),
+                'metadata' => $expense->metadata,
+            ]
+        ]);
+    }
+
+    /**
+     * Получить документ расхода (для печати)
+     */
+    public function getExpenseDocument($expenseId)
+    {
+        $expense = Expense::findOrFail($expenseId);
+        
+        if ($expense->type == Expense::TYPE_SALARY && $expense->reference_id) {
+            return $this->getSalaryReceiptDetails($expense->reference_id);
+        }
+        
+        if ($expense->type == Expense::TYPE_SUPPLIER_ORDER && $expense->reference_id) {
+            return $this->getOrderDocument($expense->reference_id);
+        }
+        
+        return response()->json($expense);
     }
 
     /**
