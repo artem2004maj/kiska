@@ -58,27 +58,11 @@ class DashboardController extends Controller
     {
         $user = Auth::guard('employee')->user();
         $stats = $this->getSidebarStats();
-        
-        // Неоплаченные услуги (завершенные, но без чека)
-        $unpaidServices = Appointment::with(['client', 'providedServices.service'])
-            ->where('status', 2)
-            ->whereDoesntHave('clientContract')
-            ->orderBy('date', 'desc')
-            ->get()
-            ->map(function($appointment) {
-                $totalPrice = $appointment->calculateTotalPrice();
-                return [
-                    'id' => $appointment->appointment_id,
-                    'date' => $appointment->date,
-                    'formatted_date' => Carbon::parse($appointment->date)->format('d.m.Y H:i'),
-                    'client_name' => $appointment->client->client_name,
-                    'service_name' => $appointment->services_list,
-                    'total_price' => $totalPrice,
-                ];
-            });
+        $financialStats = $this->getFinancialStats();
         
         // Критические материалы (остаток <= минимальному)
         $criticalMaterials = Material::where('current_balance', '<=', DB::raw('min_stock'))
+            ->take(6)
             ->get()
             ->map(function($material) {
                 return [
@@ -87,22 +71,6 @@ class DashboardController extends Controller
                     'current_balance' => $material->current_balance,
                     'unit' => $material->unit,
                     'min_stock' => $material->min_stock,
-                ];
-            });
-        
-        // Последние операции
-        $recentPayments = ClientContract::with(['client', 'appointment'])
-            ->latest()
-            ->take(5)
-            ->get()
-            ->map(function($contract) {
-                return [
-                    'id' => $contract->contract_id,
-                    'date' => $contract->created_at,
-                    'formatted_date' => Carbon::parse($contract->created_at)->format('d.m.Y H:i'),
-                    'client_name' => $contract->client->client_name,
-                    'amount' => $contract->total_amount,
-                    'contract_number' => $contract->contract_number,
                 ];
             });
         
@@ -119,9 +87,14 @@ class DashboardController extends Controller
                 'today_revenue' => $stats['todayRevenue'],
                 'pending_payments' => $stats['pendingPayments'],
             ],
-            'unpaidServices' => $unpaidServices,
+            'financialStats' => [
+                'total_income' => $financialStats['total_income'],
+                'total_expense' => $financialStats['total_expense'],
+                'profit' => $financialStats['profit'],
+                'recent_income' => $financialStats['recent_income'],
+                'recent_expense' => $financialStats['recent_expense'],
+            ],
             'criticalMaterials' => $criticalMaterials,
-            'recentPayments' => $recentPayments,
             'laravelVersion' => app()->version(),
             'phpVersion' => PHP_VERSION,
         ]);
@@ -1956,5 +1929,99 @@ class DashboardController extends Controller
             'accountant' => 'Бухгалтер'
         ];
         return $roles[$role] ?? $role;
+    }
+    /**
+     * Получить общую статистику доходов и расходов
+     */
+    private function getFinancialStats()
+    {
+        // Общая сумма доходов (все оплаченные контракты)
+        $totalIncome = ClientContract::sum('total_amount');
+        
+        // Общая сумма расходов (все подтвержденные расходы)
+        $totalExpense = Expense::sum('amount');
+        
+        // Прибыль
+        $profit = $totalIncome - $totalExpense;
+        
+        // Доходы за последние 30 дней
+        $recentIncome = ClientContract::where('created_at', '>=', Carbon::now()->subDays(30))
+            ->sum('total_amount');
+        
+        // Расходы за последние 30 дней
+        $recentExpense = Expense::where('date', '>=', Carbon::now()->subDays(30))
+            ->sum('amount');
+        
+        return [
+            'total_income' => $totalIncome,
+            'total_expense' => $totalExpense,
+            'profit' => $profit,
+            'recent_income' => $recentIncome,
+            'recent_expense' => $recentExpense,
+        ];
+    }
+
+    /**
+     * Получить последние операции (объединенные доходы и расходы)
+     */
+    public function getRecentOperations(Request $request)
+    {
+        $type = $request->get('type', 'all'); // all, income, expense
+        $limit = $request->get('limit', 15);
+        
+        $operations = [];
+        
+        // Доходы
+        if ($type === 'all' || $type === 'income') {
+            $incomes = ClientContract::with(['client'])
+                ->orderBy('created_at', 'desc')
+                ->take($limit)
+                ->get()
+                ->map(function($income) {
+                    return [
+                        'id' => $income->contract_id,
+                        'type' => 'income',
+                        'type_text' => 'Доход',
+                        'type_icon' => '💰',
+                        'amount' => $income->total_amount,
+                        'date' => $income->created_at,
+                        'formatted_date' => Carbon::parse($income->created_at)->format('d.m.Y H:i'),
+                        'description' => "Оплата от {$income->client->client_name}",
+                        'reference_number' => $income->contract_number,
+                    ];
+                });
+            $operations = array_merge($operations, $incomes->toArray());
+        }
+        
+        // Расходы
+        if ($type === 'all' || $type === 'expense') {
+            $expenses = Expense::orderBy('date', 'desc')
+                ->take($limit)
+                ->get()
+                ->map(function($expense) {
+                    return [
+                        'id' => $expense->expense_id,
+                        'type' => 'expense',
+                        'type_text' => $expense->type_text,
+                        'type_icon' => $expense->type_icon,
+                        'amount' => $expense->amount,
+                        'date' => $expense->date,
+                        'formatted_date' => Carbon::parse($expense->date)->format('d.m.Y H:i'),
+                        'description' => $expense->description,
+                        'reference_number' => $expense->reference_id,
+                    ];
+                });
+            $operations = array_merge($operations, $expenses->toArray());
+        }
+        
+        // Сортируем по дате
+        usort($operations, function($a, $b) {
+            return strtotime($b['date']) - strtotime($a['date']);
+        });
+        
+        // Ограничиваем количество
+        $operations = array_slice($operations, 0, $limit);
+        
+        return response()->json($operations);
     }
 }

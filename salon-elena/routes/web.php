@@ -236,6 +236,7 @@ Route::middleware('auth:employee')->group(function () {
             // Маршруты для расходов
             Route::get('/expenses', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenses']);
             Route::get('/expenses/{expenseId}/details', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDetails']);
+            Route::get('/operations', [App\Http\Controllers\Accountant\DashboardController::class, 'getRecentOperations']);
             Route::get('/expenses/{expenseId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDocument']);
         });
     });
