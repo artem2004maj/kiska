@@ -858,7 +858,6 @@ class DashboardController extends Controller
         return response()->json($materials);
     }
     
-    // app/Http/Controllers/Doctor/DashboardController.php
 
     /**
      * Обновить профиль
