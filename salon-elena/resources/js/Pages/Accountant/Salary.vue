@@ -8,9 +8,45 @@
         :todayRevenue="todayRevenue"
         :pendingPayments="pendingPayments"
     >
-        <!-- Основная таблица сотрудников -->
+        <!-- Блок выбора периода -->
         <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow mb-6">
-            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ТЕКУЩИЕ НАЧИСЛЕНИЯ ЗА {{ currentMonth }}</h2>
+            <div class="flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">
+                        Месяц расчета
+                    </label>
+                    <select v-model="selectedMonth" 
+                            class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                        <option v-for="m in months" :key="m.value" :value="m.value">
+                            {{ m.name }}
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">
+                        Год
+                    </label>
+                    <select v-model="selectedYear" 
+                            class="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md">
+                        <option v-for="y in years" :key="y" :value="y">
+                            {{ y }}
+                        </option>
+                    </select>
+                </div>
+                
+                <button @click="loadSalaryData" 
+                        class="px-6 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition">
+                    Рассчитать
+                </button>
+            </div>
+        </div>
+
+        <!-- Таблица сотрудников -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+            <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">
+                КАЛЬКУЛЯТОР РАСЧЕТА ЗА {{ getMonthName(selectedMonth) }} {{ selectedYear }}
+            </h2>
             
             <!-- Таблица сотрудников -->
             <div class="overflow-x-auto">
@@ -20,13 +56,13 @@
                             <th class="text-left py-3 text-black dark:text-white font-medium">Сотрудник</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Должность</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Ставка (₽/час)</th>
+                            <th class="text-left py-3 text-black dark:text-white font-medium">Отработано часов</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Начислено</th>
-                            <th class="text-left py-3 text-black dark:text-white font-medium">Статус</th>
                             <th class="text-left py-3 text-black dark:text-white font-medium">Действия</th>
-                         </tr>
+                        </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="employee in employees" :key="employee.id" 
+                        <tr v-for="employee in employeesList" :key="employee.id" 
                             class="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
                             <td class="py-3 text-black dark:text-white/70">{{ employee.name }}</td>
                             <td class="py-3 text-black dark:text-white/70">{{ getRoleName(employee.role) }}</td>
@@ -42,27 +78,35 @@
                                     </button>
                                 </div>
                             </td>
-                            <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">{{ formatPrice(employee.total_amount) }}</td>
-                            <td class="py-3">
-                                <span class="px-2 py-1 text-xs rounded-full" 
-                                      :class="employee.is_paid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
-                                    {{ employee.is_paid ? 'Выплачено' : 'Начислено' }}
-                                </span>
+                            <td class="py-3 text-black dark:text-white/70">
+                                <div class="flex items-center gap-2">
+                                    <input type="number" 
+                                           v-model="employee.hours_worked" 
+                                           step="0.5"
+                                           min="0"
+                                           :disabled="employee.is_paid"
+                                           class="w-24 px-2 py-1 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                                           :class="{'bg-gray-100 dark:bg-zinc-700': employee.is_paid}" />
+                                    <span class="text-sm text-gray-500">ч.</span>
+                                </div>
+                            </td>
+                            <td class="py-3 text-black dark:text-white/70 font-medium text-[#22c55e]">
+                                {{ formatPrice(calculateEmployeeSalary(employee)) }}
                             </td>
                             <td class="py-3">
                                 <div class="flex gap-2">
                                     <button v-if="!employee.is_paid" 
-                                            @click="openSalaryModal(employee.id)"
+                                            @click="calculateAndSave(employee)"
                                             class="px-3 py-1 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 transition text-sm">
-                                        Рассчитать
+                                        Сохранить расчет
                                     </button>
                                     <button v-else 
                                             @click="viewSalaryDetails(employee)"
-                                            class="px-3 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition text-sm">
-                                        Детали
+                                            class="px-3 py-1 border border-[#3b82f6] text-[#3b82f6] rounded-md hover:bg-[#3b82f6]/10 transition text-sm">
+                                        Просмотр чека
                                     </button>
                                     <button @click="openRateModal(employee)" 
-                                            class="px-3 py-1 border border-[#3b82f6] text-[#3b82f6] rounded-md hover:bg-[#3b82f6]/10 transition text-sm">
+                                            class="px-3 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition text-sm">
                                         Ставка
                                     </button>
                                 </div>
@@ -71,17 +115,25 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t border-gray-200 dark:border-zinc-700">
-                            <td colspan="3" class="py-3 text-right font-medium text-black dark:text-white">Итого:</td>
+                            <td colspan="4" class="py-3 text-right font-medium text-black dark:text-white">Итого:</td>
                             <td class="py-3 font-medium text-[#22c55e]">{{ formatPrice(totalSalary) }}</td>
-                            <td colspan="2"></td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
+            
+            <!-- Кнопка массовой выплаты -->
+            <div v-if="hasUnpaidEmployees" class="mt-6 pt-4 border-t border-gray-200 dark:border-zinc-700">
+                <button @click="payAllSalaries" 
+                        class="px-6 py-2 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition">
+                    Выплатить зарплату всем сотрудникам за {{ getMonthName(selectedMonth) }} {{ selectedYear }}
+                </button>
+            </div>
         </div>
 
-        <!-- История начислений -->
-        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+        <!-- История начислений (оставляем как есть, только небольшие правки) -->
+        <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow mt-6">
             <h2 class="text-2xl font-semibold text-black dark:text-white mb-6">ИСТОРИЯ НАЧИСЛЕНИЙ</h2>
             
             <!-- Фильтры -->
@@ -163,8 +215,7 @@
             </div>
         </div>
 
-        <!-- Остальные модальные окна (ставка, расчет, детали) остаются без изменений -->
-        <!-- Модальное окно редактирования ставки -->
+        <!-- Модальное окно редактирования ставки (оставляем как есть) -->
         <Teleport to="body">
             <div v-if="showRateModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4">
@@ -211,123 +262,6 @@
             </div>
         </Teleport>
 
-        <!-- Модальное окно расчета зарплаты -->
-        <Teleport to="body">
-            <div v-if="showSalaryModal" class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex items-center justify-center min-h-screen px-4">
-                    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeSalaryModal"></div>
-                    
-                    <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div class="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-4 border-b flex justify-between items-center">
-                            <h3 class="text-xl font-semibold">Расчет заработной платы</h3>
-                            <button @click="closeSalaryModal" class="text-gray-500 hover:text-gray-700">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div v-if="selectedEmployee" class="p-6 space-y-6">
-                            <!-- Информация о сотруднике -->
-                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-12 h-12 rounded-full bg-[#3b82f6]/20 flex items-center justify-center">
-                                        <span class="text-xl font-medium text-[#3b82f6]">{{ getInitials(selectedEmployee.name) }}</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-semibold text-lg">{{ selectedEmployee.name }}</h4>
-                                        <p class="text-sm text-gray-500">{{ getRoleName(selectedEmployee.role) }}</p>
-                                        <p class="text-sm text-gray-500">Ставка: {{ formatPrice(selectedEmployee.hourly_rate) }} ₽/час</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Параметры расчета -->
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Период</label>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <select v-model="calculation.month" class="px-3 py-2 border rounded-md">
-                                            <option v-for="m in months" :key="m.value" :value="m.value">{{ m.name }}</option>
-                                        </select>
-                                        <select v-model="calculation.year" class="px-3 py-2 border rounded-md">
-                                            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Тип оплаты</label>
-                                    <div class="flex gap-4">
-                                        <label class="flex items-center gap-2">
-                                            <input type="radio" v-model="calculation.payment_type" value="hourly" />
-                                            <span>Почасовая</span>
-                                        </label>
-                                        <label class="flex items-center gap-2">
-                                            <input type="radio" v-model="calculation.payment_type" value="daily" />
-                                            <span>Дневная</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">
-                                        {{ calculation.payment_type === 'hourly' ? 'Отработано часов' : 'Отработано дней' }}
-                                    </label>
-                                    <input type="number" v-model="calculation.hours_or_days" step="0.5" min="0"
-                                           class="w-full px-3 py-2 border rounded-md" />
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Премия (₽)</label>
-                                    <input type="number" v-model="calculation.bonus" step="100" min="0"
-                                           class="w-full px-3 py-2 border rounded-md" />
-                                </div>
-                                
-                                <button @click="previewCalculation" 
-                                        class="w-full py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90">
-                                    Рассчитать
-                                </button>
-                            </div>
-                            
-                            <!-- Результат расчета -->
-                            <div v-if="previewResult" class="border-t pt-4 space-y-3">
-                                <h4 class="font-semibold text-lg">Результат расчета</h4>
-                                
-                                <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4 space-y-2">
-                                    <div class="flex justify-between">
-                                        <span>Оклад:</span>
-                                        <span class="font-medium">{{ formatPrice(previewResult.base_salary) }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span>Премия:</span>
-                                        <span class="font-medium text-green-600">{{ formatPrice(previewResult.bonus) }}</span>
-                                    </div>
-                                    <div class="flex justify-between pt-2 border-t">
-                                        <span>Начислено:</span>
-                                        <span class="font-bold">{{ formatPrice(previewResult.total_accrued) }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span>НДФЛ (13%):</span>
-                                        <span class="text-red-600">{{ formatPrice(previewResult.ndfl) }}</span>
-                                    </div>
-                                    <div class="flex justify-between pt-2 border-t">
-                                        <span>К выплате:</span>
-                                        <span class="font-bold text-[#22c55e] text-lg">{{ formatPrice(previewResult.net_salary) }}</span>
-                                    </div>
-                                </div>
-                                
-                                <button @click="saveCalculation" 
-                                        class="w-full py-2 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90">
-                                    Сохранить расчет
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Teleport>
-
         <!-- Модальное окно деталей зарплаты -->
         <Teleport to="body">
             <div v-if="showDetailsModal" class="fixed inset-0 z-50 overflow-y-auto">
@@ -361,7 +295,7 @@
                                     </thead>
                                     <tbody>
                                         <tr class="border-t">
-                                            <td class="px-4 py-2">Оплата по {{ selectedSalary.payment_type === 'hourly' ? 'часам' : 'дням' }}</td>
+                                            <td class="px-4 py-2">Оплата по часам</td>
                                             <td class="px-4 py-2 text-right">{{ formatPrice(selectedSalary.base_salary) }}</td>
                                         </tr>
                                         <tr v-if="selectedSalary.bonus > 0" class="border-t">
@@ -386,7 +320,7 @@
                             
                             <div class="text-sm text-gray-500 text-center">
                                 <p>Ставка: {{ formatPrice(selectedSalary.hourly_rate) }} ₽/час</p>
-                                <p>{{ selectedSalary.payment_type === 'hourly' ? 'Отработано часов: ' + selectedSalary.hours_or_days : 'Отработано дней: ' + selectedSalary.hours_or_days }}</p>
+                                <p>Отработано часов: {{ selectedSalary.hours_or_days }}</p>
                             </div>
                         </div>
                     </div>
@@ -394,14 +328,14 @@
             </div>
         </Teleport>
 
-        <!-- НОВОЕ: Модальное окно чека зарплаты -->
+        <!-- Модальное окно чека зарплаты (оставляем как есть) -->
         <Teleport to="body">
             <div v-if="showSalaryReceiptModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4 py-8">
                     <div class="fixed inset-0 bg-black bg-opacity-50" @click="showSalaryReceiptModal = false"></div>
                     
                     <div class="relative bg-white dark:bg-zinc-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-                        <!-- Заголовок -->
+                        <!-- ... содержимое чека ... -->
                         <div class="sticky top-0 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-between items-center">
                             <h3 class="text-xl font-semibold text-black dark:text-white">Расчетный листок</h3>
                             <button @click="showSalaryReceiptModal = false" class="text-gray-500 hover:text-gray-700">
@@ -411,16 +345,14 @@
                             </button>
                         </div>
 
-                        <!-- Содержимое чека -->
                         <div class="p-6" id="salary-receipt-content" v-if="selectedSalaryReceipt">
-                            <!-- Шапка -->
+                            <!-- ... остальной код чека ... -->
                             <div class="text-center mb-8">
                                 <h2 class="text-2xl font-bold text-black dark:text-white">ELENA Beauty Clinic</h2>
                                 <p class="text-gray-600 dark:text-gray-400">Расчетный листок № {{ selectedSalaryReceipt.salary_id }}</p>
                                 <p class="text-gray-600 dark:text-gray-400">Дата формирования: {{ selectedSalaryReceipt.created_at }}</p>
                             </div>
 
-                            <!-- Информация о сотруднике -->
                             <div class="grid grid-cols-2 gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-zinc-700">
                                 <div>
                                     <p class="text-sm text-gray-500">Сотрудник:</p>
@@ -434,7 +366,6 @@
                                 </div>
                             </div>
 
-                            <!-- Детали расчета -->
                             <div class="mb-6">
                                 <h4 class="font-semibold text-black dark:text-white mb-3">Детали расчета</h4>
                                 <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
@@ -465,7 +396,6 @@
                                 </div>
                             </div>
 
-                            <!-- Информация о выплате -->
                             <div class="border-t border-gray-200 dark:border-zinc-700 pt-4">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Статус выплаты:</span>
@@ -479,14 +409,12 @@
                                 </div>
                             </div>
 
-                            <!-- Подпись -->
                             <div class="mt-8 pt-4 text-center text-sm text-gray-500">
                                 <p>Бухгалтер: {{ accountant.employee_name }}</p>
                                 <p class="mt-2">Расчет произведен автоматически</p>
                             </div>
                         </div>
 
-                        <!-- Кнопки действий -->
                         <div class="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 px-6 py-4 flex justify-end gap-3">
                             <button @click="printSalaryReceipt" 
                                     class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
@@ -505,7 +433,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
 import * as XLSX from 'xlsx';
@@ -523,18 +451,22 @@ const props = defineProps({
     pendingPayments: Number
 });
 
-// Существующие состояния (оставляем как есть)
+// Состояния
+const selectedMonth = ref(new Date().getMonth() + 1);
+const selectedYear = ref(new Date().getFullYear());
+const employeesList = ref([]);
+const loading = ref(false);
+
+// Состояния для модальных окон
 const showRateModal = ref(false);
 const selectedEmployeeForRate = ref(null);
 const hourlyRateValue = ref(0);
-const loading = ref(false);
-const showSalaryModal = ref(false);
 const showDetailsModal = ref(false);
-const selectedEmployee = ref(null);
 const selectedSalary = ref(null);
-const previewResult = ref(null);
+const showSalaryReceiptModal = ref(false);
+const selectedSalaryReceipt = ref(null);
 
-// Новые состояния для истории
+// История начислений
 const salaryHistory = ref([]);
 const historyTotalSum = ref(0);
 const historyFilters = ref({
@@ -545,19 +477,7 @@ const historyFilters = ref({
 const historyPage = ref(1);
 const itemsPerPage = 10;
 
-// Новые состояния для чека зарплаты
-const showSalaryReceiptModal = ref(false);
-const selectedSalaryReceipt = ref(null);
-
-const calculation = ref({
-    employee_id: null,
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    payment_type: 'hourly',
-    hours_or_days: 160,
-    bonus: 0
-});
-
+// Данные для выбора
 const months = [
     { value: 1, name: 'Январь' },
     { value: 2, name: 'Февраль' },
@@ -575,7 +495,17 @@ const months = [
 
 const years = [2023, 2024, 2025, 2026, 2027, 2028];
 
-// Computed для пагинации истории
+// Computed свойства
+const hasUnpaidEmployees = computed(() => {
+    return employeesList.value.some(e => !e.is_paid && e.hours_worked > 0);
+});
+
+const totalSalary = computed(() => {
+    return employeesList.value.reduce((sum, emp) => {
+        return sum + calculateEmployeeSalary(emp);
+    }, 0);
+});
+
 const paginatedHistory = computed(() => {
     const start = (historyPage.value - 1) * itemsPerPage;
     const end = start + itemsPerPage;
@@ -586,7 +516,7 @@ const historyTotalPages = computed(() => {
     return Math.ceil(salaryHistory.value.length / itemsPerPage);
 });
 
-// Вспомогательные методы
+// Методы
 const getRoleName = (role) => {
     const roles = {
         'doctor': 'Врач',
@@ -602,203 +532,92 @@ const getMonthName = (month) => {
     return m ? m.name : '';
 };
 
-const getInitials = (name) => {
-    if (!name) return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-};
-
 const formatPrice = (price) => {
     if (!price && price !== 0) return '0 ₽';
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
 };
 
-// Загрузка истории начислений
-const loadSalaryHistory = async () => {
+const calculateEmployeeSalary = (employee) => {
+    if (!employee.hours_worked || employee.hours_worked <= 0) return 0;
+    const rate = employee.hourly_rate || 0;
+    const totalAccrued = rate * employee.hours_worked;
+    const ndfl = totalAccrued * 0.13;
+    return totalAccrued - ndfl;
+};
+
+// Загрузка данных о зарплате
+const loadSalaryData = async () => {
+    loading.value = true;
     try {
-        const response = await axios.get('/api/accountant/salary/history', {
-            params: historyFilters.value
+        const response = await axios.get('/api/accountant/salary/calculate', {
+            params: {
+                month: selectedMonth.value,
+                year: selectedYear.value
+            }
         });
-        salaryHistory.value = response.data.salaries;
-        historyTotalSum.value = response.data.total_sum;
-        historyPage.value = 1;
+        
+        // Преобразуем данные для отображения
+        employeesList.value = response.data.employees.map(emp => ({
+            id: emp.id,
+            name: emp.name,
+            role: emp.role,
+            hourly_rate: emp.hourly_rate,
+            hours_worked: emp.hours_worked || 0,
+            total_amount: emp.total_amount,
+            is_paid: emp.is_paid || false,
+            salary_id: emp.salary_id
+        }));
     } catch (error) {
-        console.error('Ошибка загрузки истории:', error);
-        alert('Ошибка при загрузке истории начислений');
+        console.error('Error loading salary data:', error);
+        alert('Ошибка при загрузке данных');
+    } finally {
+        loading.value = false;
     }
 };
 
-// Просмотр чека зарплаты
-const viewSalaryReceipt = async (salaryId) => {
+// Сохранение расчета
+const calculateAndSave = async (employee) => {
+    if (!employee.hours_worked || employee.hours_worked <= 0) {
+        alert('Укажите количество отработанных часов');
+        return;
+    }
+    
     try {
-        const response = await axios.get(`/api/accountant/salary/receipt/${salaryId}`);
-        selectedSalaryReceipt.value = response.data;
-        showSalaryReceiptModal.value = true;
+        await axios.post('/api/accountant/salary/calculate', {
+            employee_id: employee.id,
+            month: selectedMonth.value,
+            year: selectedYear.value,
+            payment_type: 'hourly',
+            hours_or_days: employee.hours_worked,
+            bonus: 0
+        });
+        
+        alert(`Расчет для ${employee.name} сохранен`);
+        await loadSalaryData(); // Перезагружаем данные
     } catch (error) {
-        console.error('Ошибка загрузки чека:', error);
-        alert('Ошибка при загрузке данных чека');
+        console.error('Error saving salary:', error);
+        alert('Ошибка при сохранении расчета');
     }
 };
 
-// Печать чека зарплаты
-const printSalaryReceipt = () => {
-    const printContent = document.getElementById('salary-receipt-content');
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Расчетный листок ${selectedSalaryReceipt.value.employee_name} ${selectedSalaryReceipt.value.month_name} ${selectedSalaryReceipt.value.year}</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 20px;
-                        color: #000;
-                    }
-                    .receipt {
-                        max-width: 800px;
-                        margin: 0 auto;
-                    }
-                    table {
-                        width: 100%;
-                        border-collapse: collapse;
-                    }
-                    th, td {
-                        padding: 8px;
-                        text-align: left;
-                        border-bottom: 1px solid #ddd;
-                    }
-                    th {
-                        background-color: #f5f5f5;
-                    }
-                    .text-right {
-                        text-align: right;
-                    }
-                    .text-center {
-                        text-align: center;
-                    }
-                    @media print {
-                        body {
-                            margin: 0;
-                            padding: 20px;
-                        }
-                        button {
-                            display: none;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="receipt">
-                    ${printContent.innerHTML}
-                </div>
-                <script>
-                    window.onload = () => {
-                        window.print();
-                        setTimeout(() => window.close(), 500);
-                    };
-                <\/script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-};
-
-// Экспорт в Excel
-const exportSalaryToExcel = () => {
-    try {
-        const data = selectedSalaryReceipt.value;
-        
-        if (!data) {
-            alert('Нет данных для экспорта');
-            return;
-        }
-        
-        // Создаем короткое имя листа (не более 31 символа)
-        let sheetName = `Расчет_${data.employee_name}_${data.month_name}_${data.year}`;
-        // Обрезаем до 31 символа
-        if (sheetName.length > 31) {
-            sheetName = sheetName.substring(0, 31);
-        }
-        // Заменяем недопустимые символы
-        sheetName = sheetName.replace(/[\\/*?:[\]]/g, '_');
-        
-        // Создаем данные для Excel в формате массива массивов
-        const excelData = [];
-        
-        // Заголовок
-        excelData.push(['ELENA Beauty Clinic']);
-        excelData.push(['Расчетный листок']);
-        excelData.push([]);
-        
-        // Информация о сотруднике
-        excelData.push(['Сотрудник:', data.employee_name]);
-        excelData.push(['Должность:', data.employee_role]);
-        excelData.push(['Период:', `${data.month_name} ${data.year}`]);
-        excelData.push(['Дата формирования:', data.created_at]);
-        excelData.push([]);
-        
-        // Детали расчета
-        excelData.push(['ДЕТАЛИ РАСЧЕТА']);
-        excelData.push(['Показатель', 'Значение (₽)']);
-        excelData.push(['Отработано часов', data.hours_worked]);
-        excelData.push(['Ставка (₽/час)', data.hourly_rate]);
-        excelData.push(['Оклад', data.calculation_details.base_salary]);
-        
-        if (data.calculation_details.bonus > 0) {
-            excelData.push(['Премия', data.calculation_details.bonus]);
-        }
-        
-        excelData.push(['Начислено всего', data.calculation_details.total_accrued]);
-        excelData.push(['НДФЛ (13%)', data.calculation_details.ndfl]);
-        excelData.push(['К выплате', data.calculation_details.net_salary]);
-        excelData.push([]);
-        
-        // Статус выплаты
-        excelData.push(['СТАТУС ВЫПЛАТЫ']);
-        excelData.push(['Статус:', data.is_paid ? 'Выплачено' : 'Начислено']);
-        if (data.payment_date) {
-            excelData.push(['Дата выплаты:', data.payment_date]);
-        }
-        excelData.push([]);
-        
-        // Подпись
-        excelData.push(['Бухгалтер:', props.accountant.employee_name]);
-        
-        // Создаем рабочую книгу
-        const ws = XLSX.utils.aoa_to_sheet(excelData);
-        
-        // Настройка ширины колонок
-        ws['!cols'] = [
-            { wch: 25 }, // Первая колонка
-            { wch: 30 }  // Вторая колонка
-        ];
-        
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        
-        // Формируем имя файла (без ограничений по длине)
-        const fileName = `Расчетный_листок_${data.employee_name}_${data.month_name}_${data.year}.xlsx`;
-        // Заменяем недопустимые символы в имени файла
-        const safeFileName = fileName.replace(/[\\/*?:|<>"]/g, '_');
-        
-        // Сохраняем файл
-        XLSX.writeFile(wb, safeFileName);
-        
-    } catch (error) {
-        console.error('Ошибка при экспорте в Excel:', error);
-        alert('Ошибка при экспорте в Excel: ' + error.message);
+// Просмотр деталей
+const viewSalaryDetails = (employee) => {
+    // Ищем сохраненную зарплату
+    const salary = employeesList.value.find(e => e.id === employee.id);
+    if (salary && salary.calculation_details) {
+        selectedSalary.value = {
+            employee_name: employee.name,
+            month: selectedMonth.value,
+            year: selectedYear.value,
+            ...salary.calculation_details
+        };
+        showDetailsModal.value = true;
+    } else {
+        alert('Детали расчета не найдены');
     }
 };
 
-// Сброс фильтров истории
-const resetHistoryFilters = () => {
-    historyFilters.value = {
-        employee_name: '',
-        month: '',
-        year: ''
-    };
-};
-
-// Существующие методы (оставляем без изменений)
+// Редактирование ставки
 const openRateModal = (employee) => {
     selectedEmployeeForRate.value = employee;
     hourlyRateValue.value = employee.hourly_rate || 0;
@@ -823,8 +642,7 @@ const updateHourlyRate = async () => {
         
         alert('Ставка успешно обновлена');
         closeRateModal();
-        setTimeout(() => window.location.reload(), 1000);
-        
+        await loadSalaryData(); // Перезагружаем данные
     } catch (error) {
         console.error('Error updating rate:', error);
         alert('Ошибка при обновлении ставки');
@@ -833,52 +651,129 @@ const updateHourlyRate = async () => {
     }
 };
 
-const openSalaryModal = (employeeId) => {
-    const employee = props.employees.find(e => e.id === employeeId);
-    if (employee) {
-        selectedEmployee.value = employee;
-        calculation.value.employee_id = employeeId;
-        calculation.value.hours_or_days = 160;
-        calculation.value.bonus = 0;
-        previewResult.value = null;
-        showSalaryModal.value = true;
+// Выплата зарплаты
+const payAllSalaries = async () => {
+    const unpaidEmployees = employeesList.value.filter(e => !e.is_paid && e.hours_worked > 0);
+    if (unpaidEmployees.length === 0) {
+        alert('Нет невыплаченных зарплат');
+        return;
     }
-};
-
-const closeSalaryModal = () => {
-    showSalaryModal.value = false;
-    selectedEmployee.value = null;
-    previewResult.value = null;
-};
-
-const previewCalculation = async () => {
+    
+    if (!confirm(`Выплатить зарплату ${unpaidEmployees.length} сотрудникам за ${getMonthName(selectedMonth.value)} ${selectedYear.value}?`)) return;
+    
     try {
-        const response = await axios.post('/api/accountant/salary/preview', calculation.value);
-        previewResult.value = response.data;
+        await axios.post('/api/accountant/salary/pay-all', {
+            month: selectedMonth.value,
+            year: selectedYear.value
+        });
+        
+        alert('Зарплата успешно выплачена');
+        await loadSalaryData(); // Перезагружаем данные
+        await loadSalaryHistory(); // Обновляем историю
     } catch (error) {
-        console.error('Error previewing salary:', error);
-        alert('Ошибка при расчете');
+        console.error('Error paying salaries:', error);
+        alert('Ошибка при выплате зарплаты');
     }
 };
 
-const saveCalculation = async () => {
+// История начислений
+const loadSalaryHistory = async () => {
     try {
-        await axios.post('/api/accountant/salary/calculate', calculation.value);
-        alert('Расчет сохранен');
-        closeSalaryModal();
-        setTimeout(() => window.location.reload(), 1000);
+        const response = await axios.get('/api/accountant/salary/history', {
+            params: historyFilters.value
+        });
+        salaryHistory.value = response.data.salaries;
+        historyTotalSum.value = response.data.total_sum;
+        historyPage.value = 1;
     } catch (error) {
-        console.error('Error saving calculation:', error);
-        alert('Ошибка при сохранении');
+        console.error('Ошибка загрузки истории:', error);
     }
 };
 
-const viewSalaryDetails = (employee) => {
-    selectedSalary.value = employee.calculation_details;
-    if (selectedSalary.value) {
-        showDetailsModal.value = true;
-    } else {
-        alert('Детали расчета не найдены');
+const resetHistoryFilters = () => {
+    historyFilters.value = {
+        employee_name: '',
+        month: '',
+        year: ''
+    };
+};
+
+const viewSalaryReceipt = async (salaryId) => {
+    try {
+        const response = await axios.get(`/api/accountant/salary/receipt/${salaryId}`);
+        selectedSalaryReceipt.value = response.data;
+        showSalaryReceiptModal.value = true;
+    } catch (error) {
+        console.error('Ошибка загрузки чека:', error);
+        alert('Ошибка при загрузке данных чека');
+    }
+};
+
+const printSalaryReceipt = () => {
+    const printContent = document.getElementById('salary-receipt-content');
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Расчетный листок ${selectedSalaryReceipt.value.employee_name} ${selectedSalaryReceipt.value.month_name} ${selectedSalaryReceipt.value.year}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .receipt { max-width: 800px; margin: 0 auto; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                    th { background-color: #f5f5f5; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    @media print { button { display: none; } }
+                </style>
+            </head>
+            <body>
+                <div class="receipt">${printContent.innerHTML}</div>
+                <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }<\/script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+const exportSalaryToExcel = () => {
+    try {
+        const data = selectedSalaryReceipt.value;
+        if (!data) return;
+        
+        const excelData = [
+            ['ELENA Beauty Clinic'],
+            ['Расчетный листок'],
+            [],
+            ['Сотрудник:', data.employee_name],
+            ['Должность:', data.employee_role],
+            ['Период:', `${data.month_name} ${data.year}`],
+            ['Дата формирования:', data.created_at],
+            [],
+            ['ДЕТАЛИ РАСЧЕТА'],
+            ['Показатель', 'Значение (₽)'],
+            ['Отработано часов', data.hours_worked],
+            ['Ставка (₽/час)', data.hourly_rate],
+            ['Оклад', data.calculation_details.base_salary],
+            ['Начислено всего', data.calculation_details.total_accrued],
+            ['НДФЛ (13%)', data.calculation_details.ndfl],
+            ['К выплате', data.calculation_details.net_salary],
+            [],
+            ['СТАТУС ВЫПЛАТЫ'],
+            ['Статус:', data.is_paid ? 'Выплачено' : 'Начислено'],
+            data.payment_date ? ['Дата выплаты:', data.payment_date] : [],
+            [],
+            ['Бухгалтер:', props.accountant.employee_name]
+        ];
+        
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
+        ws['!cols'] = [{ wch: 25 }, { wch: 30 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `Расчет_${data.employee_name}_${data.month_name}_${data.year}`);
+        XLSX.writeFile(wb, `Расчетный_листок_${data.employee_name}_${data.month_name}_${data.year}.xlsx`);
+    } catch (error) {
+        console.error('Ошибка при экспорте:', error);
+        alert('Ошибка при экспорте в Excel');
     }
 };
 
@@ -887,6 +782,13 @@ watch(historyFilters, () => {
     loadSalaryHistory();
 }, { deep: true });
 
-// Загружаем историю при монтировании
-loadSalaryHistory();
+// Загружаем данные при монтировании
+onMounted(() => {
+    loadSalaryData();
+    loadSalaryHistory();
+});
 </script>
+
+<style scoped>
+/* Стили при необходимости */
+</style>

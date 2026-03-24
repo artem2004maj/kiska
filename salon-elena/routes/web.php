@@ -154,21 +154,21 @@ Route::middleware('auth:employee')->group(function () {
             ->name('accountant.payments');
 
         Route::get('/accountant/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'incomes'])
-            ->name('accountant.incomes'); // Новый маршрут для страницы доходов
+            ->name('accountant.incomes');
         
         Route::get('/accountant/warehouse', [App\Http\Controllers\Accountant\DashboardController::class, 'warehouse'])
             ->name('accountant.warehouse');
         
         Route::get('/accountant/salary', [App\Http\Controllers\Accountant\DashboardController::class, 'salary'])
             ->name('accountant.salary');
-        // В секцию бухгалтера добавьте:
+        
         Route::get('/accountant/suppliers', [App\Http\Controllers\Accountant\DashboardController::class, 'suppliers'])
             ->name('accountant.suppliers');
 
         Route::post('/api/accountant/suppliers', [App\Http\Controllers\Accountant\DashboardController::class, 'createSupplier']);
         Route::put('/api/accountant/suppliers/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplier']);
         Route::delete('/api/accountant/suppliers/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'deleteSupplier']);
-        // В секцию бухгалтера добавьте:
+        
         Route::get('/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'profile'])
             ->name('accountant.profile');
             
@@ -178,43 +178,58 @@ Route::middleware('auth:employee')->group(function () {
         Route::put('/api/accountant/profile', [App\Http\Controllers\Accountant\DashboardController::class, 'updateProfile']);
         Route::post('/api/accountant/upload-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'uploadPhoto']);
         Route::delete('/api/accountant/delete-photo', [App\Http\Controllers\Accountant\DashboardController::class, 'deletePhoto']);
+        
         // API маршруты для бухгалтера
         Route::prefix('api/accountant')->name('accountant.api.')->group(function () {
             Route::post('/payments/{id}/accept', [App\Http\Controllers\Accountant\DashboardController::class, 'acceptPayment']);
             Route::post('/orders/create', [App\Http\Controllers\Accountant\DashboardController::class, 'createOrder']);
             Route::post('/orders/{id}/receive', [App\Http\Controllers\Accountant\DashboardController::class, 'receiveOrder']);
-            Route::post('/salary/calculate', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalary']);
-            Route::post('/salary/pay', [App\Http\Controllers\Accountant\DashboardController::class, 'paySalary']);
-            Route::post('/salary/pay-all', [App\Http\Controllers\Accountant\DashboardController::class, 'payAllSalaries']);
-            Route::get('/revenue-stats', [App\Http\Controllers\Accountant\DashboardController::class, 'getRevenueStats']);
-            // В секцию API бухгалтера добавьте:
-            Route::post('/salary/preview', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalaryPreview']);
+            
+            // ========== НОВЫЕ МАРШРУТЫ ДЛЯ ЗАРПЛАТЫ ==========
+            // GET маршрут для получения данных о зарплате
+            Route::get('/salary/calculate', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalaryData']);
+            // POST маршрут для сохранения расчета
             Route::post('/salary/calculate', [App\Http\Controllers\Accountant\DashboardController::class, 'saveSalaryCalculation']);
+            // Маршрут для предпросмотра расчета
+            Route::post('/salary/preview', [App\Http\Controllers\Accountant\DashboardController::class, 'calculateSalaryPreview']);
+            // Маршрут для выплаты зарплаты
+            Route::post('/salary/pay', [App\Http\Controllers\Accountant\DashboardController::class, 'paySalary']);
+            // Маршрут для массовой выплаты
+            Route::post('/salary/pay-all', [App\Http\Controllers\Accountant\DashboardController::class, 'payAllSalaries']);
+            // Маршрут для истории начислений
+            Route::get('/salary/history', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryHistory']);
+            // Маршрут для получения чека зарплаты
+            Route::get('/salary/receipt/{salaryId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryReceiptDetails']);
+            // Маршрут для получения формы расчета
             Route::get('/salary/form/{employeeId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryForm']);
+            
+            // Маршруты для сотрудников
             Route::put('/employees/{id}/hourly-rate', [App\Http\Controllers\Accountant\DashboardController::class, 'updateHourlyRate']);
-            // Маршруты для управления материалами склада
+            
+            // Маршруты для статистики
+            Route::get('/revenue-stats', [App\Http\Controllers\Accountant\DashboardController::class, 'getRevenueStats']);
+            
+            // Маршруты для материалов
             Route::post('/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'createMaterial']);
             Route::put('/materials/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateMaterial']);
             Route::delete('/materials/{id}', [App\Http\Controllers\Accountant\DashboardController::class, 'deleteMaterial']);
-            //маршруты для управления заказами
+            
+            // Маршруты для заказов
             Route::get('/warehouse-materials', [App\Http\Controllers\Accountant\DashboardController::class, 'getWarehouseMaterials']);
             Route::get('/orders', [App\Http\Controllers\Accountant\DashboardController::class, 'getOrders']);
             Route::put('/orders/{orderId}/status', [App\Http\Controllers\Accountant\DashboardController::class, 'updateOrderStatus']);
-            // В секцию API бухгалтера добавьте:
+            Route::get('/orders/{orderId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getOrderDocument']);
+            
+            // Маршруты для поставщиков
             Route::get('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'getSupplierMaterials']);
             Route::post('/suppliers/{id}/materials', [App\Http\Controllers\Accountant\DashboardController::class, 'addSupplierMaterial']);
             Route::put('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterial']);
             Route::put('/suppliers/{id}/materials/{materialId}/price', [App\Http\Controllers\Accountant\DashboardController::class, 'updateSupplierMaterialPrice']);
             Route::delete('/suppliers/{id}/materials/{materialId}', [App\Http\Controllers\Accountant\DashboardController::class, 'removeSupplierMaterial']);
-
-            Route::get('/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'getIncomesList']); // Список доходов
-            Route::get('/receipts/{contractId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getReceiptDetails']); // Детали чека
-            Route::get('/orders/{orderId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getOrderDocument']);
-
-            Route::get('/salary/history', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryHistory']);
-            Route::get('/salary/receipt/{salaryId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getSalaryReceiptDetails']);
-        
             
+            // Маршруты для доходов
+            Route::get('/incomes', [App\Http\Controllers\Accountant\DashboardController::class, 'getIncomesList']);
+            Route::get('/receipts/{contractId}', [App\Http\Controllers\Accountant\DashboardController::class, 'getReceiptDetails']);
         });
     });
 });
