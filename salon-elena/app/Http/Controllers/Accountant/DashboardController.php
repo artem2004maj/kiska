@@ -2024,4 +2024,109 @@ class DashboardController extends Controller
         
         return response()->json($operations);
     }
+
+    /**
+     * Получить данные для налогового учета
+     */
+    public function getTaxData(Request $request)
+    {
+        $period = $request->get('period', 'year'); // quarter, year
+        $year = $request->get('year', date('Y'));
+        $quarter = $request->get('quarter', null);
+        
+        $taxRate = 6; // 6% налог на доход
+        
+        $taxData = [];
+        
+        if ($period === 'quarter' && $quarter) {
+            // Расчет за конкретный квартал
+            $startDate = Carbon::create($year, ($quarter - 1) * 3 + 1, 1);
+            $endDate = $startDate->copy()->endOfQuarter();
+            
+            $income = ClientContract::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
+            $tax = $income * $taxRate / 100;
+            $profitAfterTax = $income - $tax;
+            
+            $taxData = [
+                'period' => "{$quarter} квартал {$year}",
+                'income' => $income,
+                'tax_rate' => $taxRate,
+                'tax' => $tax,
+                'profit_after_tax' => $profitAfterTax,
+                'start_date' => $startDate->format('d.m.Y'),
+                'end_date' => $endDate->format('d.m.Y'),
+            ];
+        } elseif ($period === 'year') {
+            // Расчет за год
+            $startDate = Carbon::create($year, 1, 1);
+            $endDate = Carbon::create($year, 12, 31);
+            
+            $income = ClientContract::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
+            $tax = $income * $taxRate / 100;
+            $profitAfterTax = $income - $tax;
+            
+            $taxData = [
+                'period' => "{$year} год",
+                'income' => $income,
+                'tax_rate' => $taxRate,
+                'tax' => $tax,
+                'profit_after_tax' => $profitAfterTax,
+                'start_date' => $startDate->format('d.m.Y'),
+                'end_date' => $endDate->format('d.m.Y'),
+            ];
+        }
+        
+        return response()->json($taxData);
+    }
+
+    /**
+     * Получить налоговую сводку по кварталам и годам
+     */
+    public function getTaxSummary(Request $request)
+    {
+        $years = $request->get('years', [2024, 2025, 2026]);
+        $taxRate = 6;
+        
+        $summary = [];
+        
+        foreach ($years as $year) {
+            $yearData = [
+                'year' => $year,
+                'quarters' => [],
+                'total_income' => 0,
+                'total_tax' => 0,
+                'total_profit' => 0,
+            ];
+            
+            for ($quarter = 1; $quarter <= 4; $quarter++) {
+                $startDate = Carbon::create($year, ($quarter - 1) * 3 + 1, 1);
+                $endDate = $startDate->copy()->endOfQuarter();
+                
+                $income = ClientContract::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
+                $tax = $income * $taxRate / 100;
+                $profitAfterTax = $income - $tax;
+                
+                $yearData['quarters'][] = [
+                    'quarter' => $quarter,
+                    'period' => "{$quarter} кв.",
+                    'start_date' => $startDate->format('d.m.Y'),
+                    'end_date' => $endDate->format('d.m.Y'),
+                    'income' => $income,
+                    'tax' => $tax,
+                    'profit' => $profitAfterTax,
+                ];
+                
+                $yearData['total_income'] += $income;
+                $yearData['total_tax'] += $tax;
+                $yearData['total_profit'] += $profitAfterTax;
+            }
+            
+            $summary[] = $yearData;
+        }
+        
+        return response()->json([
+            'tax_rate' => $taxRate,
+            'summary' => $summary,
+        ]);
+    }
 }

@@ -238,6 +238,8 @@ Route::middleware('auth:employee')->group(function () {
             Route::get('/expenses/{expenseId}/details', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDetails']);
             Route::get('/operations', [App\Http\Controllers\Accountant\DashboardController::class, 'getRecentOperations']);
             Route::get('/expenses/{expenseId}/document', [App\Http\Controllers\Accountant\DashboardController::class, 'getExpenseDocument']);
+            Route::get('/tax/data', [App\Http\Controllers\Accountant\DashboardController::class, 'getTaxData']);
+            Route::get('/tax/summary', [App\Http\Controllers\Accountant\DashboardController::class, 'getTaxSummary']);
         });
     });
 });
