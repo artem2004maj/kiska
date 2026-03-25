@@ -616,6 +616,9 @@ class DashboardController extends Controller
             'supplier_address' => $order->supplier?->address,
             'supplier_phone' => $order->supplier?->phone,
             'supplier_email' => $order->supplier?->email,
+            'bank_name' => $order->supplier?->bank_name,
+            'bic' => $order->supplier?->bic,
+            'payment_account' => $order->supplier?->payment_account,
             'city' => $city,
             'items' => $order->materialReceipts->map(function($receipt) {
                 return [
