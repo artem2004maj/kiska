@@ -84,7 +84,7 @@ class LoginController extends Controller
         return match ($role) {
             'admin'      => route('dashboard.admin'),
             'doctor'     => route('dashboard.doctor'),
-            'director'   => route('dashboard.director'),
+            'director'   => route('director.dashboard'),
             'accountant' => route('dashboard.accountant'),
             default      => route('dashboard.admin'), // По умолчанию админка
         };

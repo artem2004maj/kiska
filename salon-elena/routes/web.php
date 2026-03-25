@@ -97,10 +97,6 @@ Route::middleware('auth:client')->group(function () {
 
 // ====================== СОТРУДНИКИ ======================
 Route::middleware('auth:employee')->group(function () {
-    // Админ
-    Route::get('/dashboard/admin', fn() => Inertia::render('Dashboard/Admin'))
-        ->name('dashboard.admin');
-    
     // Доктор - главная страница с графиком
     Route::get('/dashboard/doctor', [DoctorDashboardController::class, 'index'])
         ->name('dashboard.doctor');
@@ -139,10 +135,50 @@ Route::middleware('auth:employee')->group(function () {
         Route::put('/appointments/{id}/confirm', [DoctorDashboardController::class, 'confirmAppointment']);
     });
     
-    // Директор
-    Route::get('/dashboard/director', fn() => Inertia::render('Dashboard/Director'))
-        ->name('dashboard.director');
-    
+    // ====================== ДИРЕКТОР ======================
+    Route::middleware('auth:employee')->group(function () {
+        // Директор - страницы
+        Route::get('/director/dashboard', [App\Http\Controllers\Director\DashboardController::class, 'index'])
+            ->name('director.dashboard');
+        
+        Route::get('/director/analytics', [App\Http\Controllers\Director\DashboardController::class, 'analytics'])
+            ->name('director.analytics');
+        
+        Route::get('/director/services', [App\Http\Controllers\Director\DashboardController::class, 'services'])
+            ->name('director.services');
+        
+        Route::get('/director/staff', [App\Http\Controllers\Director\DashboardController::class, 'staff'])
+            ->name('director.staff');
+        
+        Route::get('/director/supply-control', [App\Http\Controllers\Director\DashboardController::class, 'supplyControl'])
+            ->name('director.supply-control');
+        
+        Route::get('/director/profile', [App\Http\Controllers\Director\DashboardController::class, 'profile'])
+            ->name('director.profile');
+        
+        // API маршруты для директора
+        Route::prefix('api/director')->name('director.api.')->group(function () {
+            Route::post('/services', [App\Http\Controllers\Director\DashboardController::class, 'createService']);
+            Route::put('/services/{id}', [App\Http\Controllers\Director\DashboardController::class, 'updateService']);
+            Route::delete('/services/{id}', [App\Http\Controllers\Director\DashboardController::class, 'deleteService']);
+            Route::post('/services/assign', [App\Http\Controllers\Director\DashboardController::class, 'assignServiceToDoctor']);
+            Route::post('/services/detach', [App\Http\Controllers\Director\DashboardController::class, 'detachServiceFromDoctor']);
+            
+            Route::post('/employees', [App\Http\Controllers\Director\DashboardController::class, 'createEmployee']);
+            Route::put('/employees/{id}', [App\Http\Controllers\Director\DashboardController::class, 'updateEmployee']);
+            Route::delete('/employees/{id}', [App\Http\Controllers\Director\DashboardController::class, 'deleteEmployee']);
+            Route::get('/employees/{id}/services', [App\Http\Controllers\Director\DashboardController::class, 'getDoctorServices']);
+            
+            Route::post('/orders/{id}/confirm', [App\Http\Controllers\Director\DashboardController::class, 'confirmOrder']);
+            Route::post('/orders/{id}/reject', [App\Http\Controllers\Director\DashboardController::class, 'rejectOrder']);
+            
+            Route::get('/analytics/data', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsData']);
+            
+            Route::put('/profile', [App\Http\Controllers\Director\DashboardController::class, 'updateProfile']);
+            Route::post('/upload-photo', [App\Http\Controllers\Director\DashboardController::class, 'uploadPhoto']);
+            Route::delete('/delete-photo', [App\Http\Controllers\Director\DashboardController::class, 'deletePhoto']);
+        });
+    });
     // ====================== БУХГАЛТЕР ======================
     Route::middleware('auth:employee')->group(function () {
         // Бухгалтер - главная страница
