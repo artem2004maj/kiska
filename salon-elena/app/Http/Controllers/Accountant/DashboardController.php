@@ -678,7 +678,7 @@ class DashboardController extends Controller
         $year = (int) $request->year;
         
         // Получаем всех сотрудников с ролью doctor, admin, director
-        $employees = Employee::whereIn('role', ['doctor', 'admin', 'director'])
+        $employees = Employee::whereIn('role', ['doctor', 'admin', 'director', 'accountant'])
             ->orderBy('role')
             ->orderBy('employee_name')
             ->get()
