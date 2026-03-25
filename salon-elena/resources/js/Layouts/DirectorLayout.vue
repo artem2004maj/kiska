@@ -44,6 +44,14 @@
                             </div>
                             
                             <nav class="space-y-1">
+                                <!-- ГЛАВНАЯ СТРАНИЦА -->
+                                <Link href="/director/dashboard" 
+                                      class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
+                                      :class="isActive('/director/dashboard')">
+                                    <span class="text-lg lg:text-xl">🏠</span>
+                                    <span>Главная</span>
+                                </Link>
+                                
                                 <Link href="/director/analytics" 
                                       class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
                                       :class="isActive('/director/analytics')">
@@ -85,6 +93,13 @@
                                     <p class="text-xs text-gray-500 mt-0.5">Директор</p>
                                 </div>
                                 <nav class="p-3 space-y-1">
+                                    <!-- ГЛАВНАЯ СТРАНИЦА (мобильное меню) -->
+                                    <Link href="/director/dashboard" @click="mobileMenuOpen = false"
+                                          class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
+                                          :class="isActive('/director/dashboard')">
+                                        <span class="text-lg">🏠</span> Главная
+                                    </Link>
+                                    
                                     <Link href="/director/analytics" @click="mobileMenuOpen = false"
                                           class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm"
                                           :class="isActive('/director/analytics')">

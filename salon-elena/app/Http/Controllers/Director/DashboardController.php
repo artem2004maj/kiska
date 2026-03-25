@@ -910,6 +910,105 @@ class DashboardController extends Controller
             default => $role,
         };
     }
+        /**
+     * Получить статистику для главной страницы
+     */
+    public function getDashboardStats()
+    {
+        $currentMonth = Carbon::now()->month;
+        $currentYear = Carbon::now()->year;
+        $lastMonth = Carbon::now()->subMonth()->month;
+        $lastYear = Carbon::now()->subMonth()->year;
+        
+        // Текущий месяц
+        $currentMonthRevenue = ClientContract::whereMonth('created_at', $currentMonth)
+            ->whereYear('created_at', $currentYear)
+            ->sum('total_amount');
+        
+        $currentMonthAppointments = ClientContract::whereMonth('created_at', $currentMonth)
+            ->whereYear('created_at', $currentYear)
+            ->count();
+        
+        // Прошлый месяц
+        $lastMonthRevenue = ClientContract::whereMonth('created_at', $lastMonth)
+            ->whereYear('created_at', $lastYear)
+            ->sum('total_amount');
+        
+        $lastMonthAppointments = ClientContract::whereMonth('created_at', $lastMonth)
+            ->whereYear('created_at', $lastYear)
+            ->count();
+        
+        // Средний чек
+        $totalRevenue = ClientContract::sum('total_amount');
+        $totalAppointments = ClientContract::count();
+        $averageCheck = $totalAppointments > 0 ? $totalRevenue / $totalAppointments : 0;
+        
+        // Рейтинг
+        $averageRating = Feedback::avg('score') ?? 0;
+        $totalReviews = Feedback::count();
+        
+        // Последние отзывы
+        $recentFeedbacks = Feedback::with(['client', 'appointment.providedServices.service'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function($feedback) {
+                $serviceName = null;
+                if ($feedback->appointment && $feedback->appointment->providedServices->first()?->service) {
+                    $serviceName = $feedback->appointment->providedServices->first()->service->service_name;
+                }
+                
+                return [
+                    'id' => $feedback->feedback_id,
+                    'client_name' => $feedback->client->client_name,
+                    'score' => $feedback->score,
+                    'comment' => $feedback->comment,
+                    'service_name' => $serviceName,
+                    'formatted_date' => Carbon::parse($feedback->created_at)->format('d.m.Y'),
+                ];
+            });
+        
+        // Данные для мини-графика (последние 6 месяцев)
+        $financialData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $income = ClientContract::whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->sum('total_amount');
+            
+            $financialData[] = [
+                'month_name' => $date->translatedFormat('M Y'),
+                'income' => $income,
+            ];
+        }
+        
+        // Тренды
+        $monthlyTrend = $lastMonthRevenue > 0 
+            ? round(($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue * 100, 1)
+            : ($currentMonthRevenue > 0 ? 100 : 0);
+        
+        $appointmentsTrend = $lastMonthAppointments > 0 
+            ? round(($currentMonthAppointments - $lastMonthAppointments) / $lastMonthAppointments * 100, 1)
+            : ($currentMonthAppointments > 0 ? 100 : 0);
+        
+        $averageCheckLastMonth = $lastMonthAppointments > 0 ? $lastMonthRevenue / $lastMonthAppointments : 0;
+        $checkTrend = $averageCheckLastMonth > 0 
+            ? round(($averageCheck - $averageCheckLastMonth) / $averageCheckLastMonth * 100, 1)
+            : ($averageCheck > 0 ? 100 : 0);
+        
+        return response()->json([
+            'monthly_revenue' => $currentMonthRevenue,
+            'monthly_appointments' => $currentMonthAppointments,
+            'average_check' => round($averageCheck, 2),
+            'average_rating' => round($averageRating, 1),
+            'total_reviews' => $totalReviews,
+            'monthly_trend' => $monthlyTrend,
+            'appointments_trend' => $appointmentsTrend,
+            'check_trend' => $checkTrend,
+            'recent_feedbacks' => $recentFeedbacks,
+            'financial_data' => $financialData,
+        ]);
+    }
     
     /**
      * Обновить профиль директора

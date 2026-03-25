@@ -168,6 +168,7 @@ Route::middleware('auth:employee')->group(function () {
             // Аналитика
             Route::get('/analytics/data', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsData']);
             Route::get('/analytics/filters', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsFilters']);
+            Route::get('/dashboard/stats', [App\Http\Controllers\Director\DashboardController::class, 'getDashboardStats']);
             
             // ========== НОВЫЕ МАРШРУТЫ ДЛЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ ==========
             // Список сотрудников с фильтрацией
