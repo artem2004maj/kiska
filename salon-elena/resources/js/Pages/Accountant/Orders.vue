@@ -108,15 +108,7 @@
                                 Документ
                             </button>
                             
-                            <!-- Кнопки для разных статусов -->
-                            <button 
-                                v-if="order.status === 0"
-                                @click="confirmOrder(order)"
-                                class="px-3 py-1.5 text-sm bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition"
-                            >
-                                Подтвердить
-                            </button>
-                            
+                            <!-- ИЗМЕНЕНО: Убрана кнопка "Подтвердить" - теперь только "Отменить" для неподтвержденных заказов -->
                             <button 
                                 v-if="order.status === 0"
                                 @click="cancelOrder(order)"
@@ -125,6 +117,7 @@
                                 Отменить
                             </button>
                             
+                            <!-- Кнопка "Принять на склад" остается для заказов в пути -->
                             <button 
                                 v-if="order.status === 1"
                                 @click="receiveOrder(order)"
@@ -193,7 +186,7 @@
                                             <th class="text-left py-2">Ед. изм.</th>
                                             <th class="text-right py-2">Цена за ед.</th>
                                             <th class="text-right py-2">Сумма</th>
-                                        </tr>
+                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr v-for="(item, idx) in selectedOrder.items" :key="idx"
@@ -244,15 +237,14 @@
         </Teleport>
     </AccountantLayout>
     <SupplyReceiptModal 
-    :show="showSupplyModal" 
-    :receiptData="selectedSupplyOrder"
-    @close="showSupplyModal = false"
-/>
+        :show="showSupplyModal" 
+        :receiptData="selectedSupplyOrder"
+        @close="showSupplyModal = false"
+    />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
 import SupplyReceiptModal from '@/Components/SupplyReceiptModal.vue';
@@ -267,7 +259,7 @@ const props = defineProps({
 
 const loading = ref(true);
 const orders = ref([]);
-const selectedStatus = ref(0);
+const selectedStatus = ref('all'); // Изменено на 'all' для отображения всех заказов по умолчанию
 const showDetailsModal = ref(false);
 const selectedOrder = ref(null);
 const showSupplyModal = ref(false);
@@ -293,6 +285,7 @@ const tabs = computed(() => {
         { value: 0, label: 'Не подтверждены', count: counts[0] },
         { value: 1, label: 'В пути', count: counts[1] },
         { value: 2, label: 'Завершены', count: counts[2] },
+        { value: 3, label: 'Отменены', count: counts[3] },
         { value: 'all', label: 'Все', count: counts.all }
     ];
 });
@@ -344,6 +337,7 @@ const closeDetailsModal = () => {
     showDetailsModal.value = false;
     selectedOrder.value = null;
 };
+
 const showSupplyDocument = async (order) => {
     loadingDocument.value = true;
     try {
@@ -357,27 +351,9 @@ const showSupplyDocument = async (order) => {
         loadingDocument.value = false;
     }
 };
-const getOrderForDocument = async (orderId) => {
-    try {
-        const response = await axios.get(`/api/accountant/orders/${orderId}/document`);
-        return response.data;
-    } catch (error) {
-        console.error('Error loading order document data:', error);
-        return null;
-    }
-};
 
-const confirmOrder = async (order) => {
-    if (!confirm(`Подтвердить заказ №${order.number}?`)) return;
-    
-    try {
-        await axios.put(`/api/accountant/orders/${order.id}/status`, { status: 1 });
-        showNotification('success', `Заказ №${order.number} подтвержден и отправлен в путь`);
-        await loadOrders();
-    } catch (error) {
-        showNotification('error', error.response?.data?.error || 'Ошибка при подтверждении заказа');
-    }
-};
+// ИЗМЕНЕНО: Убрана функция confirmOrder - теперь подтверждает только директор
+// Оставлена только функция cancelOrder для отмены заказов
 
 const cancelOrder = async (order) => {
     if (!confirm(`Отменить заказ №${order.number}?`)) return;
