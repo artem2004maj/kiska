@@ -165,6 +165,9 @@ Route::middleware('auth:employee')->group(function () {
             Route::post('/services/assign', [App\Http\Controllers\Director\DashboardController::class, 'assignServiceToDoctor']);
             Route::post('/services/detach', [App\Http\Controllers\Director\DashboardController::class, 'detachServiceFromDoctor']);
             Route::get('/services/list', [App\Http\Controllers\Director\DashboardController::class, 'getServicesList']);
+            // Аналитика
+            Route::get('/analytics/data', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsData']);
+            Route::get('/analytics/filters', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsFilters']);
             
             // ========== НОВЫЕ МАРШРУТЫ ДЛЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ ==========
             // Список сотрудников с фильтрацией

@@ -10,6 +10,7 @@ use App\Models\SupplierContract;
 use App\Models\ClientContract;
 use App\Models\Expense;
 use App\Models\Feedback;
+use App\Models\ProvidedService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -542,7 +543,7 @@ class DashboardController extends Controller
     }
     
     /**
-     * Получить данные для аналитики
+     * Получить аналитические данные
      */
     public function getAnalyticsData(Request $request)
     {
@@ -550,56 +551,76 @@ class DashboardController extends Controller
         $month = $request->get('month');
         $year = $request->get('year', date('Y'));
         
-        $query = ClientContract::with(['appointment.providedServices.service', 'appointment.employee']);
+        // Строим запрос для доходов
+        $incomeQuery = ClientContract::query();
+        $expenseQuery = Expense::query();
+        $feedbackQuery = Feedback::query();
+        $servicesQuery = ProvidedService::with('service');
         
+        // Фильтрация по периоду
         if ($period === 'month' && $month) {
-            $query->whereMonth('created_at', $month)
-                  ->whereYear('created_at', $year);
+            $incomeQuery->whereMonth('created_at', $month)->whereYear('created_at', $year);
+            $expenseQuery->whereMonth('date', $month)->whereYear('date', $year);
+            $feedbackQuery->whereMonth('created_at', $month)->whereYear('created_at', $year);
+            $servicesQuery->whereMonth('service_date', $month)->whereYear('service_date', $year);
         } elseif ($period === 'year') {
-            $query->whereYear('created_at', $year);
+            $incomeQuery->whereYear('created_at', $year);
+            $expenseQuery->whereYear('date', $year);
+            $feedbackQuery->whereYear('created_at', $year);
+            $servicesQuery->whereYear('service_date', $year);
         }
         
-        $contracts = $query->get();
+        // 1. Средний чек
+        $totalIncome = $incomeQuery->sum('total_amount');
+        $totalAppointments = $incomeQuery->count();
+        $averageCheck = $totalAppointments > 0 ? $totalIncome / $totalAppointments : 0;
         
-        // Средний чек
-        $averageCheck = $contracts->avg('total_amount') ?? 0;
-        
-        // Самая популярная услуга
+        // 2. Самая популярная услуга
         $popularServices = [];
-        foreach ($contracts as $contract) {
-            if ($contract->appointment) {
-                foreach ($contract->appointment->providedServices as $ps) {
-                    if ($ps->service) {
-                        $serviceName = $ps->service->service_name;
-                        if (!isset($popularServices[$serviceName])) {
-                            $popularServices[$serviceName] = 0;
-                        }
-                        $popularServices[$serviceName] += $ps->quantity;
-                    }
+        $servicesData = $servicesQuery->get();
+        
+        foreach ($servicesData as $ps) {
+            if ($ps->service) {
+                $serviceName = $ps->service->service_name;
+                if (!isset($popularServices[$serviceName])) {
+                    $popularServices[$serviceName] = 0;
                 }
+                $popularServices[$serviceName] += $ps->quantity;
             }
         }
         arsort($popularServices);
         $mostPopularService = key($popularServices) ?: 'Нет данных';
         $mostPopularCount = current($popularServices) ?: 0;
         
-        // Эффективность сотрудников (по сумме услуг)
+        // 3. Эффективность сотрудников
         $employeeEfficiency = [];
+        $contracts = $incomeQuery->with(['appointment.employee', 'appointment.providedServices'])->get();
+        
         foreach ($contracts as $contract) {
             if ($contract->appointment && $contract->appointment->employee) {
+                $employeeId = $contract->appointment->employee->employee_id;
                 $employeeName = $contract->appointment->employee->employee_name;
-                if (!isset($employeeEfficiency[$employeeName])) {
-                    $employeeEfficiency[$employeeName] = [
-                        'total_amount' => 0,
+                
+                if (!isset($employeeEfficiency[$employeeId])) {
+                    $employeeEfficiency[$employeeId] = [
+                        'employee_id' => $employeeId,
+                        'employee_name' => $employeeName,
+                        'total_revenue' => 0,
                         'appointments_count' => 0,
+                        'services_count' => 0,
                     ];
                 }
-                $employeeEfficiency[$employeeName]['total_amount'] += $contract->total_amount;
-                $employeeEfficiency[$employeeName]['appointments_count']++;
+                
+                $employeeEfficiency[$employeeId]['total_revenue'] += $contract->total_amount;
+                $employeeEfficiency[$employeeId]['appointments_count']++;
+                $employeeEfficiency[$employeeId]['services_count'] += $contract->appointment->providedServices->count();
             }
         }
         
-        // Доходы и расходы по месяцам
+        // Сортируем по выручке
+        $employeeEfficiency = collect($employeeEfficiency)->sortByDesc('total_revenue')->values();
+        
+        // 4. Динамика доходов и расходов по месяцам
         $financialData = [];
         $startDate = Carbon::now()->subMonths(11)->startOfMonth();
         $endDate = Carbon::now()->endOfMonth();
@@ -628,12 +649,18 @@ class DashboardController extends Controller
             $current->addMonth();
         }
         
-        // Рейтинг салона
-        $averageRating = Feedback::avg('score') ?? 0;
-        $totalReviews = Feedback::count();
+        // 5. Общий рейтинг салона
+        $averageRating = $feedbackQuery->avg('score') ?? 0;
+        $totalReviews = $feedbackQuery->count();
+        
+        // Распределение оценок
+        $ratingDistribution = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $ratingDistribution[$i] = Feedback::where('score', $i)->count();
+        }
         
         return response()->json([
-            'average_check' => $averageCheck,
+            'average_check' => round($averageCheck, 2),
             'most_popular_service' => [
                 'name' => $mostPopularService,
                 'count' => $mostPopularCount,
@@ -642,6 +669,50 @@ class DashboardController extends Controller
             'financial_data' => $financialData,
             'average_rating' => round($averageRating, 1),
             'total_reviews' => $totalReviews,
+            'rating_distribution' => $ratingDistribution,
+            'total_income' => $totalIncome,
+            'total_expense' => $expenseQuery->sum('amount'),
+            'total_profit' => $totalIncome - $expenseQuery->sum('amount'),
+            'appointments_count' => $totalAppointments,
+        ]);
+    }
+        /**
+     * Получить данные для фильтров (доступные месяцы и годы)
+     */
+    public function getAnalyticsFilters()
+    {
+        // Доступные годы из доходов
+        $incomeYears = ClientContract::selectRaw('YEAR(created_at) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+        
+        // Доступные годы из расходов
+        $expenseYears = Expense::selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+        
+        // Объединяем годы
+        $years = $incomeYears->merge($expenseYears)->unique()->sortDesc()->values();
+        
+        // Если нет данных, добавляем текущий год
+        if ($years->isEmpty()) {
+            $years = collect([date('Y')]);
+        }
+        
+        // Доступные месяцы для выбранного года
+        $months = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $months[] = [
+                'value' => $i,
+                'name' => Carbon::create(null, $i, 1)->translatedFormat('F'),
+            ];
+        }
+        
+        return response()->json([
+            'years' => $years,
+            'months' => $months,
         ]);
     }
         /**
