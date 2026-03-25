@@ -158,17 +158,31 @@ Route::middleware('auth:employee')->group(function () {
         
         // API маршруты для директора
         Route::prefix('api/director')->name('director.api.')->group(function () {
+            // Услуги
             Route::post('/services', [App\Http\Controllers\Director\DashboardController::class, 'createService']);
             Route::put('/services/{id}', [App\Http\Controllers\Director\DashboardController::class, 'updateService']);
             Route::delete('/services/{id}', [App\Http\Controllers\Director\DashboardController::class, 'deleteService']);
             Route::post('/services/assign', [App\Http\Controllers\Director\DashboardController::class, 'assignServiceToDoctor']);
             Route::post('/services/detach', [App\Http\Controllers\Director\DashboardController::class, 'detachServiceFromDoctor']);
+            Route::get('/services/list', [App\Http\Controllers\Director\DashboardController::class, 'getServicesList']);
             
+            // ========== НОВЫЕ МАРШРУТЫ ДЛЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ ==========
+            // Список сотрудников с фильтрацией
+            Route::get('/staff/list', [App\Http\Controllers\Director\DashboardController::class, 'getStaffList']);
+            
+            // Управление сотрудниками
             Route::post('/employees', [App\Http\Controllers\Director\DashboardController::class, 'createEmployee']);
             Route::put('/employees/{id}', [App\Http\Controllers\Director\DashboardController::class, 'updateEmployee']);
             Route::delete('/employees/{id}', [App\Http\Controllers\Director\DashboardController::class, 'deleteEmployee']);
+            
+            // Услуги врача
             Route::get('/employees/{id}/services', [App\Http\Controllers\Director\DashboardController::class, 'getDoctorServices']);
             
+            // Расписание сотрудника
+            Route::get('/employees/{id}/schedule', [App\Http\Controllers\Director\DashboardController::class, 'getEmployeeSchedule']);
+            Route::post('/employees/{id}/schedule', [App\Http\Controllers\Director\DashboardController::class, 'saveEmployeeSchedule']);
+            
+            // Остальные маршруты...
             Route::post('/orders/{id}/confirm', [App\Http\Controllers\Director\DashboardController::class, 'confirmOrder']);
             Route::post('/orders/{id}/reject', [App\Http\Controllers\Director\DashboardController::class, 'rejectOrder']);
             

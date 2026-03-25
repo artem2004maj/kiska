@@ -124,6 +124,7 @@ class DashboardController extends Controller
                     'employee_id' => $employee->employee_id,
                     'employee_name' => $employee->employee_name,
                     'role' => $employee->role,
+                    'role_text' => $this->getRoleText($employee->role),
                     'email' => $employee->email,
                     'employee_phone' => $employee->employee_phone,
                     'hourly_rate' => $employee->hourly_rate,
@@ -494,27 +495,6 @@ class DashboardController extends Controller
     }
     
     /**
-     * Получить услуги врача
-     */
-    public function getDoctorServices($doctorId)
-    {
-        $doctor = Employee::findOrFail($doctorId);
-        
-        $services = $doctor->services()->get()->map(function($service) {
-            return [
-                'service_id' => $service->service_id,
-                'service_name' => $service->service_name,
-                'service_category' => $service->service_category,
-                'default_price' => $service->default_price,
-            ];
-        });
-        
-        return response()->json([
-            'services' => $services,
-        ]);
-    }
-    
-    /**
      * Подтвердить заказ (для директора)
      */
     public function confirmOrder($orderId)
@@ -663,6 +643,201 @@ class DashboardController extends Controller
             'average_rating' => round($averageRating, 1),
             'total_reviews' => $totalReviews,
         ]);
+    }
+        /**
+     * Получить список сотрудников для страницы управления персоналом
+     */
+    public function getStaffList(Request $request)
+    {
+        $role = $request->get('role');
+        
+        $query = Employee::query();
+        
+        if ($role && $role !== 'all') {
+            $query->where('role', $role);
+        }
+        
+        $employees = $query->orderBy('role')
+            ->orderBy('employee_name')
+            ->get()
+            ->map(function($employee) {
+                // Получаем услуги для врача
+                $services = [];
+                if ($employee->role === 'doctor') {
+                    $services = $employee->services()->get()->map(function($service) {
+                        return [
+                            'service_id' => $service->service_id,
+                            'service_name' => $service->service_name,
+                            'service_category' => $service->service_category,
+                        ];
+                    });
+                }
+                
+                return [
+                    'employee_id' => $employee->employee_id,
+                    'employee_name' => $employee->employee_name,
+                    'role' => $employee->role,
+                    'role_text' => $this->getRoleText($employee->role),
+                    'email' => $employee->email,
+                    'employee_phone' => $employee->employee_phone,
+                    'hourly_rate' => $employee->hourly_rate,
+                    'photo' => $employee->photo,
+                    'photo_url' => $employee->photo ? Storage::url($employee->photo) : null,
+                    'created_at' => $employee->created_at,
+                    'services' => $services,
+                ];
+            });
+        
+        return response()->json([
+            'employees' => $employees,
+        ]);
+    }
+
+    /**
+     * Получить список всех услуг для назначения врачам
+     */
+    public function getServicesList()
+    {
+        $services = Service::where('is_active', 1)
+            ->orderBy('service_category')
+            ->orderBy('service_name')
+            ->get()
+            ->map(function($service) {
+                return [
+                    'service_id' => $service->service_id,
+                    'service_name' => $service->service_name,
+                    'service_category' => $service->service_category,
+                    'default_price' => $service->default_price,
+                ];
+            });
+        
+        return response()->json([
+            'services' => $services,
+        ]);
+    }
+
+    /**
+     * Получить услуги врача
+     */
+    public function getDoctorServices($doctorId)
+    {
+        $doctor = Employee::findOrFail($doctorId);
+        
+        $services = $doctor->services()->get()->map(function($service) {
+            return [
+                'service_id' => $service->service_id,
+                'service_name' => $service->service_name,
+                'service_category' => $service->service_category,
+                'default_price' => $service->default_price,
+            ];
+        });
+        
+        return response()->json([
+            'services' => $services,
+        ]);
+    }
+
+    /**
+     * Получить расписание сотрудника
+     */
+    public function getEmployeeSchedule($employeeId)
+    {
+        $employee = Employee::findOrFail($employeeId);
+        
+        $schedule = [];
+        $days = [
+            1 => 'Понедельник',
+            2 => 'Вторник',
+            3 => 'Среда',
+            4 => 'Четверг',
+            5 => 'Пятница',
+            6 => 'Суббота',
+            0 => 'Воскресенье'
+        ];
+        
+        foreach ($days as $dayNum => $dayName) {
+            $daySchedule = $employee->getScheduleForDay($dayNum);
+            $schedule[] = [
+                'day' => $dayNum,
+                'day_name' => $dayName,
+                'start_time' => $daySchedule && $daySchedule->start_time ? Carbon::parse($daySchedule->start_time)->format('H:i') : null,
+                'end_time' => $daySchedule && $daySchedule->end_time ? Carbon::parse($daySchedule->end_time)->format('H:i') : null,
+                'slot_duration' => $daySchedule ? $daySchedule->slot_duration : 60,
+                'working' => $daySchedule && $daySchedule->start_time && $daySchedule->end_time,
+            ];
+        }
+        
+        return response()->json([
+            'employee' => [
+                'employee_id' => $employee->employee_id,
+                'employee_name' => $employee->employee_name,
+                'role' => $employee->role,
+            ],
+            'schedule' => $schedule,
+        ]);
+    }
+
+    /**
+     * Сохранить расписание сотрудника
+     */
+    public function saveEmployeeSchedule(Request $request, $employeeId)
+    {
+        $request->validate([
+            'schedule' => 'required|array',
+            'schedule.*.day' => 'required|integer|min:0|max:6',
+            'schedule.*.working' => 'required|boolean',
+            'schedule.*.start_time' => 'nullable|required_if:schedule.*.working,true|date_format:H:i',
+            'schedule.*.end_time' => 'nullable|required_if:schedule.*.working,true|date_format:H:i|after:schedule.*.start_time',
+            'schedule.*.slot_duration' => 'nullable|integer|min:15|max:120',
+        ]);
+        
+        $employee = Employee::findOrFail($employeeId);
+        
+        DB::beginTransaction();
+        
+        try {
+            foreach ($request->schedule as $dayData) {
+                if ($dayData['working']) {
+                    $employee->setSchedule(
+                        $dayData['day'],
+                        $dayData['start_time'],
+                        $dayData['end_time'],
+                        $dayData['slot_duration'] ?? 60
+                    );
+                } else {
+                    // Удаляем расписание на этот день
+                    $employee->schedule()->where('day_of_week', $dayData['day'])->delete();
+                }
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Расписание сохранено',
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при сохранении расписания: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Вспомогательный метод для получения текста роли
+     */
+    private function getRoleText($role)
+    {
+        return match($role) {
+            'doctor' => 'Врач',
+            'admin' => 'Администратор',
+            'director' => 'Директор',
+            'accountant' => 'Бухгалтер',
+            default => $role,
+        };
     }
     
     /**

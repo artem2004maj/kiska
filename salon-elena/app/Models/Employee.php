@@ -587,4 +587,25 @@ class Employee extends Authenticatable
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
         return preg_match('/^[7][0-9]{10}$/', $cleanPhone);
     }
+        /**
+     * Связь с расписанием работы сотрудника
+     */
+    public function schedule()
+    {
+        return $this->hasMany(DoctorSchedule::class, 'doctor_id', 'employee_id');
+    }
+    /**
+     * Установить расписание для сотрудника
+     */
+    public function setSchedule($dayOfWeek, $startTime, $endTime, $slotDuration = 60)
+    {
+        return $this->schedule()->updateOrCreate(
+            ['day_of_week' => $dayOfWeek],
+            [
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'slot_duration' => $slotDuration,
+            ]
+        );
+    }
 }
