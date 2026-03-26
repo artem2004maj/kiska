@@ -10,9 +10,6 @@ use Carbon\Carbon;
 
 class TestDataSeeder extends Seeder
 {
-    /**
-     * Заполнение базы тестовыми данными
-     */
     public function run(): void
     {
         $this->command->info('🚀 Начинаем заполнение тестовыми данными...');
@@ -104,9 +101,9 @@ class TestDataSeeder extends Seeder
     {
         $clients = [];
         $clientNames = [
-            'Анна Петрова', 'Мария Иванова', 'Екатерина Смирнова', 
-            'Ольга Кузнецова', 'Татьяна Попова', 'Наталья Соколова',
-            'Ирина Лебедева', 'Светлана Козлова', 'Елена Новикова'
+            'Anna Petrova', 'Maria Ivanova', 'Ekaterina Smirnova', 
+            'Olga Kuznetsova', 'Tatiana Popova', 'Natalia Sokolova',
+            'Irina Lebedeva', 'Svetlana Kozlova', 'Elena Novikova'
         ];
         
         foreach ($clientNames as $index => $name) {
@@ -114,7 +111,7 @@ class TestDataSeeder extends Seeder
                 'client_name' => $name,
                 'phone' => '+7' . rand(900, 999) . rand(1000000, 9999999),
                 'photo' => null,
-                'email' => strtolower(str_replace(' ', '.', $name)) . '@example.com',
+                'email' => strtolower(str_replace(' ', '', $name)) . '@example.com',
                 'email_verified_at' => now(),
                 'birth_date' => Carbon::now()->subYears(rand(20, 50))->subDays(rand(0, 365)),
                 'login' => 'client_' . ($index + 1),
@@ -122,7 +119,11 @@ class TestDataSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $clients[] = ['client_id' => $id, 'client_name' => $name];
+            $clients[] = [
+                'client_id' => $id, 
+                'client_name' => $name,
+                'email' => strtolower(str_replace(' ', '', $name)) . '@example.com'
+            ];
         }
         
         return $clients;
@@ -134,7 +135,7 @@ class TestDataSeeder extends Seeder
         
         // Директор
         $directorId = DB::table('employees')->insertGetId([
-            'employee_name' => 'Александр Петрович',
+            'employee_name' => 'Alexander Petrov',
             'role' => 'director',
             'hourly_rate' => null,
             'employee_phone' => '+79001234567',
@@ -145,11 +146,16 @@ class TestDataSeeder extends Seeder
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $employees['director'] = ['employee_id' => $directorId, 'name' => 'Александр Петрович'];
+        $employees['director'] = [
+            'employee_id' => $directorId, 
+            'name' => 'Alexander Petrov',
+            'hourly_rate' => null,
+            'email' => 'director@elena.ru'
+        ];
         
         // Бухгалтер
         $accountantId = DB::table('employees')->insertGetId([
-            'employee_name' => 'Елена Васильевна',
+            'employee_name' => 'Elena Vasilieva',
             'role' => 'accountant',
             'hourly_rate' => 500.00,
             'employee_phone' => '+79001234568',
@@ -160,50 +166,73 @@ class TestDataSeeder extends Seeder
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $employees['accountant'] = ['employee_id' => $accountantId, 'name' => 'Елена Васильевна'];
+        $employees['accountant'] = [
+            'employee_id' => $accountantId, 
+            'name' => 'Elena Vasilieva',
+            'hourly_rate' => 500.00,
+            'email' => 'accountant@elena.ru'
+        ];
         
         // Врачи
         $doctorNames = [
-            'Ирина Сергеевна Кравцова',
-            'Мария Андреевна Иванова',
-            'Анна Дмитриевна Соколова',
-            'Ольга Павловна Морозова',
-            'Екатерина Викторовна Лебедева'
+            'Irina Kravtsova',
+            'Maria Ivanova',
+            'Anna Sokolova',
+            'Olga Morozova',
+            'Ekaterina Lebedeva'
         ];
         
+        $doctors = [];
         foreach ($doctorNames as $index => $name) {
+            $hourlyRate = rand(500, 800);
+            $email = strtolower(str_replace(' ', '.', $name)) . '@elena.ru';
             $id = DB::table('employees')->insertGetId([
                 'employee_name' => $name,
                 'role' => 'doctor',
-                'hourly_rate' => rand(500, 800),
+                'hourly_rate' => $hourlyRate,
                 'employee_phone' => '+79' . rand(10, 99) . rand(1000000, 9999999),
                 'photo' => null,
-                'email' => strtolower(str_replace(' ', '_', $name)) . '@elena.ru',
+                'email' => $email,
                 'login' => 'doctor_' . ($index + 1),
                 'passwd' => Hash::make('password123'),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $employees['doctors'][] = ['employee_id' => $id, 'name' => $name];
+            $doctors[] = [
+                'employee_id' => $id,
+                'name' => $name,
+                'hourly_rate' => $hourlyRate,
+                'email' => $email
+            ];
         }
+        $employees['doctors'] = $doctors;
         
         // Администраторы
-        $adminNames = ['Светлана Николаевна', 'Татьяна Владимировна'];
+        $adminNames = ['Svetlana Nikolaeva', 'Tatiana Vladimirova'];
+        $admins = [];
         foreach ($adminNames as $index => $name) {
+            $hourlyRate = 400.00;
+            $email = strtolower(str_replace(' ', '.', $name)) . '@elena.ru';
             $id = DB::table('employees')->insertGetId([
                 'employee_name' => $name,
                 'role' => 'admin',
-                'hourly_rate' => 400.00,
+                'hourly_rate' => $hourlyRate,
                 'employee_phone' => '+79' . rand(10, 99) . rand(1000000, 9999999),
                 'photo' => null,
-                'email' => strtolower(str_replace(' ', '_', $name)) . '@elena.ru',
+                'email' => $email,
                 'login' => 'admin_' . ($index + 1),
                 'passwd' => Hash::make('password123'),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $employees['admins'][] = ['employee_id' => $id, 'name' => $name];
+            $admins[] = [
+                'employee_id' => $id,
+                'name' => $name,
+                'hourly_rate' => $hourlyRate,
+                'email' => $email
+            ];
         }
+        $employees['admins'] = $admins;
         
         return $employees;
     }
@@ -211,18 +240,18 @@ class TestDataSeeder extends Seeder
     private function createServices(): array
     {
         $servicesData = [
-            ['Ботокс (1 зона)', 'Инъекционная косметология', 9500],
-            ['Ультразвуковая чистка лица', 'Уход за лицом', 5200],
-            ['SMAS-лифтинг лица', 'Аппаратная косметология', 42000],
-            ['RF-лифтинг лица', 'Аппаратная косметология', 15800],
-            ['Пилинг PRX-T33', 'Уход за лицом', 8900],
-            ['Мезотерапия лица', 'Инъекционная косметология', 6500],
-            ['LPG массаж', 'Уход за телом', 4200],
-            ['Обертывание', 'Уход за телом', 5900],
-            ['PRP-терапия волос', 'Трихология', 12800],
-            ['Мезотерапия волос', 'Трихология', 7800],
-            ['Наращивание ногтей', 'Уход за руками', 5000],
-            ['Педикюр', 'Уход за телом', 2000],
+            ['Botox (1 zone)', 'Injection cosmetology', 9500],
+            ['Ultrasonic facial cleansing', 'Facial care', 5200],
+            ['SMAS-lifting face', 'Hardware cosmetology', 42000],
+            ['RF-lifting face', 'Hardware cosmetology', 15800],
+            ['PRX-T33 peeling', 'Facial care', 8900],
+            ['Mesotherapy face', 'Injection cosmetology', 6500],
+            ['LPG massage', 'Body care', 4200],
+            ['Body wrap', 'Body care', 5900],
+            ['PRP therapy hair', 'Trichology', 12800],
+            ['Mesotherapy hair', 'Trichology', 7800],
+            ['Nail extension', 'Hand care', 5000],
+            ['Pedicure', 'Body care', 2000],
         ];
         
         $services = [];
@@ -249,10 +278,11 @@ class TestDataSeeder extends Seeder
     private function assignServicesToDoctors($employees, $services)
     {
         $doctors = $employees['doctors'];
+        $servicesCount = count($services);
         
         foreach ($doctors as $doctor) {
-            // Каждому врачу назначаем 3-5 случайных услуг
-            $randomServices = array_rand($services, rand(3, 5));
+            $numServices = rand(3, min(5, $servicesCount));
+            $randomServices = array_rand($services, $numServices);
             $randomServices = is_array($randomServices) ? $randomServices : [$randomServices];
             
             foreach ($randomServices as $index) {
@@ -269,7 +299,7 @@ class TestDataSeeder extends Seeder
     private function createSchedules($employees)
     {
         $doctors = $employees['doctors'];
-        $days = [1, 2, 3, 4, 5, 6]; // Пн-Сб
+        $days = [1, 2, 3, 4, 5, 6]; // Mon-Sat
         
         foreach ($doctors as $doctor) {
             foreach ($days as $day) {
@@ -289,16 +319,16 @@ class TestDataSeeder extends Seeder
     private function createMaterials(): array
     {
         $materialsData = [
-            ['Перчатки медицинские', 'пара', 50, 200, 50],
-            ['Салфетки спиртовые', 'упак', 30, 100, 80],
-            ['Анестетик', 'мл', 20, 150, 25],
-            ['Гиалуроновая кислота', 'шприц', 10, 50, 1200],
-            ['Ботокс', 'ед', 100, 500, 15],
-            ['Маска для лица', 'шт', 20, 80, 200],
-            ['Сыворотка', 'мл', 15, 60, 150],
-            ['Пилинг-гель', 'мл', 25, 100, 180],
-            ['Крем после процедур', 'тюбик', 10, 40, 350],
-            ['Ватные диски', 'упак', 30, 150, 60],
+            ['Medical gloves', 'pair', 50, 200, 50],
+            ['Alcohol wipes', 'pack', 30, 100, 80],
+            ['Anesthetic', 'ml', 20, 150, 25],
+            ['Hyaluronic acid', 'syringe', 10, 50, 1200],
+            ['Botox', 'unit', 100, 500, 15],
+            ['Face mask', 'piece', 20, 80, 200],
+            ['Serum', 'ml', 15, 60, 150],
+            ['Peeling gel', 'ml', 25, 100, 180],
+            ['Post-procedure cream', 'tube', 10, 40, 350],
+            ['Cotton pads', 'pack', 30, 150, 60],
         ];
         
         $materials = [];
@@ -326,9 +356,9 @@ class TestDataSeeder extends Seeder
     private function createSuppliers(): array
     {
         $suppliersData = [
-            ['ООО "МедСнаб"', 'Иванов Иван', '+79001234567', 'medsnab@example.com', 'Москва', '1234567890', 'ПАО Сбербанк', '044525225', '40702810123456789012'],
-            ['ООО "КосметЛайн"', 'Петров Петр', '+79007654321', 'cosmet@example.com', 'Санкт-Петербург', '9876543210', 'Альфа-Банк', '044525593', '40702810765432109876'],
-            ['ИП "Здоровье+"', 'Сидорова Анна', '+79009876543', 'zdorovie@example.com', 'Новосибирск', '1122334455', 'Тинькофф', '044525974', '40817810123456789012'],
+            ['MedSupply LLC', 'Ivan Ivanov', '+79001234567', 'medsupply@example.com', 'Moscow', '1234567890', 'Sberbank', '044525225', '40702810123456789012'],
+            ['CosmetLine LLC', 'Petr Petrov', '+79007654321', 'cosmetline@example.com', 'Saint Petersburg', '9876543210', 'Alfa-Bank', '044525593', '40702810765432109876'],
+            ['HealthPlus', 'Anna Sidorova', '+79009876543', 'healthplus@example.com', 'Novosibirsk', '1122334455', 'Tinkoff', '044525974', '40817810123456789012'],
         ];
         
         $suppliers = [];
@@ -349,7 +379,10 @@ class TestDataSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $suppliers[] = ['supplier_id' => $id, 'supplier_name' => $data[0]];
+            $suppliers[] = [
+                'supplier_id' => $id,
+                'supplier_name' => $data[0]
+            ];
         }
         
         return $suppliers;
@@ -357,9 +390,11 @@ class TestDataSeeder extends Seeder
     
     private function assignMaterialsToSuppliers($suppliers, $materials)
     {
+        $materialsCount = count($materials);
+        
         foreach ($suppliers as $supplier) {
-            // Каждому поставщику назначаем 3-5 материалов
-            $randomMaterials = array_rand($materials, rand(3, 5));
+            $numMaterials = rand(3, min(5, $materialsCount));
+            $randomMaterials = array_rand($materials, $numMaterials);
             $randomMaterials = is_array($randomMaterials) ? $randomMaterials : [$randomMaterials];
             
             foreach ($randomMaterials as $index) {
@@ -386,7 +421,7 @@ class TestDataSeeder extends Seeder
             $date = Carbon::createFromTimestamp(rand($startDate->timestamp, $endDate->timestamp));
             $client = $clients[array_rand($clients)];
             $doctor = $doctors[array_rand($doctors)];
-            $status = rand(0, 3); // 0-ожидает, 1-подтвержден, 2-завершен, 3-отменен
+            $status = rand(0, 3);
             
             $id = DB::table('appointments')->insertGetId([
                 'date' => $date,
@@ -412,9 +447,10 @@ class TestDataSeeder extends Seeder
     
     private function createProvidedServices($appointments, $services, $employees)
     {
+        $servicesCount = count($services);
+        
         foreach ($appointments as $appointment) {
-            // Для каждого приема добавляем 1-2 услуги
-            $numServices = rand(1, 2);
+            $numServices = rand(1, min(2, $servicesCount));
             $randomServices = array_rand($services, $numServices);
             $randomServices = is_array($randomServices) ? $randomServices : [$randomServices];
             
@@ -435,18 +471,17 @@ class TestDataSeeder extends Seeder
     
     private function createAppointmentMaterials($appointments, $materials)
     {
+        $materialsCount = count($materials);
+        
         foreach ($appointments as $appointment) {
-            if ($appointment['status'] == 2) { // Только завершенные приемы
+            if ($appointment['status'] == 2) {
                 $numMaterials = rand(0, 3);
                 
-                // Пропускаем, если 0 материалов
                 if ($numMaterials == 0) {
                     continue;
                 }
                 
-                // Убеждаемся, что количество материалов не больше доступных
-                $numMaterials = min($numMaterials, count($materials));
-                
+                $numMaterials = min($numMaterials, $materialsCount);
                 $randomMaterials = array_rand($materials, $numMaterials);
                 if (!is_array($randomMaterials)) {
                     $randomMaterials = [$randomMaterials];
@@ -495,7 +530,7 @@ class TestDataSeeder extends Seeder
         
         foreach ($suppliers as $supplier) {
             for ($i = 1; $i <= 3; $i++) {
-                $status = rand(0, 2); // 0-ожидает, 1-подтвержден, 2-получен
+                $status = rand(0, 2);
                 $contractNumber = 'PO-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
                 
                 $id = DB::table('supplier_contracts')->insertGetId([
@@ -524,11 +559,11 @@ class TestDataSeeder extends Seeder
     
     private function createMaterialReceipts($contracts, $materials)
     {
+        $materialsCount = count($materials);
+        
         foreach ($contracts as $contract) {
-            if ($contract['status'] == 2) { // Только полученные заказы
-                $numMaterials = rand(1, 3);
-                $numMaterials = min($numMaterials, count($materials));
-                
+            if ($contract['status'] == 2) {
+                $numMaterials = rand(1, min(3, $materialsCount));
                 $randomMaterials = array_rand($materials, $numMaterials);
                 $randomMaterials = is_array($randomMaterials) ? $randomMaterials : [$randomMaterials];
                 
@@ -555,7 +590,7 @@ class TestDataSeeder extends Seeder
     private function createClientContracts($appointments, $clients, $employees)
     {
         foreach ($appointments as $appointment) {
-            if ($appointment['status'] == 2) { // Только завершенные приемы
+            if ($appointment['status'] == 2) {
                 $totalPrice = DB::table('provided_services')
                     ->where('appointment_id', $appointment['appointment_id'])
                     ->join('services', 'provided_services.service_id', '=', 'services.service_id')
@@ -588,7 +623,7 @@ class TestDataSeeder extends Seeder
     private function createExpenses($contracts)
     {
         foreach ($contracts as $contract) {
-            if ($contract['status'] == 1) { // Подтвержденные заказы
+            if ($contract['status'] == 1) {
                 $totalAmount = DB::table('material_receipts')
                     ->where('contract_id', $contract['contract_id'])
                     ->sum(DB::raw('quantity * price'));
@@ -598,7 +633,7 @@ class TestDataSeeder extends Seeder
                         'type' => 'supplier_order',
                         'amount' => $totalAmount,
                         'date' => Carbon::now()->subDays(rand(1, 15)),
-                        'description' => 'Заказ у поставщика',
+                        'description' => 'Order from supplier',
                         'reference_id' => $contract['contract_id'],
                         'reference_type' => 'App\\Models\\SupplierContract',
                         'metadata' => json_encode(['order_id' => $contract['contract_id']]),
@@ -614,19 +649,19 @@ class TestDataSeeder extends Seeder
     
     private function createFeedbacks($appointments, $clients)
     {
+        $comments = [
+            'Excellent specialist!',
+            'Very satisfied with the result!',
+            'Everything went great, thank you!',
+            'Highly recommend!',
+            'Professional and high quality!',
+            'Will definitely come again!',
+            'Thank you for your work!',
+            'Best salon in the city!',
+        ];
+        
         foreach ($appointments as $appointment) {
-            if ($appointment['status'] == 2 && rand(1, 100) <= 70) { // 70% завершенных приемов с отзывом
-                $comments = [
-                    'Отличный специалист!',
-                    'Очень довольна результатом!',
-                    'Все прошло отлично, спасибо!',
-                    'Рекомендую!',
-                    'Профессионально и качественно!',
-                    'Обязательно приду еще!',
-                    'Спасибо за ваш труд!',
-                    'Лучший салон в городе!',
-                ];
-                
+            if ($appointment['status'] == 2 && rand(1, 100) <= 70) {
                 DB::table('feedback')->insert([
                     'score' => rand(4, 5),
                     'comment' => $comments[array_rand($comments)],
@@ -642,12 +677,12 @@ class TestDataSeeder extends Seeder
     private function createMedicalRecords($appointments, $clients, $employees)
     {
         foreach ($appointments as $appointment) {
-            if ($appointment['status'] == 2 && rand(1, 100) <= 50) { // 50% завершенных приемов с медкартой
+            if ($appointment['status'] == 2 && rand(1, 100) <= 50) {
                 DB::table('medical_records')->insert([
                     'visit_date' => Carbon::parse($appointment['date'])->format('Y-m-d'),
-                    'anamnesis' => 'Жалоб нет, профилактический осмотр',
-                    'diagnosis' => 'Косметологическая коррекция',
-                    'contraindications' => 'Не выявлено',
+                    'anamnesis' => 'No complaints, preventive examination',
+                    'diagnosis' => 'Cosmetic correction',
+                    'contraindications' => 'None identified',
                     'employee_id' => $appointment['employee_id'],
                     'client_id' => $appointment['client_id'],
                     'appointment_id' => $appointment['appointment_id'],
@@ -661,24 +696,24 @@ class TestDataSeeder extends Seeder
     private function createNotifications($appointments, $clients)
     {
         foreach ($appointments as $appointment) {
-            if ($appointment['status'] == 1) { // Подтвержденные
+            if ($appointment['status'] == 1) {
                 DB::table('notifications')->insert([
                     'client_id' => $appointment['client_id'],
                     'appointment_id' => $appointment['appointment_id'],
                     'type' => 'confirmation',
-                    'message' => '✅ Ваша запись подтверждена! Ждем вас.',
+                    'message' => '✅ Your appointment has been confirmed! We are waiting for you.',
                     'is_read' => rand(0, 1),
                     'created_at' => $appointment['date'],
                     'updated_at' => $appointment['date'],
                 ]);
             }
             
-            if ($appointment['status'] == 2) { // Завершенные
+            if ($appointment['status'] == 2) {
                 DB::table('notifications')->insert([
                     'client_id' => $appointment['client_id'],
                     'appointment_id' => $appointment['appointment_id'],
                     'type' => 'completion',
-                    'message' => '💫 Прием завершен. Спасибо за визит!',
+                    'message' => '💫 Appointment completed. Thank you for your visit!',
                     'is_read' => rand(0, 1),
                     'created_at' => $appointment['date'],
                     'updated_at' => $appointment['date'],
@@ -686,7 +721,7 @@ class TestDataSeeder extends Seeder
             }
         }
     }
-    private function createSalaries($employees)
+        private function createSalaries($employees)
     {
         $doctors = $employees['doctors'];
         
