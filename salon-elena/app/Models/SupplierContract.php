@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class SupplierContract extends Model
 {
@@ -125,6 +126,8 @@ class SupplierContract extends Model
                 'confirmed_at' => $this->confirmed_at,
             ]);
         }
+        
+        return null;
     }
 
     // Добавьте связь с расходами

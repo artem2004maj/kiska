@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -500,7 +501,8 @@ class DashboardController extends Controller
      */
     public function confirmOrder($orderId)
     {
-        $order = SupplierContract::findOrFail($orderId);
+        $order = SupplierContract::with(['supplier', 'materialReceipts.material'])
+            ->findOrFail($orderId);
         
         if ($order->status != SupplierContract::STATUS_PENDING) {
             return response()->json([
@@ -509,14 +511,53 @@ class DashboardController extends Controller
             ], 422);
         }
         
-        $order->status = SupplierContract::STATUS_CONFIRMED;
-        $order->confirmed_at = now();
-        $order->save();
+        DB::beginTransaction();
         
-        return response()->json([
-            'success' => true,
-            'message' => 'Заказ подтвержден',
-        ]);
+        try {
+            // Меняем статус на "В пути"
+            $order->status = SupplierContract::STATUS_CONFIRMED;
+            $order->confirmed_at = now();
+            $order->save();
+            
+            // СОЗДАЕМ ЗАПИСЬ О РАСХОДЕ
+            $expense = $order->createExpenseRecord();
+            
+            if ($expense) {
+                Log::info('Expense created for supplier order (director)', [
+                    'order_id' => $order->contract_id,
+                    'order_number' => $order->number,
+                    'expense_id' => $expense->expense_id,
+                    'amount' => $order->total_amount
+                ]);
+            } else {
+                Log::warning('Failed to create expense for order', [
+                    'order_id' => $order->contract_id,
+                    'order_number' => $order->number,
+                    'status' => $order->status,
+                    'confirmed_at' => $order->confirmed_at
+                ]);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Заказ подтвержден и отправлен в путь',
+                'expense_created' => $expense ? true : false,
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error confirming order: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при подтверждении заказа: ' . $e->getMessage()
+            ], 500);
+        }
     }
     
     /**
@@ -533,13 +574,34 @@ class DashboardController extends Controller
             ], 422);
         }
         
-        $order->status = SupplierContract::STATUS_CANCELLED;
-        $order->save();
+        DB::beginTransaction();
         
-        return response()->json([
-            'success' => true,
-            'message' => 'Заказ отклонен',
-        ]);
+        try {
+            $order->status = SupplierContract::STATUS_CANCELLED;
+            $order->save();
+            
+            // При отмене заказа расход НЕ создается
+            Log::info('Order rejected (no expense created)', [
+                'order_id' => $order->contract_id,
+                'order_number' => $order->number
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Заказ отклонен',
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error rejecting order: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при отклонении заказа: ' . $e->getMessage()
+            ], 500);
+        }
     }
     
     /**

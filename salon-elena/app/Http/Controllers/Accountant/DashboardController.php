@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -469,7 +470,7 @@ class DashboardController extends Controller
             'status' => 'required|in:0,1,2,3',
         ]);
         
-        $order = SupplierContract::with(['materialReceipts.material'])
+        $order = SupplierContract::with(['materialReceipts.material', 'supplier'])
             ->findOrFail($orderId);
         
         // Нельзя менять статус полученного заказа
@@ -477,37 +478,88 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Нельзя изменить статус полученного заказа'], 422);
         }
         
+        // Нельзя менять статус отмененного заказа
+        if ($order->status == SupplierContract::STATUS_CANCELLED) {
+            return response()->json(['error' => 'Нельзя изменить статус отмененного заказа'], 422);
+        }
+        
         $oldStatus = $order->status;
-        $order->status = $request->status;
+        $newStatus = (int) $request->status;
         
-        // Устанавливаем даты
-        if ($request->status == SupplierContract::STATUS_CONFIRMED && $oldStatus == SupplierContract::STATUS_PENDING) {
-            $order->confirmed_at = now();
-            $order->createExpenseRecord();
-        }
-        
-        if ($request->status == SupplierContract::STATUS_RECEIVED) {
-            $order->received_at = now();
-            // Автоматически принимаем все материалы на склад
-            foreach ($order->materialReceipts as $receipt) {
-                if ($receipt->status == MaterialReceipt::STATUS_PENDING) {
-                    $this->processReceiveOrder($receipt->receipt_id);
-                }
+        // Валидация переходов статусов
+        if ($oldStatus == SupplierContract::STATUS_PENDING) {
+            // Из не подтвержденного можно только подтвердить или отменить
+            if (!in_array($newStatus, [SupplierContract::STATUS_CONFIRMED, SupplierContract::STATUS_CANCELLED])) {
+                return response()->json(['error' => 'Недопустимый переход статуса'], 422);
             }
+        } elseif ($oldStatus == SupplierContract::STATUS_CONFIRMED) {
+            // Из "в пути" можно только получить на склад
+            if ($newStatus != SupplierContract::STATUS_RECEIVED) {
+                return response()->json(['error' => 'Недопустимый переход статуса. Из "в пути" можно только получить на склад'], 422);
+            }
+        } elseif ($oldStatus == SupplierContract::STATUS_CANCELLED) {
+            return response()->json(['error' => 'Нельзя изменить статус отмененного заказа'], 422);
         }
         
-        $order->save();
+        DB::beginTransaction();
         
-        return response()->json([
-            'success' => true,
-            'message' => 'Статус заказа обновлен',
-            'status' => $order->status,
-            'status_text' => $order->status_text,
-            'confirmed_at' => $order->confirmed_at,
-            'received_at' => $order->received_at,
-        ]);
+        try {
+            $order->status = $newStatus;
+            
+            // Устанавливаем даты и создаем расход
+            if ($newStatus == SupplierContract::STATUS_CONFIRMED && $oldStatus == SupplierContract::STATUS_PENDING) {
+                $order->confirmed_at = now();
+                // Сначала сохраняем заказ, чтобы confirmed_at был в БД
+                $order->save();
+                // Затем создаем расход (метод сам проверит, есть ли уже расход)
+                $expense = $order->createExpenseRecord();
+                
+                if (!$expense) {
+                    \Log::warning('Failed to create expense for order', [
+                        'order_id' => $order->contract_id,
+                        'order_number' => $order->number
+                    ]);
+                }
+            } elseif ($newStatus == SupplierContract::STATUS_RECEIVED) {
+                $order->received_at = now();
+                $order->save();
+                
+                // Автоматически принимаем все материалы на склад
+                foreach ($order->materialReceipts as $receipt) {
+                    if ($receipt->status == MaterialReceipt::STATUS_PENDING) {
+                        $this->processReceiveOrder($receipt->receipt_id);
+                    }
+                }
+            } elseif ($newStatus == SupplierContract::STATUS_CANCELLED) {
+                // При отмене заказа не создаем расход
+                $order->save();
+            } else {
+                $order->save();
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Статус заказа обновлен',
+                'status' => $order->status,
+                'status_text' => $order->status_text,
+                'confirmed_at' => $order->confirmed_at,
+                'received_at' => $order->received_at,
+                'expense_created' => isset($expense) && $expense ? true : false,
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error updating order status', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
     }
-        /**
+
+    /**
      * Внутренний метод для приема заказа
      */
     private function processReceiveOrder($receiptId)
@@ -814,45 +866,38 @@ class DashboardController extends Controller
         DB::beginTransaction();
         
         try {
-            // Находим существующую запись о зарплате
             $salary = $employee->salaries()
                 ->where('month', $month)
                 ->where('year', $year)
                 ->first();
             
             if (!$salary) {
-                return response()->json([
-                    'error' => 'Расчет зарплаты не найден. Сначала выполните расчет.'
-                ], 422);
+                return response()->json(['error' => 'Расчет зарплаты не найден'], 422);
             }
             
             if ($salary->total_amount <= 0) {
-                return response()->json([
-                    'error' => 'Сумма зарплаты равна 0. Выплата не требуется.'
-                ], 422);
+                return response()->json(['error' => 'Сумма зарплаты равна 0'], 422);
             }
             
             if ($salary->is_paid) {
-                return response()->json([
-                    'error' => 'Зарплата уже выплачена'
-                ], 422);
+                return response()->json(['error' => 'Зарплата уже выплачена'], 422);
             }
             
-            // Отмечаем как выплаченную
             $salary->is_paid = true;
             $salary->payment_date = now();
-            $salary->save();
+            $salary->save(); // ← Здесь booted() сам создаст Expense
             
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => "Зарплата {$employee->employee_name} за " . Carbon::create($year, $month, 1)->translatedFormat('F Y') . " выплачена",
+                'message' => "Зарплата {$employee->employee_name} выплачена",
                 'amount' => $salary->total_amount,
             ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error paying salary: ' . $e->getMessage());
             return response()->json(['error' => 'Ошибка: ' . $e->getMessage()], 500);
         }
     }

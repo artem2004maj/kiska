@@ -4,6 +4,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Salary extends Model
 {
@@ -53,6 +54,12 @@ class Salary extends Model
      */
     public function createExpenseRecord()
     {
+        Log::info('Salary::createExpenseRecord called', [
+            'salary_id' => $this->salary_id,
+            'is_paid' => $this->is_paid,
+            'payment_date' => $this->payment_date,
+            'total_amount' => $this->total_amount
+        ]);
         // Проверяем, что зарплата выплачена и есть дата выплаты
         if ($this->is_paid && $this->payment_date) {
             // Проверяем, нет ли уже записи о расходе
