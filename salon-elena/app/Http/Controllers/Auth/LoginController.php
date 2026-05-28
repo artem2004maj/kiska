@@ -31,46 +31,39 @@ class LoginController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'email'    => 'required|email',
+            'login'    => 'required|string',  // меняем email на login
             'password' => 'required|string',
         ]);
 
-        $credentials = $request->only('email', 'password');
-        $remember    = $request->boolean('remember');
+        $login = $request->login;
+        $password = $request->password;
+        $remember = $request->boolean('remember');
+
+        // Определяем, что ввел пользователь: email или логин
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'login';
 
         // Пытаемся авторизовать как клиента
-        if (Auth::guard('client')->attempt($credentials, $remember)) {
+        $clientCredentials = [$field => $login, 'password' => $password];
+        if (Auth::guard('client')->attempt($clientCredentials, $remember)) {
             $request->session()->regenerate();
-            
-            // Логируем успешный вход клиента
-            Log::info('Client logged in', ['email' => $credentials['email']]);
-            
+            Log::info('Client logged in', ['login' => $login]);
             return redirect()->intended(route('dashboard.client'));
         }
 
         // Пытаемся авторизовать как сотрудника
-        if (Auth::guard('employee')->attempt($credentials, $remember)) {
+        $employeeCredentials = [$field => $login, 'password' => $password];
+        if (Auth::guard('employee')->attempt($employeeCredentials, $remember)) {
             $request->session()->regenerate();
-            
             $user = Auth::guard('employee')->user();
-            
-            // Логируем успешный вход сотрудника
-            Log::info('Employee logged in', [
-                'email' => $credentials['email'],
-                'role' => $user->role
-            ]);
-            
-            // Используем intended для редиректа на запрашиваемую страницу
-            // или на дашборд по роли
+            Log::info('Employee logged in', ['login' => $login, 'role' => $user->role]);
             return redirect()->intended($this->getRedirectRouteByRole($user->role));
         }
 
-        // Если не удалось авторизоваться
-        Log::warning('Failed login attempt', ['email' => $credentials['email']]);
+        Log::warning('Failed login attempt', ['login' => $login]);
         
         return back()->withErrors([
-            'email' => 'Неверный email или пароль.',
-        ])->onlyInput('email');
+            'login' => 'Неверный логин/email или пароль.',
+        ])->onlyInput('login');
     }
     
     /**

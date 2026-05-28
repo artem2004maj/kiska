@@ -163,6 +163,7 @@ class DashboardController extends Controller
     public function supplyControl()
     {
         $user = Auth::guard('employee')->user();
+        $company = \App\Models\CompanySetting::first();
         
         $orders = SupplierContract::with(['supplier', 'materialReceipts.material'])
             ->orderBy('created_at', 'desc')
@@ -204,8 +205,23 @@ class DashboardController extends Controller
                 'role' => $user->role,
             ],
             'orders' => $orders,
-            'laravelVersion' => app()->version(),
-            'phpVersion' => PHP_VERSION,
+            'company' => $company ? [
+                'name' => $company->company_name,
+                'short_name' => $company->short_name,
+                'logo_url' => $company->logo_url,
+                'stamp_url' => $company->stamp_url,
+                'phone' => $company->phone,
+                'email' => $company->email,
+                'legal_address' => $company->legal_address,
+                'actual_address' => $company->actual_address,
+                'inn' => $company->inn,
+                'ogrn' => $company->ogrn,
+                'kpp' => $company->kpp,
+                'okpo' => $company->okpo,
+                'director_name' => $company->director_name,
+                'accountant_name' => $company->accountant_name,
+                'bank_details' => $company->bank_details,
+            ] : null,
         ]);
     }
     

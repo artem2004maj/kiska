@@ -106,7 +106,6 @@
                             >
                                 📋 Детали
                             </button>
-                            <!-- НОВАЯ КНОПКА - Документ для оплаты -->
                             <button 
                                 @click="showPaymentDocument(order)"
                                 class="px-4 py-2 border border-[#8b5cf6] text-[#8b5cf6] rounded-md hover:bg-[#8b5cf6]/10 transition flex items-center gap-2"
@@ -135,7 +134,7 @@
             </div>
         </div>
 
-        <!-- Модальное окно деталей заказа (без изменений) -->
+        <!-- Модальное окно деталей заказа -->
         <Teleport to="body">
             <div v-if="showDetailsModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4">
@@ -151,7 +150,6 @@
                         </div>
                         
                         <div v-if="selectedOrder" class="p-6">
-                            <!-- Основная информация -->
                             <div class="grid grid-cols-2 gap-4 mb-6 pb-4 border-b">
                                 <div>
                                     <p class="text-sm text-gray-500">Поставщик</p>
@@ -187,7 +185,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Таблица материалов -->
                             <h4 class="font-semibold mb-3">Состав заказа</h4>
                             <div class="overflow-x-auto border rounded-lg">
                                 <table class="w-full">
@@ -228,7 +225,7 @@
             </div>
         </Teleport>
 
-        <!-- Модальное окно ДОКУМЕНТА ДЛЯ ОПЛАТЫ (новое) -->
+        <!-- Модальное окно ДОКУМЕНТА ДЛЯ ОПЛАТЫ -->
         <Teleport to="body">
             <div v-if="showPaymentModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4 py-8">
@@ -245,10 +242,16 @@
                         </div>
 
                         <div class="p-6" id="payment-document-content" v-if="selectedPaymentDocument">
-                            <!-- Шапка документа -->
+                            <!-- Шапка документа с данными компании из пропса -->
                             <div class="text-center mb-8">
-                                <h2 class="text-2xl font-bold">ELENA Beauty Clinic</h2>
-                                <p class="text-lg font-semibold mt-2">ДОГОВОР ПОСТАВКИ № {{ selectedPaymentDocument.number }}</p>
+                                <img v-if="company?.logo_url" 
+                                    :src="company.logo_url" 
+                                    class="h-16 mx-auto mb-2 object-contain" />
+                                <h2 class="text-2xl font-bold">{{ company?.name || 'Косметологическая клиника' }}</h2>
+                                <p class="text-sm text-gray-500">{{ company?.legal_address || company?.actual_address || '' }}</p>
+                                <p class="text-sm text-gray-500">ИНН: {{ company?.inn || '—' }} | ОГРН: {{ company?.ogrn || '—' }}</p>
+                                <p class="text-sm text-gray-500">Тел.: {{ company?.phone || '' }} | Email: {{ company?.email || '' }}</p>
+                                <p class="text-lg font-semibold mt-4">ДОГОВОР ПОСТАВКИ № {{ selectedPaymentDocument.number }}</p>
                                 <p class="text-sm text-gray-500">г. {{ selectedPaymentDocument.city }} | {{ formatDate(selectedPaymentDocument.created_at) }}</p>
                             </div>
 
@@ -258,18 +261,23 @@
                                     <h4 class="font-semibold mb-2">Поставщик:</h4>
                                     <p><strong>{{ selectedPaymentDocument.supplier_name }}</strong></p>
                                     <p class="text-sm mt-1">ИНН: {{ selectedPaymentDocument.supplier_inn || '—' }}</p>
+                                    <p class="text-sm">КПП: {{ selectedPaymentDocument.supplier_kpp || '—' }}</p>
+                                    <p class="text-sm">ОГРН: {{ selectedPaymentDocument.supplier_ogrn || '—' }}</p>
                                     <p class="text-sm">Адрес: {{ selectedPaymentDocument.supplier_address || '—' }}</p>
                                     <p class="text-sm">Телефон: {{ selectedPaymentDocument.supplier_phone || '—' }}</p>
                                     <p class="text-sm">Email: {{ selectedPaymentDocument.supplier_email || '—' }}</p>
                                 </div>
                                 <div>
                                     <h4 class="font-semibold mb-2">Покупатель:</h4>
-                                    <p><strong>ООО "ELENA Beauty Clinic"</strong></p>
-                                    <p class="text-sm mt-1">ИНН: 1234567890</p>
-                                    <p class="text-sm">Адрес: г. Москва, ул. Примерная, д. 1</p>
-                                    <p class="text-sm">Телефон: +7 (999) 123-45-67</p>
-                                    <p class="text-sm">Email: info@elena-clinic.ru</p>
-                                    <p class="text-sm mt-2">В лице: Директора {{ director?.employee_name }}</p>
+                                    <p><strong>{{ company?.name || 'ООО "Косметологическая клиника"' }}</strong></p>
+                                    <p class="text-sm mt-1">ИНН: {{ company?.inn || '—' }}</p>
+                                    <p class="text-sm">КПП: {{ company?.kpp || '—' }}</p>
+                                    <p class="text-sm">ОГРН: {{ company?.ogrn || '—' }}</p>
+                                    <p class="text-sm">Юр. адрес: {{ company?.legal_address || '—' }}</p>
+                                    <p class="text-sm">Факт. адрес: {{ company?.actual_address || '—' }}</p>
+                                    <p class="text-sm">Телефон: {{ company?.phone || '—' }}</p>
+                                    <p class="text-sm">Email: {{ company?.email || '—' }}</p>
+                                    <p class="text-sm mt-2">В лице: Директора <strong>{{ company?.director_name || director?.employee_name }}</strong></p>
                                 </div>
                             </div>
 
@@ -283,7 +291,7 @@
                                 </p>
                             </div>
 
-                            <!-- Спецификация (таблица материалов) -->
+                            <!-- Спецификация -->
                             <div class="mb-6">
                                 <h4 class="font-semibold mb-2">Приложение №1. Спецификация</h4>
                                 <div class="overflow-x-auto border rounded-lg">
@@ -316,9 +324,7 @@
                                         </tfoot>
                                     </table>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-2">
-                                    * НДС не облагается (упрощенная система налогообложения)
-                                </p>
+                                <p class="text-sm text-gray-500 mt-2">* НДС не облагается (упрощенная система налогообложения)</p>
                             </div>
 
                             <!-- Условия оплаты -->
@@ -344,18 +350,33 @@
                                     <h4 class="font-semibold mb-2">Реквизиты Поставщика</h4>
                                     <p class="text-sm">Наименование: {{ selectedPaymentDocument.supplier_name }}</p>
                                     <p class="text-sm">ИНН: {{ selectedPaymentDocument.supplier_inn || '—' }}</p>
+                                    <p class="text-sm">КПП: {{ selectedPaymentDocument.supplier_kpp || '—' }}</p>
                                     <p class="text-sm">Банк: {{ selectedPaymentDocument.bank_name || '—' }}</p>
                                     <p class="text-sm">БИК: {{ selectedPaymentDocument.bic || '—' }}</p>
+                                    <p class="text-sm">Корр. счет: {{ selectedPaymentDocument.correspondent_account || '—' }}</p>
                                     <p class="text-sm">Р/с: {{ selectedPaymentDocument.payment_account || '—' }}</p>
                                 </div>
                                 <div>
                                     <h4 class="font-semibold mb-2">Реквизиты Покупателя</h4>
-                                    <p class="text-sm">ООО "ELENA Beauty Clinic"</p>
-                                    <p class="text-sm">ИНН: 1234567890</p>
-                                    <p class="text-sm">КПП: 123456789</p>
-                                    <p class="text-sm">Банк: ПАО Сбербанк</p>
-                                    <p class="text-sm">БИК: 044525225</p>
-                                    <p class="text-sm">Р/с: 40702810123456789012</p>
+                                    <p class="text-sm">Наименование: {{ company?.name || '—' }}</p>
+                                    <p class="text-sm">ИНН: {{ company?.inn || '—' }}</p>
+                                    <p class="text-sm">КПП: {{ company?.kpp || '—' }}</p>
+                                    <p class="text-sm">ОГРН: {{ company?.ogrn || '—' }}</p>
+                                    
+                                    <div v-if="company?.bank_details && company.bank_details.length > 0">
+                                        <div v-for="(bank, idx) in company.bank_details" :key="idx" class="mt-2">
+                                            <p class="text-sm font-medium mt-1">Банк {{ idx + 1 }}:</p>
+                                            <p class="text-sm">{{ bank.bank_name || '—' }}</p>
+                                            <p class="text-sm">БИК: {{ bank.bik || '—' }}</p>
+                                            <p class="text-sm">Корр. счет: {{ bank.correspondent_account || '—' }}</p>
+                                            <p class="text-sm">Р/с: {{ bank.payment_account || '—' }}</p>
+                                        </div>
+                                    </div>
+                                    <div v-else>
+                                        <p class="text-sm">Банк: —</p>
+                                        <p class="text-sm">БИК: —</p>
+                                        <p class="text-sm">Р/с: —</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -368,8 +389,11 @@
                                 </div>
                                 <div class="text-center">
                                     <p class="text-sm text-gray-500">Покупатель</p>
-                                    <p class="mt-6 pt-4 border-t border-gray-300">{{ director?.employee_name }}</p>
-                                    <p class="text-xs text-gray-400 mt-1">Директор ООО "ELENA Beauty Clinic"</p>
+                                    <p class="mt-6 pt-4 border-t border-gray-300">{{ company?.director_name || director?.employee_name }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">Директор {{ company?.name || 'ООО "Косметологическая клиника"' }}</p>
+                                    <img v-if="company?.stamp_url" 
+                                        :src="company.stamp_url" 
+                                        class="h-16 mx-auto mt-2 opacity-50" />
                                 </div>
                             </div>
                         </div>
@@ -389,7 +413,7 @@
             </div>
         </Teleport>
 
-        <!-- Модальное окно документа поставки (полученные заказы) -->
+        <!-- Модальное окно документа поставки -->
         <Teleport to="body">
             <div v-if="showReceiptModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4 py-8">
@@ -406,9 +430,11 @@
                         </div>
 
                         <div class="p-6" id="receipt-content" v-if="selectedReceipt">
-                            <!-- Содержимое документа поставки (как было) -->
                             <div class="text-center mb-8">
-                                <h2 class="text-2xl font-bold">ELENA Beauty Clinic</h2>
+                                <img v-if="company?.logo_url" 
+                                    :src="company.logo_url" 
+                                    class="h-16 mx-auto mb-2 object-contain" />
+                                <h2 class="text-2xl font-bold">{{ company?.name || 'Косметологическая клиника' }}</h2>
                                 <p class="text-gray-500">Документ поставки № {{ selectedReceipt.number }}</p>
                                 <p class="text-sm text-gray-400">Дата формирования: {{ formatDateTime(selectedReceipt.created_at) }}</p>
                             </div>
@@ -417,6 +443,7 @@
                                 <div>
                                     <p class="text-sm text-gray-500">Поставщик:</p>
                                     <p class="font-medium">{{ selectedReceipt.supplier_name }}</p>
+                                    <p class="text-sm">ИНН: {{ selectedReceipt.supplier_inn || '—' }}</p>
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm text-gray-500">Дата поставки:</p>
@@ -462,7 +489,10 @@
                                 </div>
                                 <div class="text-center">
                                     <p class="text-sm text-gray-500">Директор</p>
-                                    <p class="mt-6 pt-4 border-t border-gray-300">{{ director?.employee_name }}</p>
+                                    <p class="mt-6 pt-4 border-t border-gray-300">{{ company?.director_name || director?.employee_name }}</p>
+                                    <img v-if="company?.stamp_url" 
+                                        :src="company.stamp_url" 
+                                        class="h-16 mx-auto mt-2 opacity-50" />
                                 </div>
                             </div>
                         </div>
@@ -503,7 +533,8 @@ import * as XLSX from 'xlsx';
 
 const props = defineProps({
     director: Object,
-    orders: Array
+    orders: Array,
+    company: Object
 });
 
 const ordersList = ref([]);
@@ -570,7 +601,6 @@ const formatDateTime = (date) => {
     return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 };
 
-// Подтверждение заказа
 const confirmOrder = async (order) => {
     if (!confirm(`Подтвердить заказ №${order.number} от поставщика ${order.supplier_name} на сумму ${formatPrice(order.total_amount)}?`)) return;
     
@@ -593,7 +623,6 @@ const confirmOrder = async (order) => {
     }
 };
 
-// Отклонение заказа
 const rejectOrder = async (order) => {
     if (!confirm(`Отклонить заказ №${order.number} от поставщика ${order.supplier_name}?`)) return;
     
@@ -615,7 +644,6 @@ const rejectOrder = async (order) => {
     }
 };
 
-// Показать детали
 const showDetails = (order) => {
     selectedOrder.value = order;
     showDetailsModal.value = true;
@@ -626,7 +654,6 @@ const closeDetailsModal = () => {
     selectedOrder.value = null;
 };
 
-// НОВЫЙ МЕТОД - Показать документ для оплаты
 const showPaymentDocument = async (order) => {
     try {
         const response = await axios.get(`/api/accountant/orders/${order.id}/document`);
@@ -639,39 +666,388 @@ const showPaymentDocument = async (order) => {
 
 // Печать документа для оплаты
 const printPaymentDocument = () => {
-    const printContent = document.getElementById('payment-document-content');
+    const comp = props.company || {};
+    const data = selectedPaymentDocument.value;
+    const currentDate = new Date().toLocaleDateString('ru-RU');
+    
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
-            <head>
-                <title>Договор поставки ${selectedPaymentDocument.value.number}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    .document { max-width: 1000px; margin: 0 auto; }
-                    table { width: 100%; border-collapse: collapse; }
-                    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-                    th { background-color: #f5f5f5; }
-                    .text-right { text-align: right; }
-                    .text-center { text-align: center; }
-                    @media print { button { display: none; } }
-                </style>
-            </head>
-            <body>
-                <div class="document">${printContent.innerHTML}</div>
-                <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }<\/script>
-            </body>
+        <head>
+            <meta charset="UTF-8">
+            <title>Договор поставки ${data.number}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Times New Roman', Times, serif;
+                    font-size: 12pt;
+                    line-height: 1.4;
+                    color: #000;
+                    background: #fff;
+                    padding: 20mm;
+                }
+                
+                .document {
+                    max-width: 210mm;
+                    margin: 0 auto;
+                }
+                
+                /* Шапка документа */
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #000;
+                }
+                
+                .logo {
+                    max-width: 80px;
+                    max-height: 80px;
+                    margin-bottom: 10px;
+                }
+                
+                .company-name {
+                    font-size: 18pt;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                
+                .company-details {
+                    font-size: 10pt;
+                    color: #555;
+                    margin-bottom: 5px;
+                }
+                
+                .document-title {
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 15px 0 5px;
+                }
+                
+                .document-number {
+                    font-size: 14pt;
+                    margin-bottom: 5px;
+                }
+                
+                .document-date {
+                    font-size: 10pt;
+                    color: #555;
+                }
+                
+                /* Блоки информации */
+                .parties {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 30px;
+                    margin: 20px 0;
+                    padding-bottom: 15px;
+                    border-bottom: 1px solid #000;
+                }
+                
+                .party {
+                    flex: 1;
+                }
+                
+                .party-title {
+                    font-weight: bold;
+                    font-size: 12pt;
+                    margin-bottom: 8px;
+                    text-decoration: underline;
+                }
+                
+                .party p {
+                    margin-bottom: 3px;
+                    font-size: 10pt;
+                }
+                
+                /* Заголовки секций */
+                .section-title {
+                    font-weight: bold;
+                    font-size: 12pt;
+                    margin: 15px 0 10px;
+                    text-decoration: underline;
+                }
+                
+                /* Таблица */
+                .table-container {
+                    margin: 15px 0;
+                    overflow-x: auto;
+                }
+                
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10pt;
+                }
+                
+                th, td {
+                    border: 1px solid #000;
+                    padding: 6px 8px;
+                    text-align: left;
+                    vertical-align: top;
+                }
+                
+                th {
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                
+                .text-right {
+                    text-align: right;
+                }
+                
+                .text-center {
+                    text-align: center;
+                }
+                
+                .total-row {
+                    font-weight: bold;
+                    background-color: #f9f9f9;
+                }
+                
+                /* Текст */
+                .text-note {
+                    font-size: 9pt;
+                    color: #666;
+                    margin-top: 5px;
+                    font-style: italic;
+                }
+                
+                /* Реквизиты */
+                .requisites {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 30px;
+                    margin: 20px 0;
+                }
+                
+                .requisite {
+                    flex: 1;
+                }
+                
+                .requisite-title {
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    text-decoration: underline;
+                }
+                
+                .requisite p {
+                    margin-bottom: 3px;
+                    font-size: 9pt;
+                }
+                
+                /* Подписи */
+                .signatures {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 50px;
+                    margin: 30px 0 20px;
+                }
+                
+                .signature {
+                    flex: 1;
+                    text-align: center;
+                }
+                
+                .signature-line {
+                    margin-top: 30px;
+                    padding-top: 5px;
+                    border-top: 1px solid #000;
+                }
+                
+                .signature-title {
+                    font-size: 10pt;
+                    margin-bottom: 5px;
+                }
+                
+                .stamp {
+                    max-width: 80px;
+                    max-height: 80px;
+                    margin-top: 10px;
+                    opacity: 0.7;
+                }
+                
+                /* Подвал */
+                .footer {
+                    margin-top: 30px;
+                    padding-top: 10px;
+                    border-top: 1px solid #ccc;
+                    font-size: 8pt;
+                    text-align: center;
+                    color: #888;
+                }
+                
+                @media print {
+                    body {
+                        padding: 15mm;
+                    }
+                    button {
+                        display: none;
+                    }
+                    .no-print {
+                        display: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="document">
+                <!-- Шапка -->
+                <div class="header">
+                    ${comp.logo_url ? `<img src="${comp.logo_url}" class="logo" alt="logo">` : ''}
+                    <div class="company-name">${comp.name || 'Косметологическая клиника'}</div>
+                    <div class="company-details">${comp.legal_address || comp.actual_address || ''}</div>
+                    <div class="company-details">ИНН: ${comp.inn || '—'} | ОГРН: ${comp.ogrn || '—'}</div>
+                    <div class="company-details">Тел.: ${comp.phone || ''} | Email: ${comp.email || ''}</div>
+                    <div class="document-title">ДОГОВОР ПОСТАВКИ № ${data.number}</div>
+                    <div class="document-date">г. ${data.city || 'Москва'} | ${formatDate(data.created_at)}</div>
+                </div>
+                
+                <!-- Стороны договора -->
+                <div class="parties">
+                    <div class="party">
+                        <div class="party-title">Поставщик:</div>
+                        <p><strong>${data.supplier_name}</strong></p>
+                        <p>ИНН: ${data.supplier_inn || '—'}</p>
+                        <p>КПП: ${data.supplier_kpp || '—'}</p>
+                        <p>ОГРН: ${data.supplier_ogrn || '—'}</p>
+                        <p>Адрес: ${data.supplier_address || '—'}</p>
+                        <p>Телефон: ${data.supplier_phone || '—'}</p>
+                        <p>Email: ${data.supplier_email || '—'}</p>
+                    </div>
+                    <div class="party">
+                        <div class="party-title">Покупатель:</div>
+                        <p><strong>${comp.name || 'ООО "Косметологическая клиника"'}</strong></p>
+                        <p>ИНН: ${comp.inn || '—'}</p>
+                        <p>КПП: ${comp.kpp || '—'}</p>
+                        <p>ОГРН: ${comp.ogrn || '—'}</p>
+                        <p>Юр. адрес: ${comp.legal_address || '—'}</p>
+                        <p>Факт. адрес: ${comp.actual_address || '—'}</p>
+                        <p>Телефон: ${comp.phone || '—'}</p>
+                        <p>Email: ${comp.email || '—'}</p>
+                        <p>В лице: Директора <strong>${comp.director_name || props.director?.employee_name}</strong></p>
+                    </div>
+                </div>
+                
+                <!-- Предмет договора -->
+                <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
+                <p>Поставщик обязуется передать в собственность Покупателя, а Покупатель обязуется принять и оплатить материалы для косметологических процедур в ассортименте, количестве и по ценам, указанным в Спецификации (Приложение №1), которая является неотъемлемой частью настоящего Договора.</p>
+                
+                <!-- Спецификация -->
+                <div class="section-title">Приложение №1. Спецификация</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">№</th>
+                                <th style="width: 40%">Наименование</th>
+                                <th style="width: 10%">Кол-во</th>
+                                <th style="width: 10%">Ед. изм.</th>
+                                <th style="width: 15%">Цена за ед.</th>
+                                <th style="width: 20%">Сумма</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.items.map((item, idx) => `
+                                <tr>
+                                    <td class="text-center">${idx + 1}</td>
+                                    <td>${item.material_name}</td>
+                                    <td class="text-right">${item.quantity}</td>
+                                    <td class="text-center">${item.unit}</td>
+                                    <td class="text-right">${formatPrice(item.price)}</td>
+                                    <td class="text-right">${formatPrice(item.total)}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="5" class="text-right"><strong>ИТОГО:</strong></td>
+                                <td class="text-right"><strong>${formatPrice(data.total_amount)}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-note">* НДС не облагается (упрощенная система налогообложения)</div>
+                
+                <!-- Условия оплаты -->
+                <div class="section-title">2. УСЛОВИЯ ОПЛАТЫ</div>
+                <p>Покупатель производит 100% предоплату в течение 5 (пяти) рабочих дней с момента подписания настоящего договора. Оплата производится безналичным перечислением на расчетный счет Поставщика.</p>
+                
+                <!-- Сроки поставки -->
+                <div class="section-title">3. СРОКИ ПОСТАВКИ</div>
+                <p>Поставка товара осуществляется в течение 14 (четырнадцати) рабочих дней с момента поступления оплаты на расчетный счет Поставщика.</p>
+                
+                <!-- Реквизиты -->
+                <div class="requisites">
+                    <div class="requisite">
+                        <div class="requisite-title">Реквизиты Поставщика</div>
+                        <p>Наименование: ${data.supplier_name}</p>
+                        <p>ИНН: ${data.supplier_inn || '—'}</p>
+                        <p>КПП: ${data.supplier_kpp || '—'}</p>
+                        <p>Банк: ${data.bank_name || '—'}</p>
+                        <p>БИК: ${data.bic || '—'}</p>
+                        <p>Корр. счет: ${data.correspondent_account || '—'}</p>
+                        <p>Р/с: ${data.payment_account || '—'}</p>
+                    </div>
+                    <div class="requisite">
+                        <div class="requisite-title">Реквизиты Покупателя</div>
+                        <p>Наименование: ${comp.name || '—'}</p>
+                        <p>ИНН: ${comp.inn || '—'}</p>
+                        <p>КПП: ${comp.kpp || '—'}</p>
+                        <p>ОГРН: ${comp.ogrn || '—'}</p>
+                        ${comp.bank_details && comp.bank_details.length > 0 ? `
+                            ${comp.bank_details.map((bank, idx) => `
+                                <p><strong>Банк ${idx + 1}:</strong> ${bank.bank_name || '—'}</p>
+                                <p>БИК: ${bank.bik || '—'}</p>
+                                <p>Корр. счет: ${bank.correspondent_account || '—'}</p>
+                                <p>Р/с: ${bank.payment_account || '—'}</p>
+                            `).join('')}
+                        ` : '<p>Банковские реквизиты не указаны</p>'}
+                    </div>
+                </div>
+                
+                <!-- Подписи -->
+                <div class="signatures">
+                    <div class="signature">
+                        <div class="signature-title">Поставщик</div>
+                        <div class="signature-line"></div>
+                        <p>${data.supplier_name}</p>
+                        <p class="text-note">(подпись, печать)</p>
+                    </div>
+                    <div class="signature">
+                        <div class="signature-title">Покупатель</div>
+                        <div class="signature-line"></div>
+                        <p>${comp.director_name || props.director?.employee_name}</p>
+                        <p class="text-note">Директор ${comp.name || 'ООО "Косметологическая клиника"'}</p>
+                        ${comp.stamp_url ? `<img src="${comp.stamp_url}" class="stamp" alt="stamp">` : ''}
+                    </div>
+                </div>
+                
+                <!-- Подвал -->
+                <div class="footer">
+                    Документ сформирован автоматически ${currentDate}
+                </div>
+            </div>
+        </body>
         </html>
     `);
     printWindow.document.close();
+    printWindow.print();
 };
 
-// Экспорт документа для оплаты в Excel
 const exportPaymentDocumentToExcel = () => {
     if (!selectedPaymentDocument.value) return;
     
     const data = selectedPaymentDocument.value;
+    const comp = props.company || {};
+    
     const excelData = [
-        ['ELENA Beauty Clinic'],
+        [comp.name || 'Косметологическая клиника'],
         ['ДОГОВОР ПОСТАВКИ'],
         [`№ ${data.number}`],
         [`г. ${data.city} | ${formatDate(data.created_at)}`],
@@ -679,14 +1055,18 @@ const exportPaymentDocumentToExcel = () => {
         ['1. СТОРОНЫ ДОГОВОРА'],
         ['Поставщик:', data.supplier_name],
         ['ИНН Поставщика:', data.supplier_inn || '—'],
+        ['КПП Поставщика:', data.supplier_kpp || '—'],
         ['Адрес Поставщика:', data.supplier_address || '—'],
         ['Телефон Поставщика:', data.supplier_phone || '—'],
         ['Email Поставщика:', data.supplier_email || '—'],
         [],
-        ['Покупатель:', 'ООО "ELENA Beauty Clinic"'],
-        ['ИНН Покупателя:', '1234567890'],
-        ['Адрес Покупателя:', 'г. Москва, ул. Примерная, д. 1'],
-        ['Директор:', props.director?.employee_name],
+        ['Покупатель:', comp.name || '—'],
+        ['ИНН Покупателя:', comp.inn || '—'],
+        ['КПП Покупателя:', comp.kpp || '—'],
+        ['ОГРН Покупателя:', comp.ogrn || '—'],
+        ['Юр. адрес:', comp.legal_address || '—'],
+        ['Факт. адрес:', comp.actual_address || '—'],
+        ['Директор:', comp.director_name || props.director?.employee_name],
         [],
         ['2. СПЕЦИФИКАЦИЯ'],
         ['№', 'Наименование', 'Количество', 'Ед. изм.', 'Цена', 'Сумма']
@@ -710,16 +1090,31 @@ const exportPaymentDocumentToExcel = () => {
     excelData.push(['ИНН:', data.supplier_inn || '—']);
     excelData.push(['Банк:', data.bank_name || '—']);
     excelData.push(['БИК:', data.bic || '—']);
+    excelData.push(['Корр. счет:', data.correspondent_account || '—']);
     excelData.push(['Расчетный счет:', data.payment_account || '—']);
+    excelData.push([]);
+    excelData.push(['4. РЕКВИЗИТЫ ПОКУПАТЕЛЯ']);
+    excelData.push(['Наименование:', comp.name || '—']);
+    excelData.push(['ИНН:', comp.inn || '—']);
+    excelData.push(['КПП:', comp.kpp || '—']);
+    excelData.push(['ОГРН:', comp.ogrn || '—']);
+    
+    if (comp.bank_details && comp.bank_details.length > 0) {
+        comp.bank_details.forEach((bank, idx) => {
+            excelData.push([`Банк ${idx + 1}:`, bank.bank_name || '—']);
+            excelData.push(['БИК:', bank.bik || '—']);
+            excelData.push(['Корр. счет:', bank.correspondent_account || '—']);
+            excelData.push(['Расчетный счет:', bank.payment_account || '—']);
+        });
+    }
     
     const ws = XLSX.utils.aoa_to_sheet(excelData);
-    ws['!cols'] = [{ wch: 20 }, { wch: 35 }];
+    ws['!cols'] = [{ wch: 25 }, { wch: 40 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Договор_${data.number}`);
     XLSX.writeFile(wb, `Договор_поставки_${data.number}.xlsx`);
 };
 
-// Показать документ поставки (для полученных заказов)
 const showReceipt = async (order) => {
     try {
         const response = await axios.get(`/api/accountant/orders/${order.id}/document`);
@@ -731,29 +1126,80 @@ const showReceipt = async (order) => {
 };
 
 const printReceipt = () => {
-    const printContent = document.getElementById('receipt-content');
+    const comp = props.company || {};
+    const data = selectedReceipt.value;
+    
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
-            <head>
-                <title>Документ поставки ${selectedReceipt.value.number}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    .receipt { max-width: 1000px; margin: 0 auto; }
-                    table { width: 100%; border-collapse: collapse; }
-                    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-                    th { background-color: #f5f5f5; }
-                    .text-right { text-align: right; }
-                    @media print { button { display: none; } }
-                </style>
-            </head>
-            <body>
-                <div class="receipt">${printContent.innerHTML}</div>
-                <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }<\/script>
-            </body>
+        <head>
+            <meta charset="UTF-8">
+            <title>Документ поставки ${data.number}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Times New Roman', Times, serif;
+                    font-size: 12pt;
+                    padding: 20mm;
+                }
+                .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #000; padding-bottom: 10px; }
+                .company-name { font-size: 18pt; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+                th { background: #f5f5f5; text-align: center; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
+                .signature { text-align: center; flex: 1; }
+                .signature-line { margin-top: 30px; padding-top: 5px; border-top: 1px solid #000; }
+                @media print { body { padding: 15mm; } }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="company-name">${comp.name || 'Косметологическая клиника'}</div>
+                <p>Документ поставки № ${data.number}</p>
+                <p>Дата формирования: ${formatDateTime(data.created_at)}</p>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <p><strong>Поставщик:</strong> ${data.supplier_name}</p>
+                <p><strong>ИНН:</strong> ${data.supplier_inn || '—'}</p>
+                <p><strong>Дата поставки:</strong> ${formatDate(data.received_at) || formatDate(data.confirmed_at)}</p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr><th>№</th><th>Наименование</th><th>Кол-во</th><th>Ед. изм.</th><th>Цена</th><th>Сумма</th></tr>
+                </thead>
+                <tbody>
+                    ${data.items.map((item, idx) => `
+                        <tr>
+                            <td class="text-center">${idx + 1}</td>
+                            <td>${item.material_name}</td>
+                            <td class="text-right">${item.quantity}</td>
+                            <td class="text-center">${item.unit}</td>
+                            <td class="text-right">${formatPrice(item.price)}</td>
+                            <td class="text-right">${formatPrice(item.total)}</td>
+                        </tr>
+                    `).join('')}
+                    <tr style="font-weight: bold; background: #f9f9f9;">
+                        <td colspan="5" class="text-right">ИТОГО:</td>
+                        <td class="text-right">${formatPrice(data.total_amount)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="signatures">
+                <div class="signature"><div class="signature-line"></div><p>${data.supplier_name}</p><p>Поставщик</p></div>
+                <div class="signature"><div class="signature-line"></div><p>${comp.director_name || props.director?.employee_name}</p><p>Директор</p></div>
+            </div>
+        </body>
         </html>
     `);
     printWindow.document.close();
+    printWindow.print();
 };
 
 const exportReceiptToExcel = () => {
@@ -761,7 +1207,6 @@ const exportReceiptToExcel = () => {
     
     const data = selectedReceipt.value;
     const excelData = [
-        ['ELENA Beauty Clinic'],
         ['Документ поставки'],
         [`№ ${data.number}`],
         [`Дата формирования: ${formatDateTime(data.created_at)}`],
