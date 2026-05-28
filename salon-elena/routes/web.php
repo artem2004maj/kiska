@@ -306,6 +306,41 @@ Route::middleware('auth:employee')->group(function () {
             Route::get('/tax/summary', [App\Http\Controllers\Accountant\DashboardController::class, 'getTaxSummary']);
         });
     });
+    // ====================== АДМИНИСТРАТОР (РЕСЕПШЕН) ======================
+    Route::middleware('auth:employee')->prefix('admin')->name('admin.')->group(function () {
+        // Страницы (Inertia рендер)
+        Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/appointments', [App\Http\Controllers\Admin\DashboardController::class, 'appointments'])->name('appointments');
+        Route::get('/warehouse', [App\Http\Controllers\Admin\DashboardController::class, 'warehouse'])->name('warehouse');
+        Route::get('/orders', [App\Http\Controllers\Admin\DashboardController::class, 'orders'])->name('orders');
+        Route::get('/profile', [App\Http\Controllers\Admin\DashboardController::class, 'profile'])->name('profile');
+    });
+
+    // API маршруты для администратора (без префикса /api в URL, но с префиксом в группе)
+    Route::middleware('auth:employee')->prefix('api/admin')->name('admin.api.')->group(function () {
+        // Клиенты
+        Route::get('/clients/search', [App\Http\Controllers\Admin\DashboardController::class, 'searchClients']);
+        Route::post('/clients', [App\Http\Controllers\Admin\DashboardController::class, 'createClient']);
+        
+        // Слоты времени
+        Route::get('/available-slots', [App\Http\Controllers\Admin\DashboardController::class, 'getAvailableSlots']);
+        
+        // Записи
+        Route::get('/appointments', [App\Http\Controllers\Admin\DashboardController::class, 'getAppointments']);
+        Route::post('/appointments', [App\Http\Controllers\Admin\DashboardController::class, 'createAppointment']);
+        Route::delete('/appointments/{id}', [App\Http\Controllers\Admin\DashboardController::class, 'cancelAppointment']);
+        
+        // Склад
+        Route::get('/warehouse-materials', [App\Http\Controllers\Admin\DashboardController::class, 'getWarehouseMaterials']);
+        Route::post('/materials', [App\Http\Controllers\Admin\DashboardController::class, 'createMaterial']);
+        Route::put('/materials/{id}', [App\Http\Controllers\Admin\DashboardController::class, 'updateMaterial']);
+        Route::delete('/materials/{id}', [App\Http\Controllers\Admin\DashboardController::class, 'deleteMaterial']);
+        
+        // Заказы поставщикам
+        Route::post('/orders/create', [App\Http\Controllers\Admin\DashboardController::class, 'createOrder']);
+        Route::get('/orders', [App\Http\Controllers\Admin\DashboardController::class, 'getOrders']);
+        Route::post('/orders/{id}/receive', [App\Http\Controllers\Admin\DashboardController::class, 'receiveOrder']);
+    });
 });
 
 Route::get('/debug-employee', function() {
