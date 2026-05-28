@@ -155,6 +155,15 @@ Route::middleware('auth:employee')->group(function () {
         
         Route::get('/director/profile', [App\Http\Controllers\Director\DashboardController::class, 'profile'])
             ->name('director.profile');
+
+        Route::get('/director/company-settings', [App\Http\Controllers\Director\DashboardController::class, 'companySettings'])
+            ->name('director.company-settings');
+        Route::post('/director/company-settings/save', [App\Http\Controllers\Director\DashboardController::class, 'saveCompanySettings'])
+            ->name('director.company-settings.save');
+        Route::post('/director/company-settings/logo', [App\Http\Controllers\Director\DashboardController::class, 'uploadCompanyLogo'])
+            ->name('director.company-settings.logo');
+        Route::delete('/director/company-settings/logo', [App\Http\Controllers\Director\DashboardController::class, 'deleteCompanyLogo'])
+            ->name('director.company-settings.logo.delete');
         
         // API маршруты для директора
         Route::prefix('api/director')->name('director.api.')->group(function () {
@@ -191,6 +200,7 @@ Route::middleware('auth:employee')->group(function () {
             Route::post('/orders/{id}/reject', [App\Http\Controllers\Director\DashboardController::class, 'rejectOrder']);
             
             Route::get('/analytics/data', [App\Http\Controllers\Director\DashboardController::class, 'getAnalyticsData']);
+            
             
             Route::put('/profile', [App\Http\Controllers\Director\DashboardController::class, 'updateProfile']);
             Route::post('/upload-photo', [App\Http\Controllers\Director\DashboardController::class, 'uploadPhoto']);

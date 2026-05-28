@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Service;
 use App\Models\Feedback;
 use App\Models\DoctorSchedule;
+use App\Models\CompanySetting;  // ДОБАВЬТЕ ЭТУ СТРОКУ
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -81,6 +82,9 @@ class WelcomeController extends Controller
                 ];
             });
         
+        // ========== ПОЛУЧАЕМ НАСТРОЙКИ ПРЕДПРИЯТИЯ ==========
+        $companySettings = CompanySetting::first();
+        
         return Inertia::render('Welcome', [
             'canLogin' => true,
             'canRegister' => true,
@@ -89,6 +93,23 @@ class WelcomeController extends Controller
             'doctors' => $doctors,
             'services' => $services,
             'testimonials' => $testimonials,
+            // ДОБАВЛЯЕМ НАСТРОЙКИ КОМПАНИИ
+            'companySettings' => $companySettings ? [
+                'name' => $companySettings->company_name,
+                'short_name' => $companySettings->short_name,
+                'logo_url' => $companySettings->logo_url,
+                'phone' => $companySettings->phone,
+                'email' => $companySettings->email,
+                'legal_address' => $companySettings->legal_address,
+                'actual_address' => $companySettings->actual_address,
+                'inn' => $companySettings->inn,
+                'director_name' => $companySettings->director_name,
+                'accountant_name' => $companySettings->accountant_name,
+                'website' => $companySettings->website,
+                'instagram' => $companySettings->instagram,
+                'telegram' => $companySettings->telegram,
+                'vk' => $companySettings->vk,
+            ] : null,
         ]);
     }
 }

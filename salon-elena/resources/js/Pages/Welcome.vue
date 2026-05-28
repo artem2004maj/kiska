@@ -10,10 +10,11 @@ const props = defineProps({
     phpVersion: String,
     doctors: { type: Array, default: () => [] },
     services: { type: Array, default: () => [] },
-    testimonials: { type: Array, default: () => [] }
+    testimonials: { type: Array, default: () => [] },
+    companySettings: { type: Object, default: () => ({}) }  // ДОБАВЛЕНЫ НАСТРОЙКИ
 });
 
-// Мобильное меню (НОВОЕ)
+// Мобильное меню
 const mobileMenuOpen = ref(false);
 
 const toggleMobileMenu = () => {
@@ -47,25 +48,34 @@ const servicesByCategory = computed(() => {
     });
     return grouped;
 });
+
+// Получаем данные компании из props
+const company = computed(() => props.companySettings || {});
+const currentYear = new Date().getFullYear();
 </script>
 
 <template>
-    <Head title="Салон красоты 'Елена'" />
+    <Head :title="company.name || 'Салон красоты'" />
     
     <div class="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <!-- Навигация - адаптирована -->
+        <!-- Навигация -->
         <nav class="bg-white shadow-sm sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16 items-center">
-                    <!-- Логотип -->
+                    <!-- Логотип и название -->
                     <div class="flex items-center">
-                        <svg class="h-8 sm:h-10 w-auto text-[#14b8a6]" viewBox="0 0 62 65" fill="none">
+                        <img v-if="company.logo_url" 
+                             :src="company.logo_url" 
+                             class="h-8 sm:h-10 w-auto object-contain" />
+                        <svg v-else class="h-8 sm:h-10 w-auto text-[#14b8a6]" viewBox="0 0 62 65" fill="none">
                             <path d="M61.8548 14.6253..." fill="currentColor"/>
                         </svg>
-                        <span class="ml-2 text-lg sm:text-xl font-semibold text-gray-800">Елена</span>
+                        <span class="ml-2 text-lg sm:text-xl font-semibold text-gray-800">
+                            {{ company.short_name || company.name || 'Салон красоты' }}
+                        </span>
                     </div>
                     
-                    <!-- Десктопное меню (скрыто на мобильных) -->
+                    <!-- Десктопное меню -->
                     <div class="hidden md:flex space-x-8">
                         <a href="#about" class="text-gray-600 hover:text-[#14b8a6] transition">О салоне</a>
                         <a href="#doctors" class="text-gray-600 hover:text-[#14b8a6] transition">Врачи</a>
@@ -73,7 +83,7 @@ const servicesByCategory = computed(() => {
                         <a href="#testimonials" class="text-gray-600 hover:text-[#14b8a6] transition">Отзывы</a>
                     </div>
                     
-                    <!-- Десктопные кнопки (скрыты на мобильных) -->
+                    <!-- Десктопные кнопки -->
                     <div class="hidden md:flex items-center space-x-4">
                         <Link v-if="canLogin" :href="route('login')"
                               class="px-4 py-2 text-sm font-medium text-[#14b8a6] border border-[#14b8a6] rounded-md hover:bg-[#14b8a6] hover:text-white transition">
@@ -128,12 +138,12 @@ const servicesByCategory = computed(() => {
             </Transition>
         </nav>
 
-        <!-- Hero секция - адаптирована -->
+        <!-- Hero секция -->
         <section class="relative bg-gradient-to-r from-[#14b8a6] to-[#0d9488] text-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
                 <div class="text-center">
                     <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 px-4">
-                        Добро пожаловать в салон красоты "Елена"
+                        Добро пожаловать в {{ company.short_name || 'салон красоты' }}
                     </h1>
                     <p class="text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 px-4">
                         Профессиональный уход и косметологические услуги
@@ -144,7 +154,6 @@ const servicesByCategory = computed(() => {
                     </Link>
                 </div>
             </div>
-            <!-- Декоративная волна (скрыта на мобильных) -->
             <div class="hidden sm:block absolute bottom-0 left-0 right-0">
                 <svg viewBox="0 0 1440 120" class="w-full h-auto">
                     <path fill="#ffffff" fill-opacity="1" d="M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,48C1120,43,1280,53,1360,58.7L1440,64L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z"></path>
@@ -152,7 +161,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- О салоне - адаптировано -->
+        <!-- О салоне -->
         <section id="about" class="py-12 sm:py-16 lg:py-20 bg-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -168,7 +177,7 @@ const servicesByCategory = computed(() => {
                     </div>
                     <div class="order-1 md:order-2 space-y-4 sm:space-y-6">
                         <p class="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed">
-                            Салон красоты "Елена" - это пространство, где профессионализм встречается с комфортом. 
+                            {{ company.short_name || 'Салон красоты' }} - это пространство, где профессионализм встречается с комфортом. 
                             Мы предлагаем широкий спектр косметологических услуг с использованием современных технологий 
                             и качественных материалов.
                         </p>
@@ -195,8 +204,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Наши врачи - адаптировано с фото -->
-        <!-- resources/js/Pages/Welcome.vue - обновленная секция врачей -->
+        <!-- Наши специалисты -->
         <section id="doctors" class="py-12 sm:py-16 lg:py-20 bg-gray-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -221,7 +229,6 @@ const servicesByCategory = computed(() => {
                             <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-1">{{ doctor.employee_name }}</h3>
                             <p class="text-sm text-[#14b8a6] font-medium mb-3">{{ doctor.role }}</p>
                             
-                            <!-- Расписание врача -->
                             <div class="mt-3 pt-3 border-t border-gray-100">
                                 <p class="text-xs font-medium text-gray-700 mb-2">График работы:</p>
                                 <div class="space-y-1 text-xs text-gray-600">
@@ -253,10 +260,6 @@ const servicesByCategory = computed(() => {
                                         <span>Воскресенье</span>
                                         <span>{{ doctor.schedule[0].start }} - {{ doctor.schedule[0].end }}</span>
                                     </div>
-                                    <div v-if="!doctor.schedule[1]?.working && !doctor.schedule[2]?.working && !doctor.schedule[3]?.working && !doctor.schedule[4]?.working && !doctor.schedule[5]?.working && !doctor.schedule[6]?.working && !doctor.schedule[0]?.working" 
-                                        class="text-gray-400 italic">
-                                        График уточняется
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +272,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Прейскурант - адаптирован -->
+        <!-- Прейскурант -->
         <section id="prices" class="py-12 sm:py-16 lg:py-20 bg-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -305,7 +308,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Отзывы - адаптированы -->
+        <!-- Отзывы -->
         <section id="testimonials" class="py-12 sm:py-16 lg:py-20 bg-gray-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-8 sm:mb-12">
@@ -350,7 +353,6 @@ const servicesByCategory = computed(() => {
                         </div>
                     </div>
                     
-                    <!-- Индикаторы -->
                     <div class="flex justify-center gap-2 mt-4 sm:mt-6">
                         <button v-for="(_, index) in testimonials" :key="index"
                                 @click="currentTestimonialIndex = index"
@@ -366,7 +368,7 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Призыв к действию - адаптирован -->
+        <!-- Призыв к действию -->
         <section class="py-12 sm:py-16 bg-gradient-to-r from-[#14b8a6] to-[#0d9488] text-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                 <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-4">Готовы преобразиться?</h2>
@@ -378,18 +380,21 @@ const servicesByCategory = computed(() => {
             </div>
         </section>
 
-        <!-- Подвал - адаптирован -->
+        <!-- Подвал с динамическими контактами -->
         <footer class="bg-gray-900 text-white py-8 sm:py-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                     <div>
                         <div class="flex items-center mb-4">
-                            <svg class="h-6 sm:h-8 w-auto text-[#14b8a6]" viewBox="0 0 62 65" fill="none">
+                            <img v-if="company.logo_url" 
+                                 :src="company.logo_url" 
+                                 class="h-6 sm:h-8 w-auto" />
+                            <svg v-else class="h-6 sm:h-8 w-auto text-[#14b8a6]" viewBox="0 0 62 65" fill="none">
                                 <path d="M61.8548 14.6253..." fill="currentColor"/>
                             </svg>
-                            <span class="ml-2 text-base sm:text-lg font-semibold">Елена</span>
+                            <span class="ml-2 text-base sm:text-lg font-semibold">{{ company.short_name || company.name || 'Клиника' }}</span>
                         </div>
-                        <p class="text-xs sm:text-sm text-gray-400">Салон красоты премиум-класса</p>
+                        <p class="text-xs sm:text-sm text-gray-400">{{ company.name || 'Салон красоты' }}</p>
                     </div>
                     
                     <div>
@@ -405,24 +410,24 @@ const servicesByCategory = computed(() => {
                     <div>
                         <h4 class="text-sm sm:text-base font-semibold mb-3 sm:mb-4">Контакты</h4>
                         <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
-                            <li>ул. Пушкина, д. 10</li>
-                            <li>+7 (999) 123-45-67</li>
-                            <li>info@elena.ru</li>
+                            <li>{{ company.actual_address || company.legal_address || 'Адрес не указан' }}</li>
+                            <li>{{ company.phone || 'Телефон не указан' }}</li>
+                            <li>{{ company.email || 'Email не указан' }}</li>
                         </ul>
                     </div>
                     
                     <div>
                         <h4 class="text-sm sm:text-base font-semibold mb-3 sm:mb-4">Режим работы</h4>
                         <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
-                            <li>Пн-Пт: 10:00 - 20:00</li>
-                            <li>Сб: 11:00 - 18:00</li>
+                            <li>Пн-Пт: 9:00 - 20:00</li>
+                            <li>Сб: 9:00 - 18:00</li>
                             <li>Вс: выходной</li>
                         </ul>
                     </div>
                 </div>
                 
                 <div class="border-t border-gray-800 mt-6 sm:mt-8 pt-6 sm:pt-8 text-center text-xs sm:text-sm text-gray-400">
-                    © 2026 Салон красоты "Елена". Все права защищены.
+                    © {{ currentYear }} {{ company.name || 'Салон красоты' }}. Все права защищены.
                 </div>
             </div>
         </footer>
@@ -430,7 +435,6 @@ const servicesByCategory = computed(() => {
 </template>
 
 <style scoped>
-/* Анимации для мобильного меню */
 .v-enter-active,
 .v-leave-active {
     transition: all 0.3s ease;

@@ -1071,7 +1071,124 @@ class DashboardController extends Controller
             'financial_data' => $financialData,
         ]);
     }
-    
+    /**
+     * Страница управления предприятием
+     */
+    public function companySettings()
+    {
+        $user = Auth::guard('employee')->user();
+        $settings = \App\Models\CompanySetting::first() ?? new \App\Models\CompanySetting();
+        
+        return Inertia::render('Director/CompanySettings', [
+            'director' => [
+                'employee_id' => $user->employee_id,
+                'employee_name' => $user->employee_name,
+                'email' => $user->email,
+                'employee_phone' => $user->employee_phone,
+                'photo' => $user->photo,
+                'photo_url' => $user->photo ? Storage::url($user->photo) : null,
+                'role' => $user->role,
+            ],
+            'settings' => [
+                'id' => $settings->id,
+                'company_name' => $settings->company_name,
+                'short_name' => $settings->short_name,
+                'logo_url' => $settings->logo_url,
+                'inn' => $settings->inn,
+                'kpp' => $settings->kpp,
+                'ogrn' => $settings->ogrn,
+                'okpo' => $settings->okpo,
+                'legal_address' => $settings->legal_address,
+                'actual_address' => $settings->actual_address,
+                'phone' => $settings->phone,
+                'email' => $settings->email,
+                'website' => $settings->website,
+                'director_name' => $settings->director_name,
+                'accountant_name' => $settings->accountant_name,
+                'bank_details' => $settings->bank_details,
+                'instagram' => $settings->instagram,
+                'telegram' => $settings->telegram,
+                'vk' => $settings->vk,
+            ],
+        ]);
+    }
+
+    /**
+     * Сохранить настройки предприятия
+     */
+    public function saveCompanySettings(Request $request)
+    {
+        $validated = $request->validate([
+            'company_name' => 'required|string|max:255',
+            'short_name' => 'nullable|string|max:100',
+            'inn' => 'nullable|string|max:12',
+            'kpp' => 'nullable|string|max:9',
+            'ogrn' => 'nullable|string|max:15',
+            'okpo' => 'nullable|string|max:10',
+            'legal_address' => 'nullable|string',
+            'actual_address' => 'nullable|string',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'website' => 'nullable|url|max:255',
+            'director_name' => 'nullable|string|max:255',
+            'accountant_name' => 'nullable|string|max:255',
+            'bank_details' => 'nullable|array',
+            'instagram' => 'nullable|string|max:100',
+            'telegram' => 'nullable|string|max:100',
+            'vk' => 'nullable|string|max:100',
+        ]);
+        
+        $settings = \App\Models\CompanySetting::first();
+        
+        if (!$settings) {
+            $settings = new \App\Models\CompanySetting();
+        }
+        
+        $settings->fill($validated);
+        $settings->save();
+        
+        return redirect()->back()->with('success', 'Настройки сохранены');
+    }
+
+    /**
+     * Загрузить логотип
+     */
+    public function uploadCompanyLogo(Request $request)
+    {
+        $request->validate([
+            'logo' => 'required|image|mimes:jpeg,png,jpg,svg|max:2048',
+        ]);
+        
+        $settings = \App\Models\CompanySetting::first() ?? new \App\Models\CompanySetting();
+        
+        if ($settings->logo_path) {
+            Storage::disk('public')->delete($settings->logo_path);
+        }
+        
+        $path = $request->file('logo')->store('company', 'public');
+        $settings->logo_path = $path;
+        $settings->save();
+        
+        return response()->json([
+            'success' => true,
+            'logo_url' => Storage::url($path),
+        ]);
+    }
+
+    /**
+     * Удалить логотип
+     */
+    public function deleteCompanyLogo()
+    {
+        $settings = \App\Models\CompanySetting::first();
+        if ($settings && $settings->logo_path) {
+            Storage::disk('public')->delete($settings->logo_path);
+            $settings->logo_path = null;
+            $settings->save();
+        }
+        
+        return response()->json(['success' => true]);
+    }
     /**
      * Обновить профиль директора
      */

@@ -79,6 +79,13 @@
                                     <span class="text-lg lg:text-xl">🚚</span>
                                     <span>Поставки</span>
                                 </Link>
+
+                                <Link href="/director/company-settings" 
+                                    class="flex items-center gap-3 px-3 py-2 rounded-md transition text-sm lg:text-base"
+                                    :class="isActive('/director/company-settings')">
+                                    <span class="text-lg lg:text-xl">⚙️</span>
+                                    <span>Настройки</span>
+                                </Link>
                             </nav>
                         </div>
                     </aside>
@@ -130,6 +137,7 @@
                                           :class="isActive('/director/profile')">
                                         <span class="text-lg">👤</span> Профиль
                                     </Link>
+                                    
                                     <button @click="logout" class="flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-sm text-red-600">
                                         <span class="text-lg">🚪</span> Выйти
                                     </button>
