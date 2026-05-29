@@ -90,15 +90,6 @@
                         </div>
                         <p class="text-xs text-gray-500 mt-1">Рекомендуемый размер: 200x200 px. Форматы: PNG, JPG, SVG</p>
                     </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Сайт
-                        </label>
-                        <input type="url" v-model="form.website"
-                               class="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-[#8b5cf6] focus:border-transparent dark:bg-zinc-800 dark:text-white"
-                               placeholder="https://example.ru">
-                    </div>
                 </div>
                 
                 <!-- Юридические реквизиты -->

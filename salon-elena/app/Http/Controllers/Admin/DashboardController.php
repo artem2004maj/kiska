@@ -193,24 +193,18 @@ class DashboardController extends Controller
             'email' => 'nullable|email|unique:clients,email',
         ]);
         
-        // Очищаем телефон от лишних символов для правильного формата
+        // Очищаем телефон
         $cleanPhone = preg_replace('/[^0-9]/', '', $request->phone);
-        
-        // Приводим к формату +7XXXXXXXXXX
         if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '8') {
             $cleanPhone = '7' . substr($cleanPhone, 1);
         }
+        $formattedPhone = (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '7') 
+            ? '+' . $cleanPhone 
+            : '+7' . $cleanPhone;
         
-        if (strlen($cleanPhone) === 11 && substr($cleanPhone, 0, 1) === '7') {
-            $formattedPhone = '+' . $cleanPhone;
-        } else if (strlen($cleanPhone) === 10) {
-            $formattedPhone = '+7' . $cleanPhone;
-        } else {
-            $formattedPhone = '+' . $cleanPhone;
-        }
-        
-        // Генерируем уникальный логин
-        $login = 'client_' . time() . '_' . rand(100, 999);
+        // Логин больше не нужен, можно сделать его равным телефону или вообще не использовать
+        // Для совместимости с существующей системой генерируем логин из телефона
+        $login = 'client_' . preg_replace('/[^0-9]/', '', $formattedPhone);
         $tempPassword = 'password123';
         
         try {

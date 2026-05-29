@@ -36,10 +36,10 @@ const submit = () => {
             <!-- Форма входа -->
             <div class="bg-white rounded-2xl shadow-xl p-8">
                 <form @submit.prevent="submit" class="space-y-6">
-                    <!-- Поле Логин/Email -->
+                    <!-- Поле Логин/Email/Телефон -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Логин или Email
+                            Логин, Email или Телефон
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -52,11 +52,12 @@ const submit = () => {
                                 v-model="form.login"
                                 class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
                                 :class="{ 'border-red-500': form.errors.login }"
-                                placeholder="Введите логин или email"
+                                placeholder="Логин, email или +7 999 123-45-67"
                                 required
                                 autofocus
                             />
                         </div>
+                        <p class="mt-1 text-xs text-gray-400">Вы можете использовать логин, email или номер телефона</p>
                         <p v-if="form.errors.login" class="mt-1 text-sm text-red-500">{{ form.errors.login }}</p>
                     </div>
                     

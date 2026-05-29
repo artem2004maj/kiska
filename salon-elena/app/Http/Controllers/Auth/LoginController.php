@@ -12,9 +12,8 @@ class LoginController extends Controller
 {
     public function create()
     {
-        // Если уже авторизован, редиректим на соответствующий дашборд
         if (Auth::guard('client')->check()) {
-            return redirect()->route('dashboard.client');
+            return redirect()->route('client.dashboard');
         }
         
         if (Auth::guard('employee')->check()) {
@@ -31,7 +30,7 @@ class LoginController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'login'    => 'required|string',  // меняем email на login
+            'login'    => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -39,15 +38,15 @@ class LoginController extends Controller
         $password = $request->password;
         $remember = $request->boolean('remember');
 
-        // Определяем, что ввел пользователь: email или логин
-        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'login';
+        // Определяем тип введенных данных (email, логин или телефон)
+        $field = $this->identifyLoginField($login);
 
         // Пытаемся авторизовать как клиента
         $clientCredentials = [$field => $login, 'password' => $password];
         if (Auth::guard('client')->attempt($clientCredentials, $remember)) {
             $request->session()->regenerate();
             Log::info('Client logged in', ['login' => $login]);
-            return redirect()->intended(route('dashboard.client'));
+            return redirect()->intended(route('client.dashboard'));
         }
 
         // Пытаемся авторизовать как сотрудника
@@ -62,30 +61,46 @@ class LoginController extends Controller
         Log::warning('Failed login attempt', ['login' => $login]);
         
         return back()->withErrors([
-            'login' => 'Неверный логин/email или пароль.',
+            'login' => 'Неверный логин/email/телефон или пароль.',
         ])->onlyInput('login');
     }
     
     /**
-     * Получить маршрут для редиректа на основе роли сотрудника
+     * Определяет, по какому полю искать пользователя
+     * Возвращает: 'email', 'login', 'phone'
      */
+    protected function identifyLoginField($login)
+    {
+        // Проверка на email
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            return 'email';
+        }
+        
+        // Проверка на телефон (только цифры, 10-11 цифр)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $login);
+        if (strlen($cleanPhone) >= 10 && strlen($cleanPhone) <= 11) {
+            return 'phone';
+        }
+        
+        // По умолчанию - логин
+        return 'login';
+    }
+    
     protected function getRedirectRouteByRole($role)
     {
-        // Приводим к нижнему регистру и убираем пробелы
         $role = strtolower(trim($role));
         
         return match ($role) {
-            'admin'      => route('admin.dashboard'),
             'doctor'     => route('dashboard.doctor'),
             'director'   => route('director.dashboard'),
             'accountant' => route('dashboard.accountant'),
-            default      => route('login'), // По умолчанию админка
+            'admin'      => route('admin.dashboard'),
+            default      => route('login'),
         };
     }
     
     public function destroy(Request $request)
     {
-        // Логируем выход
         if (Auth::guard('client')->check()) {
             Log::info('Client logged out', ['email' => Auth::guard('client')->user()->email]);
         }
@@ -96,11 +111,9 @@ class LoginController extends Controller
             ]);
         }
         
-        // Выход из всех guards
         Auth::guard('client')->logout();
         Auth::guard('employee')->logout();
         
-        // Очищаем сессию
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
