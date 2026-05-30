@@ -331,6 +331,7 @@ Route::middleware('auth:employee')->group(function () {
         Route::delete('/appointments/{id}', [App\Http\Controllers\Admin\DashboardController::class, 'cancelAppointment']);
         
         // Склад
+        
         Route::get('/warehouse-materials', [App\Http\Controllers\Admin\DashboardController::class, 'getWarehouseMaterials']);
         Route::post('/materials', [App\Http\Controllers\Admin\DashboardController::class, 'createMaterial']);
         Route::put('/materials/{id}', [App\Http\Controllers\Admin\DashboardController::class, 'updateMaterial']);

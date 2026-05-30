@@ -21,7 +21,7 @@
                     </button>
                 </div>
                 
-                <!-- Фильтры: Поставщик + Статус -->
+                <!-- Фильтры -->
                 <div class="flex flex-wrap gap-4 mb-6">
                     <select v-model="selectedSupplierFilter" 
                             class="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md min-w-[200px]"
@@ -45,7 +45,7 @@
                 </div>
 
                 <!-- Таблица материалов -->
-                <div class="overflow-x-auto">
+                <div v-if="!loadingMaterials" class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
                             <tr class="border-b border-gray-200 dark:border-zinc-700">
@@ -88,7 +88,6 @@
                                                 class="text-red-500 hover:underline text-sm">
                                             Удалить
                                         </button>
-                                        <!-- Кнопка "В заказ" показываем только если выбран поставщик -->
                                         <button v-if="selectedSupplierFilter" 
                                                 @click="addToOrder(material)" 
                                                 class="text-[#10b981] hover:underline text-sm"
@@ -106,15 +105,19 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <div v-else class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#3b82f6]"></div>
+                    <p class="mt-2 text-gray-500">Загрузка материалов...</p>
+                </div>
             </div>
 
-            <!-- Блок закупки - показываем только если выбран поставщик -->
+            <!-- Блок закупки -->
             <div v-if="selectedSupplierFilter" class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
                 <h3 class="text-xl font-semibold text-black dark:text-white mb-4">
                     ОФОРМЛЕНИЕ ЗАКУПКИ ДЛЯ {{ getSelectedSupplierName() }}
                 </h3>
                 
-                <!-- Корзина заказа -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-black dark:text-white/70 mb-2">Корзина заказа</label>
                     <div class="border border-gray-200 dark:border-zinc-700 rounded-lg">
@@ -148,20 +151,18 @@
                     </div>
                 </div>
 
-                <!-- Кнопка оформления -->
                 <button @click="submitOrder" 
                         :disabled="orderItems.length === 0"
                         class="w-full px-4 py-3 bg-[#22c55e] text-white rounded-md hover:bg-[#22c55e]/90 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Оформить заявку на закупку
                 </button>
 
-                <!-- Статус заявки -->
                 <div v-if="orderStatus" class="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-center">
                     {{ orderStatus }}
                 </div>
             </div>
 
-            <!-- Активные заказы (подтвержденные, в пути) -->
+            <!-- Активные заказы (только просмотр) -->
             <div v-if="activeOrders.length > 0" class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
                 <h3 class="text-xl font-semibold text-black dark:text-white mb-4">ЗАКАЗЫ В ПУТИ</h3>
                 <div class="space-y-3">
@@ -178,16 +179,21 @@
                                 </span>
                             </div>
                         </div>
-                        <button @click="receiveOrder(order.id)" 
-                                class="px-3 py-1 bg-[#3b82f6] text-white rounded-md hover:bg-[#3b82f6]/90 text-sm">
-                            Принять на склад
-                        </button>
+                        <div class="text-right">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                В пути
+                            </span>
+                            <p class="text-sm font-medium text-blue-600 mt-1">{{ formatPrice(order.total_amount) }}</p>
+                        </div>
                     </div>
                 </div>
+                <p class="text-xs text-gray-400 mt-3 text-center">
+                    ℹ️ При поступлении заказа на склад, администратор примет его и материалы будут добавлены в наличие
+                </p>
             </div>
         </div>
 
-        <!-- Модальное окно добавления/редактирования материала -->
+        <!-- Модальные окна (оставляем как есть) -->
         <Teleport to="body">
             <div v-if="showMaterialModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4">
@@ -201,14 +207,11 @@
                                 <input type="text" v-model="materialForm.name" 
                                        class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
                             </div>
-                            
                             <div>
                                 <label class="block text-sm font-medium mb-1">Единица измерения *</label>
                                 <input type="text" v-model="materialForm.unit" 
-                                       placeholder="шт, мл, упак, пара и т.д."
                                        class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
                             </div>
-                            
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1">Текущий остаток *</label>
@@ -221,7 +224,6 @@
                                            class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent" />
                                 </div>
                             </div>
-                            
                             <div>
                                 <label class="block text-sm font-medium mb-1">Цена за единицу (₽)</label>
                                 <input type="number" v-model="materialForm.price_per_unit" min="0" step="0.01"
@@ -245,7 +247,6 @@
             </div>
         </Teleport>
 
-        <!-- Модальное окно выбора количества -->
         <Teleport to="body">
             <div v-if="showQuantityModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex items-center justify-center min-h-screen px-4">
@@ -279,19 +280,12 @@
             </div>
         </Teleport>
 
-        <!-- Уведомления -->
         <Teleport to="body">
             <div v-if="notification.show" 
                  class="fixed bottom-4 right-4 z-50 animate-slide-up"
                  :class="notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'">
-                <div class="px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-3">
-                    <svg v-if="notification.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{{ notification.message }}</span>
+                <div class="px-4 py-3 rounded-lg shadow-lg text-white">
+                    {{ notification.message }}
                 </div>
             </div>
         </Teleport>
@@ -299,7 +293,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AccountantLayout from '@/Layouts/AccountantLayout.vue';
@@ -316,21 +310,21 @@ const props = defineProps({
     pendingPayments: Number
 });
 
-// Состояние для фильтрации
+// Состояния
 const searchQuery = ref('');
 const statusFilter = ref('all');
 const selectedSupplierFilter = ref('');
-
-// Состояние для материалов (будет обновляться при смене поставщика)
-const currentMaterials = ref([...props.materials]);
-
-// Состояние для закупки
+const currentMaterials = ref([]);
+const loadingMaterials = ref(false);
 const orderItems = ref([]);
 const orderStatus = ref('');
-
-// Состояние для модального окна материала
 const showMaterialModal = ref(false);
 const isEditingMaterial = ref(false);
+const showQuantityModal = ref(false);
+const selectedMaterial = ref(null);
+const quantityToOrder = ref(1);
+const pricePerUnit = ref(0);
+
 const materialForm = ref({
     material_id: null,
     name: '',
@@ -340,13 +334,6 @@ const materialForm = ref({
     price_per_unit: null
 });
 
-// Состояние для модального окна количества
-const showQuantityModal = ref(false);
-const selectedMaterial = ref(null);
-const quantityToOrder = ref(1);
-const pricePerUnit = ref(0);
-
-// Состояние для уведомлений
 const notification = ref({
     show: false,
     type: 'success',
@@ -360,51 +347,6 @@ const showNotification = (type, message) => {
     }, 3000);
 };
 
-// Получить материалы при смене поставщика
-const onSupplierFilterChange = async () => {
-    try {
-        const response = await axios.get('/api/accountant/warehouse-materials', {
-            params: { supplier_id: selectedSupplierFilter.value }
-        });
-        currentMaterials.value = response.data;
-        
-        // Если поставщик изменился, очищаем корзину
-        orderItems.value = [];
-        orderStatus.value = '';
-    } catch (error) {
-        console.error('Error loading materials:', error);
-    }
-};
-
-// Фильтрация материалов
-const filteredMaterials = computed(() => {
-    let filtered = [...currentMaterials.value];
-    
-    if (searchQuery.value) {
-        filtered = filtered.filter(m => 
-            m.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-        );
-    }
-    
-    if (statusFilter.value !== 'all') {
-        filtered = filtered.filter(m => m.status === statusFilter.value);
-    }
-    
-    return filtered;
-});
-
-// Получить имя выбранного поставщика
-const getSelectedSupplierName = () => {
-    const supplier = props.suppliers.find(s => s.supplier_id === selectedSupplierFilter.value);
-    return supplier ? supplier.supplier_name : '';
-};
-
-// Сумма заказа
-const orderTotal = computed(() => {
-    return orderItems.value.reduce((sum, item) => sum + (item.quantity * item.price_per_unit), 0);
-});
-
-// Форматирование цены
 const formatPrice = (price) => {
     if (!price && price !== 0) return '0 ₽';
     return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
@@ -413,6 +355,79 @@ const formatPrice = (price) => {
 const formatDate = (date) => {
     if (!date) return '';
     return new Date(date).toLocaleDateString('ru-RU');
+};
+
+// Фильтрация материалов
+const filteredMaterials = computed(() => {
+    let filtered = [...currentMaterials.value];
+    if (searchQuery.value) {
+        filtered = filtered.filter(m => 
+            m.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        );
+    }
+    if (statusFilter.value !== 'all') {
+        filtered = filtered.filter(m => m.status === statusFilter.value);
+    }
+    return filtered;
+});
+
+const getSelectedSupplierName = () => {
+    const supplier = props.suppliers?.find(s => s.supplier_id === selectedSupplierFilter.value);
+    return supplier ? supplier.supplier_name : '';
+};
+
+const orderTotal = computed(() => {
+    return orderItems.value.reduce((sum, item) => sum + (item.quantity * item.price_per_unit), 0);
+});
+
+// Загрузка материалов при выборе поставщика
+const onSupplierFilterChange = async () => {
+    if (!selectedSupplierFilter.value) {
+        // Если поставщик не выбран, показываем все материалы
+        currentMaterials.value = props.materials || [];
+        orderItems.value = [];
+        return;
+    }
+    
+    loadingMaterials.value = true;
+    
+    try {
+        const response = await axios.get(`/api/accountant/suppliers/${selectedSupplierFilter.value}/materials`);
+        
+        currentMaterials.value = response.data.materials.map(material => {
+            const currentBalance = material.current_balance || 0;
+            const minStock = material.min_stock || 0;
+            
+            let status = 'normal';
+            if (currentBalance <= minStock) {
+                status = 'critical';
+            } else if (currentBalance <= minStock * 2) {
+                status = 'low';
+            }
+            
+            return {
+                id: material.material_id,
+                name: material.name,
+                unit: material.unit,
+                current_balance: currentBalance,
+                min_stock: minStock,
+                price_per_unit: material.price_per_unit || 0,
+                supplier_price: material.price,  // Цена закупки от поставщика
+                status: status,
+                inOrder: false
+            };
+        });
+        
+        orderItems.value = [];
+        orderStatus.value = '';
+        
+    } catch (error) {
+        console.error('Error loading supplier materials:', error);
+        showNotification('error', 'Ошибка загрузки материалов поставщика');
+        currentMaterials.value = props.materials || [];
+    } finally {
+        loadingMaterials.value = false;
+    }
 };
 
 // Методы для работы с материалами
@@ -444,14 +459,6 @@ const editMaterial = (material) => {
 
 const closeMaterialModal = () => {
     showMaterialModal.value = false;
-    materialForm.value = {
-        material_id: null,
-        name: '',
-        unit: '',
-        current_balance: 0,
-        min_stock: 0,
-        price_per_unit: null
-    };
 };
 
 const saveMaterial = async () => {
@@ -468,21 +475,31 @@ const saveMaterial = async () => {
             await axios.post('/api/accountant/materials', materialForm.value);
             showNotification('success', 'Материал добавлен');
         }
-        
         closeMaterialModal();
-        setTimeout(() => router.reload(), 1000);
+        
+        // Если выбран поставщик, перезагружаем его материалы
+        if (selectedSupplierFilter.value) {
+            await onSupplierFilterChange();
+        } else {
+            setTimeout(() => router.reload(), 1000);
+        }
     } catch (error) {
         showNotification('error', error.response?.data?.error || 'Ошибка при сохранении');
     }
 };
 
 const deleteMaterial = async (material) => {
-    if (!confirm(`Вы уверены, что хотите удалить материал "${material.name}"?`)) return;
+    if (!confirm(`Удалить материал "${material.name}"?`)) return;
     
     try {
         await axios.delete(`/api/accountant/materials/${material.id}`);
         showNotification('success', 'Материал удален');
-        setTimeout(() => router.reload(), 1000);
+        
+        if (selectedSupplierFilter.value) {
+            await onSupplierFilterChange();
+        } else {
+            setTimeout(() => router.reload(), 1000);
+        }
     } catch (error) {
         showNotification('error', error.response?.data?.error || 'Ошибка при удалении');
     }
@@ -491,12 +508,10 @@ const deleteMaterial = async (material) => {
 // Методы для закупки
 const addToOrder = (material) => {
     selectedMaterial.value = material;
-    // Предлагаем заказать до минимального остатка + 10%
     const suggestedQuantity = material.min_stock - material.current_balance > 0 
         ? material.min_stock - material.current_balance + Math.ceil(material.min_stock * 0.1)
         : material.min_stock;
     quantityToOrder.value = suggestedQuantity > 0 ? suggestedQuantity : 10;
-    // Используем цену поставщика, если есть, иначе цену продажи
     pricePerUnit.value = material.supplier_price || material.price_per_unit || 100;
     showQuantityModal.value = true;
 };
@@ -517,7 +532,6 @@ const confirmAddToOrder = () => {
             sale_price: selectedMaterial.value.price_per_unit
         });
     }
-    selectedMaterial.value.inOrder = true;
     showQuantityModal.value = false;
 };
 
@@ -541,8 +555,6 @@ const submitOrder = async () => {
         orderStatus.value = response.data.message;
         showNotification('success', response.data.message);
         orderItems.value = [];
-        
-        // Перезагружаем страницу через 2 секунды
         setTimeout(() => router.reload(), 2000);
     } catch (error) {
         orderStatus.value = 'Ошибка при создании заказа';
@@ -550,38 +562,16 @@ const submitOrder = async () => {
     }
 };
 
-const receiveOrder = async (orderId) => {
-    if (!confirm('Подтвердить получение заказа? Материалы будут добавлены на склад.')) return;
-    
-    try {
-        // Обновляем статус заказа на "получен"
-        await axios.put(`/api/accountant/orders/${orderId}/status`, { status: 2 });
-        showNotification('success', 'Заказ принят на склад');
-        setTimeout(() => router.reload(), 1000);
-    } catch (error) {
-        showNotification('error', error.response?.data?.error || 'Ошибка при приемке заказа');
-    }
-};
-
-// При загрузке страницы, если выбран поставщик, загружаем его материалы
-if (selectedSupplierFilter.value) {
-    onSupplierFilterChange();
-}
+// Инициализация
+onMounted(() => {
+    currentMaterials.value = props.materials || [];
+});
 </script>
 
 <style scoped>
 @keyframes slide-up {
-    from {
-        transform: translateY(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
-
-.animate-slide-up {
-    animation: slide-up 0.3s ease-out;
-}
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
 </style>

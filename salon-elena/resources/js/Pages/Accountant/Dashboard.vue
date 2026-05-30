@@ -57,7 +57,7 @@
                 </div>
             </div>
             
-            <!-- НОВАЯ КАРТОЧКА - НАЛОГИ -->
+            <!-- Налоговая карточка -->
             <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
                 <div class="flex items-center justify-between">
                     <div>
@@ -77,22 +77,8 @@
             </div>
         </div>
 
-        <!-- Остальные карточки статистики -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Критические материалы</p>
-                        <p class="text-2xl font-semibold text-yellow-600">{{ stats.critical_count }}</p>
-                    </div>
-                    <div class="p-3 bg-yellow-100 rounded-full">
-                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-            
+        <!-- Карточки статистики (без критических материалов) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
                 <div class="flex items-center justify-between">
                     <div>
@@ -106,9 +92,23 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Ожидает оплаты</p>
+                        <p class="text-2xl font-semibold text-yellow-600">{{ formatPrice(stats.pending_payments) }}</p>
+                    </div>
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Быстрые действия -->
+        <!-- Быстрые действия (без склада) -->
         <div class="mb-8">
             <div class="flex flex-wrap gap-4">
                 <Link href="/accountant/incomes" class="flex items-center gap-2 px-6 py-3 bg-[#3b82f6] text-white rounded-lg hover:bg-[#3b82f6]/90 transition">
@@ -123,22 +123,28 @@
                     </svg>
                     Расходы
                 </Link>
-                <Link href="/accountant/warehouse" class="flex items-center gap-2 px-6 py-3 bg-[#22c55e] text-white rounded-lg hover:bg-[#22c55e]/90 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-4.5M20 7v4.5M20 7l-6 6m-2-2l-4 4" />
-                    </svg>
-                    Заказать материалы
-                </Link>
                 <Link href="/accountant/salary" class="flex items-center gap-2 px-6 py-3 bg-[#f59e0b] text-white rounded-lg hover:bg-[#f59e0b]/90 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Рассчитать ЗП
                 </Link>
+                <Link href="/accountant/orders" class="flex items-center gap-2 px-6 py-3 bg-[#8b5cf6] text-white rounded-lg hover:bg-[#8b5cf6]/90 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                    </svg>
+                    Поставки
+                </Link>
+                <Link href="/accountant/suppliers" class="flex items-center gap-2 px-6 py-3 bg-[#10b981] text-white rounded-lg hover:bg-[#10b981]/90 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-4.5M20 7v4.5M20 7l-6 6m-2-2l-4 4" />
+                    </svg>
+                    Поставщики
+                </Link>
             </div>
         </div>
 
-        <!-- Блок последних операций с фильтрацией -->
+        <!-- Блок последних операций -->
         <div class="mb-8">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-semibold text-black dark:text-white">ПОСЛЕДНИЕ ОПЕРАЦИИ</h2>
@@ -207,32 +213,6 @@
             </div>
         </div>
 
-        <!-- Критические материалы -->
-        <div class="mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-semibold text-black dark:text-white">КРИТИЧЕСКИЕ МАТЕРИАЛЫ</h2>
-                <Link href="/accountant/warehouse" class="text-[#3b82f6] hover:underline">
-                    Весь склад →
-                </Link>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div v-for="material in criticalMaterials" :key="material.id" 
-                     class="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow border-l-4 border-red-500">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-semibold text-black dark:text-white">{{ material.name }}</h3>
-                            <p class="text-sm text-gray-500">Остаток: {{ material.current_balance }} {{ material.unit }}</p>
-                            <p class="text-xs text-gray-400">Мин. остаток: {{ material.min_stock }}</p>
-                        </div>
-                        <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Критично</span>
-                    </div>
-                </div>
-                <div v-if="criticalMaterials.length === 0" class="col-span-3 text-center py-8 text-gray-500">
-                    Все материалы в достаточном количестве
-                </div>
-            </div>
-        </div>
-
         <!-- Модальное окно налогового учета -->
         <Teleport to="body">
             <div v-if="showTaxModal" class="fixed inset-0 z-50 overflow-y-auto">
@@ -252,7 +232,7 @@
                         </div>
 
                         <div class="p-6">
-                            <!-- Выбор года - выпадающий список -->
+                            <!-- Выбор года -->
                             <div class="mb-6 flex flex-wrap gap-4 items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Выберите год:</label>
@@ -273,13 +253,13 @@
                                 </div>
                             </div>
 
-                            <!-- Загрузка данных -->
+                            <!-- Загрузка -->
                             <div v-if="loadingTax" class="text-center py-8">
                                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                                 <p class="mt-2 text-gray-500">Загрузка данных...</p>
                             </div>
 
-                            <!-- Таблица налогов по кварталам для выбранного года -->
+                            <!-- Таблица налогов -->
                             <div v-else-if="selectedYearData" class="border rounded-lg overflow-hidden">
                                 <div class="bg-gray-100 dark:bg-zinc-800 px-4 py-3">
                                     <h4 class="font-semibold text-lg">{{ selectedYearData.year }} год - поквартальная разбивка</h4>
@@ -299,21 +279,11 @@
                                         <tbody>
                                             <tr v-for="quarter in selectedYearData.quarters" :key="quarter.quarter" 
                                                 class="border-t border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
-                                                <td class="px-4 py-3 font-medium">
-                                                    {{ quarter.quarter }} квартал
-                                                </td>
-                                                <td class="px-4 py-3 text-sm text-gray-500">
-                                                    {{ quarter.start_date }} - {{ quarter.end_date }}
-                                                </td>
-                                                <td class="px-4 py-3 text-right font-medium text-green-600">
-                                                    {{ formatPrice(quarter.income) }}
-                                                </td>
-                                                <td class="px-4 py-3 text-right text-purple-600">
-                                                    {{ formatPrice(quarter.tax) }}
-                                                </td>
-                                                <td class="px-4 py-3 text-right text-blue-600">
-                                                    {{ formatPrice(quarter.profit) }}
-                                                </td>
+                                                <td class="px-4 py-3 font-medium">{{ quarter.quarter }} квартал</td>
+                                                <td class="px-4 py-3 text-sm text-gray-500">{{ quarter.start_date }} - {{ quarter.end_date }}</td>
+                                                <td class="px-4 py-3 text-right font-medium text-green-600">{{ formatPrice(quarter.income) }}</td>
+                                                <td class="px-4 py-3 text-right text-purple-600">{{ formatPrice(quarter.tax) }}</td>
+                                                <td class="px-4 py-3 text-right text-blue-600">{{ formatPrice(quarter.profit) }}</td>
                                             </tr>
                                             <tr class="border-t border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800 font-bold">
                                                 <td colspan="2" class="px-4 py-3">Итого за год</td>
@@ -330,7 +300,7 @@
                                 Нет данных по налогам за {{ selectedTaxYear }} год
                             </div>
                             
-                            <!-- Дополнительная информация -->
+                            <!-- Информация -->
                             <div class="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                                 <div class="flex items-start gap-3">
                                     <svg class="w-5 h-5 text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,7 +361,7 @@ const taxSummary = ref([]);
 const selectedTaxYear = ref(new Date().getFullYear());
 const loadingTax = ref(false);
 
-// Генерируем список доступных лет (от 2023 до текущий год + 5 лет вперед)
+// Генерируем список доступных лет
 const availableYears = computed(() => {
     const currentYearValue = new Date().getFullYear();
     const years = [];
@@ -406,7 +376,6 @@ const filteredOperations = computed(() => {
     return operations.value.filter(op => op.type === activeFilter.value);
 });
 
-// Получить данные для выбранного года
 const selectedYearData = computed(() => {
     return taxSummary.value.find(item => item.year === selectedTaxYear.value);
 });
@@ -441,22 +410,18 @@ const loadCurrentYearTax = async () => {
     }
 };
 
-// Загрузка налоговых данных для конкретного года
 const loadYearTaxData = async () => {
     if (!selectedTaxYear.value) return;
     
     loadingTax.value = true;
     try {
-        // Проверяем, есть ли уже данные для этого года в кэше
         const existingData = taxSummary.value.find(item => item.year === selectedTaxYear.value);
         
         if (!existingData) {
-            // Если данных нет, загружаем их
             const response = await axios.get('/api/accountant/tax/data', {
                 params: { period: 'year', year: selectedTaxYear.value }
             });
             
-            // Добавляем данные в общую сводку
             const newYearData = {
                 year: selectedTaxYear.value,
                 quarters: [],
@@ -465,7 +430,6 @@ const loadYearTaxData = async () => {
                 total_profit: response.data.profit_after_tax
             };
             
-            // Создаем квартальные данные
             for (let quarter = 1; quarter <= 4; quarter++) {
                 const quarterResponse = await axios.get('/api/accountant/tax/data', {
                     params: { period: 'quarter', year: selectedTaxYear.value, quarter: quarter }
@@ -483,7 +447,6 @@ const loadYearTaxData = async () => {
             }
             
             taxSummary.value.push(newYearData);
-            // Сортируем по году
             taxSummary.value.sort((a, b) => b.year - a.year);
         }
     } catch (error) {
@@ -493,14 +456,11 @@ const loadYearTaxData = async () => {
     }
 };
 
-// Загрузка полной налоговой сводки для всех годов
 const loadTaxSummary = async () => {
     loadingTax.value = true;
     try {
-        // Очищаем старые данные
         taxSummary.value = [];
         
-        // Загружаем данные для всех доступных годов
         for (const year of availableYears.value) {
             const response = await axios.get('/api/accountant/tax/data', {
                 params: { period: 'year', year: year }
@@ -514,7 +474,6 @@ const loadTaxSummary = async () => {
                 total_profit: response.data.profit_after_tax
             };
             
-            // Загружаем квартальные данные
             for (let quarter = 1; quarter <= 4; quarter++) {
                 const quarterResponse = await axios.get('/api/accountant/tax/data', {
                     params: { period: 'quarter', year: year, quarter: quarter }
@@ -534,9 +493,7 @@ const loadTaxSummary = async () => {
             taxSummary.value.push(yearData);
         }
         
-        // Сортируем по году (от новых к старым)
         taxSummary.value.sort((a, b) => b.year - a.year);
-        
     } catch (error) {
         console.error('Error loading tax summary:', error);
     } finally {
@@ -545,19 +502,16 @@ const loadTaxSummary = async () => {
 };
 
 const openTaxModal = async () => {
-    // Устанавливаем текущий год
     selectedTaxYear.value = new Date().getFullYear();
     showTaxModal.value = true;
     await loadTaxSummary();
 };
 
-// Экспорт налоговых данных в Excel
 const exportTaxToExcel = () => {
     if (!selectedYearData.value) return;
     
     const data = selectedYearData.value;
     const excelData = [
-        ['ELENA Beauty Clinic'],
         ['Налоговый учет'],
         [`Налоговая ставка: ${taxRate.value}% от дохода`],
         [],
@@ -566,7 +520,6 @@ const exportTaxToExcel = () => {
         ['Период', 'Даты', 'Доход (₽)', `Налог ${taxRate.value}% (₽)`, 'Прибыль после налога (₽)']
     ];
     
-    // Добавляем данные по кварталам
     data.quarters.forEach(quarter => {
         excelData.push([
             `${quarter.quarter} квартал`,
@@ -577,7 +530,6 @@ const exportTaxToExcel = () => {
         ]);
     });
     
-    // Добавляем итоговую строку
     excelData.push([
         'ИТОГО ЗА ГОД',
         '',
@@ -596,22 +548,12 @@ const exportTaxToExcel = () => {
     excelData.push(['Бухгалтер:', props.accountant?.employee_name || '']);
     
     const ws = XLSX.utils.aoa_to_sheet(excelData);
-    
-    // Настройка ширины колонок
-    ws['!cols'] = [
-        { wch: 12 },  // Период
-        { wch: 25 },  // Даты
-        { wch: 15 },  // Доход
-        { wch: 15 },  // Налог
-        { wch: 20 }   // Прибыль
-    ];
-    
+    ws['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Налоговый_учет_${data.year}`);
     XLSX.writeFile(wb, `Налоговый_учет_${data.year}.xlsx`);
 };
 
-// Следим за изменением фильтра
 watch(activeFilter, () => {
     loadOperations();
 });

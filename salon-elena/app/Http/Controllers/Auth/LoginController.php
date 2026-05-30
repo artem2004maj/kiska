@@ -46,7 +46,7 @@ class LoginController extends Controller
         if (Auth::guard('client')->attempt($clientCredentials, $remember)) {
             $request->session()->regenerate();
             Log::info('Client logged in', ['login' => $login]);
-            return redirect()->intended(route('client.dashboard'));
+            return redirect()->intended(route('dashboard.client'));
         }
 
         // Пытаемся авторизовать как сотрудника
